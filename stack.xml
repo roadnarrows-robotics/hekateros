@@ -1,0 +1,13 @@
+<stack>
+  <description brief="Hekateros Robotic Manipulator ROS stack"> 
+    A set of ROS packages to interface with the Hekateros family of 4DOF and 
+    5DOF robotic manipulators from RoadNarrows Robotics.
+  </description>
+  <author>Maintained by Robin Knight and Daniel Packard</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://roadnarrows.com/r-and-d/Hekateros/</url>
+  <depend stack="ros"/>
+  <!--depend stack="ompl" /!-->
+  <!--depend stack="et cetera... DHP ..." /!-->
+</stack>
