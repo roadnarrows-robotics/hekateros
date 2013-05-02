@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>hekateros_meta</name>
+  <name>hekateros</name>
   <version>0.0.1</version>
   <description>The Hekateros Robotic Manipulator ROS metapackage.</description>
   <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
@@ -14,7 +14,9 @@
   <author email="daniel@roadnarrows.com">daniel packard</author>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>hekateros_desc</build_depend>
+
+  <run_depends>hekateros_desc</run_depends>
+  <run_depends>dynamixel</run_depends>
 
   <export>
     <metapackage/>
