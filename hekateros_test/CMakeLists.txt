@@ -74,6 +74,14 @@ add_executable(listener src/listener.cxx)
 target_link_libraries(listener ${catkin_LIBRARIES})
 add_dependencies(talker hekateros_test_gencpp)
 
+add_executable(add_two_ints_server src/add_two_ints_server.cxx)
+target_link_libraries(add_two_ints_server ${catkin_LIBRARIES})
+add_dependencies(add_two_ints_server hekateros_test_gencpp)
+
+add_executable(add_two_ints_client src/add_two_ints_client.cxx)
+target_link_libraries(add_two_ints_client ${catkin_LIBRARIES})
+add_dependencies(add_two_ints_client hekateros_test_gencpp)
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(hekateros_test_node hekateros_test_generate_messages_cpp)
