@@ -15,9 +15,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <run_depends>hekateros_desc</run_depends>
-  <run_depends>dynamixel</run_depends>
-
   <export>
     <metapackage/>
   </export>
