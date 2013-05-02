@@ -2,7 +2,7 @@
 <package>
   <name>hekateros_test</name>
   <version>0.0.1</version>
-  <description>The hekateros_test package</description>
+  <description>The hekateros_test package - provides example code etc from ROS tutorials.</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
