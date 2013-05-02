@@ -15,6 +15,10 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
+  <run_depend>hekateros_desc</run_depend>
+  <run_depend>hekateros_test</run_depend>
+  <run_depend>dynamixel_controllers</run_depend>
+
   <export>
     <metapackage/>
   </export>
