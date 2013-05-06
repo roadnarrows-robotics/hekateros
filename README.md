@@ -23,8 +23,9 @@ To get started with your robotic manipulator, or to try out some fun simulations
 
 * Install ROS on your system as described here: 
   * [http://www.ros.org/wiki/groovy/Installation/Ubuntu](http://www.ros.org/wiki/groovy/Installation/Ubuntu)
-* Be sure to install utilities for the new _catkin_ build system
-  * sudo apt-get install python-catkin python-wstool
+* Be sure to install utilities for the new _catkin_ build system, and to source the ROS configuration file:
+  * sudo apt-get install python-wstool
+  * sudo source /opt/ros/groovy/setup.bash
 
 * Install required RoadNarrows library dependencies:
   * TODO(dhp) - add instructions for roadnarrows apt repo)
