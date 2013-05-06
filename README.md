@@ -3,6 +3,8 @@ Hekateros
 
 A collection of [ROS](http://ros.org) packages for the Hekateros family of Robotic Manipulators.
 
+![Hekateros 5DOF Manipulator](http://www.roadnarrows.com/r-and-d/Hekateros/img/Hek_Reflect.png)
+
 Learn more about Hekateros on the [RoadNarrows R&D - Hekateros](http://roadnarrows.com/r-and-d/Hekateros/) page.
 
 Visit the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html) to get your very own!
