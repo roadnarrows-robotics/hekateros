@@ -10,12 +10,11 @@ See the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html)
 #Quick Start:
 These packages have been developed and tested under _Ubuntu 12.04_.
 
-To get started:
-  * Install ROS on your system as described here: 
-    * [http://www.ros.org/wiki/groovy/Installation/Ubuntu](http://www.ros.org/wiki/groovy/Installation/Ubuntu)
-  * Be sure to install utilities for the new _catkin_ build system
-    * a
-    * b
+* Install ROS on your system as described here: 
+  * [http://www.ros.org/wiki/groovy/Installation/Ubuntu](http://www.ros.org/wiki/groovy/Installation/Ubuntu)
+* Be sure to install utilities for the new _catkin_ build system
+  * a
+  * b
   
 
 
