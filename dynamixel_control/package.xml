@@ -16,12 +16,4 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <run_depend>hekateros_control</run_depend>
-  <run_depend>hekateros_desc</run_depend>
-  <run_depend>hekateros_launch</run_depend>
-  <run_depend>hekateros_desc</run_depend>
-  <run_depend>hekateros_sim</run_depend>
-  <run_depend>hekateros_tutorials</run_depend>
-  <run_depend>dynamixel_controllers</run_depend>
-
 </package>
