@@ -5,10 +5,14 @@ A collection of [ROS](http://ros.org) packages for the Hekateros family of Robot
 
 Learn more about Hekateros on the [RoadNarrows R&D - Hekateros](http://roadnarrows.com/r-and-d/Hekateros/) page.
 
-See the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html) to get your very own!
+Visit the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html) to get your very own!
 
 #Quick Start:
-These packages have been developed and tested under _Ubuntu 12.04 64-bit_.
+The hekateros ROS packages have been developed and tested using:
+ * _Ubuntu 12.04 64-bit_
+ * _ROS Groovy Galapagos_ 
+
+This is the recommended configuration for developing applications with RoadNarrows products. To get started with your robotic manipulator, or to try out some fun simulations - 
 
 * Install ROS on your system as described here: 
   * [http://www.ros.org/wiki/groovy/Installation/Ubuntu](http://www.ros.org/wiki/groovy/Installation/Ubuntu)
@@ -37,6 +41,8 @@ These packages have been developed and tested under _Ubuntu 12.04 64-bit_.
   * minimal launch
   * ??? Chess ??? Dance ???
 
+* Contribute!
+  * When developing your own software for Hekateros, we recommend forking the official github repository. If you develop some new application or functionality, we would greatly appreciate notifying RoadNarrows by issuing a "pull request"
 
 
 
