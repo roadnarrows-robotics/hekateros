@@ -12,7 +12,7 @@ The hekateros ROS packages have been developed and tested using:
  * _Ubuntu 12.04 64-bit_
  * _ROS Groovy Galapagos_ 
 
-As of 5/4/2013, this is the recommended system configuration for developing applications with RoadNarrows products. To get started with your robotic manipulator, or to try out some fun simulations - 
+To get started with your robotic manipulator, or to try out some fun simulations:
 
 * Install Ubuntu 12.04
 
