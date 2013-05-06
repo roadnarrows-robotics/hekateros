@@ -1,7 +1,7 @@
 Hekateros
 =============
 
-A collection of [ROS](http://ros.org) packages for the Hekateros family of Robotic Manipulators, including both simulations and real-world applications.
+A collection of [ROS](http://ros.org) packages for the Hekateros family of Robotic Manipulators, including simulations and real-world applications. Hekateros is available in 4DOF and 5DOF configurations.
 
 ![Hekateros 5DOF Manipulator](http://www.roadnarrows.com/r-and-d/Hekateros/img/Hek_Reflect.png)
 
@@ -14,7 +14,7 @@ The hekateros ROS packages were developed under:
  * _Ubuntu 12.04 64-bit_
  * _ROS Groovy Galapagos_ 
 
-To get started with your robotic manipulator, or to try out some fun simulations:
+To get started with your robotic manipulator, or to take virtual Hekateros for a test spin:
 * Install Ubuntu 12.04 (Long Term Support LTS) 64-Bit:
   * [ubuntu.com](http://www.ubuntu.com/download/desktop)
 * Install ROS on your system as described here: 
