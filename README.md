@@ -10,7 +10,7 @@ Learn more about Hekateros on the [RoadNarrows R&D - Hekateros](http://roadnarro
 Visit the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html) to get your very own!
 
 #Quick Start:
-The hekateros ROS packages have been developed and tested using:
+The hekateros ROS packages have been developed using:
  * _Ubuntu 12.04 64-bit_
  * _ROS Groovy Galapagos_ 
 
