@@ -22,6 +22,8 @@ To get started with your robotic manipulator, or to try out some fun simulations
 * Be sure to install utilities for the new _catkin_ build system, and to source the ROS configuration file:
   * sudo apt-get install python-wstool
   * sudo source /opt/ros/groovy/setup.bash
+* It is helpful to understand the basics about ROS before moving on. Follow some of the tutorials here:
+  * [http://www.ros.org/wiki/ROS/Tutorials](http://www.ros.org/wiki/ROS/Tutorials)
 * Install required RoadNarrows library dependencies:
   * TODO(dhp) - add instructions for roadnarrows apt repo)
 * Create a catkin workspace somewhere on your system (e.g. in your home directory) and add the Hekateros ROS packages to the workspace:
