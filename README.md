@@ -1,7 +1,7 @@
 Hekateros
 =============
 
-A collection of [ROS](http://ros.org) packages for the Hekateros family of Robotic Manipulators.
+A collection of [ROS](http://ros.org) packages for the Hekateros family of Robotic Manipulators, including both simulations and real-world applications.
 
 ![Hekateros 5DOF Manipulator](http://www.roadnarrows.com/r-and-d/Hekateros/img/Hek_Reflect.png)
 
