@@ -19,10 +19,9 @@ To get started with your robotic manipulator, or to try out some fun simulations
 * Install Ubuntu 12.04 (Long Term Support LTS) 64-Bit:
   * [ubuntu.com](http://www.ubuntu.com/download/desktop)
 
-* Install supporting libraries and applications:
-
 * Install ROS on your system as described here: 
   * [http://www.ros.org/wiki/groovy/Installation/Ubuntu](http://www.ros.org/wiki/groovy/Installation/Ubuntu)
+
 * Be sure to install utilities for the new _catkin_ build system, and to source the ROS configuration file:
   * sudo apt-get install python-wstool
   * sudo source /opt/ros/groovy/setup.bash
