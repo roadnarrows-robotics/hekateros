@@ -10,8 +10,8 @@
   <url type="website">http://roadnarrows.com/r-and-d/Hekateros</url>
   <url type="website">http://github.com/roadnarrows-robotics/hekateros</url>
 
-  <author email="daniel@roadnarrows.com">daniel packard</author>
   <author email="robin.knight@roadnarrows.com">robin knight</author>
+  <author email="daniel@roadnarrows.com">daniel packard</author>
 
   <buildtool_depend>catkin</buildtool_depend>
 
