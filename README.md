@@ -16,7 +16,8 @@ The hekateros ROS packages have been developed using:
 
 To get started with your robotic manipulator, or to try out some fun simulations:
 
-* Install Ubuntu 12.04
+* Install Ubuntu 12.04 (Long Term Support LTS) 64-Bit:
+  * [ubuntu.com](http://www.ubuntu.com/download/desktop)
 
 * Install supporting libraries and applications:
 
