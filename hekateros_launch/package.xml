@@ -2,7 +2,7 @@
 <package>
   <name>hekateros_launch</name>
   <version>0.0.1</version>
-  <description>The hekateros_launch package - provides hekateros launch files.</description>
+  <description>The hekateros_launch package - provides hekateros-specific launch files.</description>
 
   <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
   <license>BSD</license>
@@ -14,12 +14,4 @@
   <author email="daniel@roadnarrows.com">daniel packard</author>
 
   <buildtool_depend>catkin</buildtool_depend>
-
-  <build_depend>roscpp</build_depend>
-  <build_depend>rospy</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>message_generation</build_depend>
-
-  <run_depend>message_runtime</run_depend>
-
 </package>
