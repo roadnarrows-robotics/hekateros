@@ -1,0 +1,76 @@
+Panels:
+  - Class: rviz/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /RobotModel1
+        - /Axes1
+        - /Axes1/Status1
+      Splitter Ratio: 0.5
+    Tree Height: 843
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        base:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        upper_arm:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Name: RobotModel
+      Robot Description: robot_description
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Class: rviz/Axes
+      Enabled: true
+      Length: 1
+      Name: Axes
+      Radius: 0.1
+      Reference Frame: /upper_arm
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: /base
+  Name: root
+  Tools:
+    - Class: rviz/MoveCamera
+  Value: true
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 3.11968
+      Focal Point:
+        X: 0.174212
+        Y: 0.0217446
+        Z: 0.0430787
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.00520149
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz)
+      Yaw: 3.12722
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1092
+  Hide Left Dock: false
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd00000001000000000000010f000003dafc0200000001fb000000100044006900730070006c0061007900730100000028000003da000000dd00ffffff0000063a000003da00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Width: 1887
+  X: -756
+  Y: -507

@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<robot name="materials">
+
+  <link name="base">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hekateros_desc/stl/hek_4L_1.0/base.stl" 
+              scale="0.001 0.001 0.001"
+        />
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 0.5"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="upper_arm">
+    <visual>
+      <origin xyz="0.23 -0.02 0.29" rpy="1.5705 1.5705 -1.5705"/>
+      <geometry>
+        <mesh filename="package://hekateros_desc/stl/hek_4L_1.0/upper_arm.stl" 
+              scale="0.001 0.001 0.001"
+        />
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0 0 0.5"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="shoulder" type="revolute">
+    <parent link="base"/>
+    <child link="upper_arm"/>
+
+    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+  </joint>
+
+</robot>
+
