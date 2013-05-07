@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<KinBody name="HekaterosArm">
+  <modelsdir>../../models</modelsdir>
+
+  <Body name="Base1" type="static">
+    <Geom type="trimesh" modifiable="false">
+      <data>    hekateros/Base-Bottom.stl 0.001  </data>
+      <Render>  hekateros/Base-Bottom.stl 0.001  </Render>
+    </Geom>
+  </Body>
+
+  <Body name="Base2">
+    <Geom type="trimesh" modifiable="false">
+      <data>    hekateros/Base-Top.stl 0.001  </data>
+      <Render>  hekateros/Base-Top.stl 0.001  </Render>
+      <offsetFrom> Base </offsetFrom>
+      <Translation>-0.045 .06 0.053</Translation>
+    </Geom>
+  </Body>
+
+  <Joint circular="true" name="baseRotate" type="hinge">
+    <Body>Base1</Body>
+    <Body>Base2</Body>
+    <offsetfrom>Base2</offsetfrom>
+    <weight>4</weight>
+    <axis>0 0 1</axis>
+    <maxvel>3</maxvel>
+    <resolution>1</resolution>
+  </Joint>
+
+  <Body name="man">
+    <Geom type="trimesh" modifiable="false">
+      <diffuseColor>1 1 1</diffuseColor>
+      <data>    hekateros/Man.stl 0.001  </data>
+      <Render>  hekateros/Man.stl 0.001  </Render>
+      <offsetFrom> Base2 </offsetFrom>
+      <Translation>-0.083 0 0.13</Translation>
+      <quat>0.707106781 0.707106781 0 0</quat>
+      <quat>0.707106781 0 0 -0.707106781</quat>
+    </Geom>
+  </Body>
+  
+  <Joint name="manMount" type="hinge" enabled="true">
+    <Body>Base2</Body>
+    <Body>man</Body>
+    <offsetfrom>man</offsetfrom>
+    <limitsdeg>0 0</limitsdeg>
+  </Joint>
+
+  
+  <Body name="upperArm"> 
+    <Translation>.0 0.018 0.17</Translation>
+    <Geom type="trimesh" modifiable="false">
+      <Translation>-0.015  -0.018 .17</Translation>
+      <data>    hekateros/RN-HK-A-301.stl 0.001  </data>
+      <Render>  hekateros/RN-HK-A-301.stl 0.001  </Render>
+      <quat>0.707106781 0 0.707106781 0</quat>
+    </Geom>
+  </Body>
+
+  <Joint circular="false" name="shoulder" type="hinge">
+    <Body>Base2</Body>
+    <Body>upperArm</Body>
+    <offsetfrom>upperArm</offsetfrom>
+    <weight>4</weight>
+    <limitsdeg>-60 60</limitsdeg>
+    <axis>1 0 0</axis>
+    <maxvel>3</maxvel>
+    <resolution>1</resolution>
+  </Joint>
+
+  <Body name="forearm"> 
+    <Translation>-0.015 0.018 0.40</Translation>
+    <Geom type="trimesh" modifiable="false">
+      <data>    hekateros/Upper-Arm.stl 0.001  </data>
+      <Render>  hekateros/Upper-Arm.stl 0.001  </Render>
+      <Translation>0. -0.018 0.17</Translation>
+      <quat>0.707106781 0 0.707106781 0</quat>
+    </Geom>
+  </Body>
+
+  <Joint circular="false" name="elbow" type="hinge">
+    <Body>upperArm</Body>
+    <Body>forearm</Body>
+    <offsetfrom>forearm</offsetfrom>
+    <weight>4</weight>
+    <limitsdeg>-115 115</limitsdeg>
+    <axis>1 0 0</axis>
+    <maxvel>3</maxvel>
+    <resolution>1</resolution>
+  </Joint>
+
+  <Body name="endEffInterface"> 
+    <Translation>0.002 0.018 0.64</Translation>
+    <Geom type="trimesh" modifiable="false">
+      <data>    hekateros/RN-HK-A-205.stl 0.001  </data>
+      <Render>  hekateros/RN-HK-A-205.stl 0.001  </Render>
+      <Translation>0.002 0.0 0.02</Translation>
+      <quat>0 0 1 0</quat>
+    </Geom>
+  </Body>
+
+  <Joint circular="false" name="wristTilt" type="hinge">
+    <Body>forearm</Body>
+    <Body>endEffInterface</Body>
+    <offsetfrom>endEffInterface</offsetfrom>
+    <Translation> 0.15</Translation>
+    <weight>4</weight>
+    <limitsdeg>-90 90</limitsdeg>
+    <axis>1 0 0</axis>
+    <maxvel>3</maxvel>
+    <resolution>1</resolution>
+  </Joint>
+
+
+  <adjacent>Base1 Base2</adjacent>
+  <adjacent>Base2 upperArm</adjacent>
+  <adjacent>Base2 man</adjacent>
+  <adjacent>upperArm forearm</adjacent>
+  <adjacent>forearm endEffInterface</adjacent>
+
+</KinBody>
+

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<KinBody name="Graboid">
+
+  <modelsdir>../../models</modelsdir>
+
+  <Body name="graboidBase"> 
+    <Geom type="trimesh" modifiable="false">
+      <data>   hekateros/End-Effector.stl 0.001  </data>
+      <Render> hekateros/End-Effector.stl 0.001  </Render>
+      <quat>0.99 0 0 0.13</quat>
+    </Geom>
+  </Body>
+
+  <Body name="rightFinger"> 
+    <Translation>0.02 -0.0255555 -0.03</Translation>
+    <Geom type="trimesh" modifiable="false">
+      <data>   hekateros/Finger-Left.stl 0.001  </data>
+      <Render> hekateros/Finger-Left.stl 0.001  </Render>
+      <quat>0.707106781 -0.707106781 0 0</quat>
+    </Geom>
+  </Body>
+
+  <Body name="leftFinger"> 
+    <Translation>-0.02 -0.02 -0.03</Translation>
+    <Geom type="trimesh" modifiable="false">
+      <data>   hekateros/Finger-Right.stl 0.001  </data>
+      <Render> hekateros/Finger-Right.stl 0.001  </Render>
+      <quat>0.707106781 -0.707106781 0 0</quat>
+      <quat>0 0 0 1</quat>
+      <quat>.99 0 0.05 0</quat>
+    </Geom>
+  </Body>
+
+  <Joint circular="false" name="rFinger" type="hinge">
+    <Body>graboidBase</Body>
+    <Body>rightFinger</Body>
+    <offsetfrom>rightFinger</offsetfrom>
+    <weight>4</weight>
+    <limitsdeg>-90 0</limitsdeg>
+    <axis>0 1 0</axis>
+    <maxvel>3</maxvel>
+    <resolution>1</resolution>
+  </Joint>
+
+  <Joint name="lFinger" mimic_pos="-rFinger" mimic_vel="-rFinger" mimic_accel="-rFinger">
+    <Body>graboidBase</Body>
+    <Body>leftFinger</Body>
+    <offsetfrom>leftFinger</offsetfrom>
+    <axis>0 1 0</axis>
+  </Joint>
+
+  <adjacent>graboidBase lFinger</adjacent>
+  <adjacent>graboidBase rFinger</adjacent>
+  <adjacent>lFinger rFinger</adjacent>
+
+</KinBody>
+
