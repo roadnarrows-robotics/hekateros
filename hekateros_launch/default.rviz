@@ -6,10 +6,10 @@ Panels:
       Expanded:
         - /Global Options1
         - /RobotModel1
+        - /RobotModel1/Links1
         - /Axes1
-        - /Axes1/Status1
       Splitter Ratio: 0.5
-    Tree Height: 843
+    Tree Height: 663
 Visualization Manager:
   Class: ""
   Displays:
@@ -23,11 +23,16 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        upper_arm:
+        forearm:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
+        upper_arm:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: false
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -36,10 +41,10 @@ Visualization Manager:
       Visual Enabled: true
     - Class: rviz/Axes
       Enabled: true
-      Length: 1
+      Length: 3
       Name: Axes
-      Radius: 0.1
-      Reference Frame: /upper_arm
+      Radius: 0.01
+      Reference Frame: /forearm
       Value: true
   Enabled: true
   Global Options:
@@ -48,29 +53,30 @@ Visualization Manager:
   Name: root
   Tools:
     - Class: rviz/MoveCamera
+    - Class: rviz/FocusCamera
   Value: true
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 3.11968
+      Distance: 0.954837
       Focal Point:
-        X: 0.174212
-        Y: 0.0217446
-        Z: 0.0430787
+        X: 0.295456
+        Y: 0.0734956
+        Z: 0.491125
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.00520149
+      Pitch: -0.0699582
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.12722
+      Yaw: 3.25221
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1092
+  Height: 876
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd00000001000000000000010f000003dafc0200000001fb000000100044006900730070006c0061007900730100000028000003da000000dd00ffffff0000063a000003da00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
-  Width: 1887
-  X: -756
-  Y: -507
+  QMainWindow State: 000000ff00000000fd00000001000000000000010f00000326fc0200000001fb000000100044006900730070006c006100790073010000002800000326000000dd00ffffff000004ea0000032600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Width: 1535
+  X: 58
+  Y: 24
