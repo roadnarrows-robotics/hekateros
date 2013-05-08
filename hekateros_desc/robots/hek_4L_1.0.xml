@@ -84,7 +84,7 @@
     <parent link="upper_arm"/>
     <child link="forearm"/>
 
-    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+    <limit effort="30" velocity="1.0" lower="-1.9" upper="1.9" />
   </joint>
 
   <joint name="wrist_pitch" type="revolute">

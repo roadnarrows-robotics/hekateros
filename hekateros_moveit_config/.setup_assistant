@@ -1,6 +1,0 @@
-moveit_setup_assistant_config:
-  URDF:
-    package: hekateros_desc
-    relative_path: robots/hek_4L_1.0.xml
-  SRDF:
-    relative_path: config/hek_4L_1.0.srdf
