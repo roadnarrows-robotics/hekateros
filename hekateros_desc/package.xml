@@ -2,7 +2,7 @@
 <package>
   <name>hekateros_desc</name>
   <version>0.0.1</version>
-  <description>The hekateros_desc package - provides arm urdf description.</description>
+  <description>The hekateros_desc package - provides urdf descriptions of Hekateros.</description>
 
   <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
   <license>BSD</license>
