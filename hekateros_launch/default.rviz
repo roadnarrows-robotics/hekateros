@@ -9,7 +9,7 @@ Panels:
         - /RobotModel1/Links1
         - /Axes1
       Splitter Ratio: 0.5
-    Tree Height: 663
+    Tree Height: 987
 Visualization Manager:
   Class: ""
   Displays:
@@ -28,11 +28,21 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        tool_zero:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         upper_arm:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-          Value: false
+          Value: true
+        wrist_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -44,7 +54,7 @@ Visualization Manager:
       Length: 3
       Name: Axes
       Radius: 0.01
-      Reference Frame: /forearm
+      Reference Frame: /tool_zero
       Value: true
   Enabled: true
   Global Options:
@@ -58,25 +68,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 0.954837
+      Distance: 0.38586
       Focal Point:
-        X: 0.295456
-        Y: 0.0734956
-        Z: 0.491125
+        X: 0.200636
+        Y: -0.0177309
+        Z: 0.983782
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: -0.0699582
+      Pitch: 1.02408
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.25221
+      Yaw: 4.49153
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 876
+  Height: 1236
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd00000001000000000000010f00000326fc0200000001fb000000100044006900730070006c006100790073010000002800000326000000dd00ffffff000004ea0000032600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
-  Width: 1535
-  X: 58
+  QMainWindow State: 000000ff00000000fd00000001000000000000010f0000046afc0200000001fb000000100044006900730070006c00610079007301000000280000046a000000dd00ffffff0000057a0000046a00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Width: 1695
+  X: 163
   Y: 24

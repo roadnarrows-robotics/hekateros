@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot name="materials">
+<robot name="hek_4L_1.0">
 
   <link name="base">
     <visual>
@@ -10,7 +10,7 @@
         />
       </geometry>
       <material name="black">
-        <color rgba="0 0 0 0.8"/>
+        <color rgba="0 0 0 0.7"/>
       </material>
     </visual>
   </link>
@@ -24,7 +24,7 @@
         />
       </geometry>
       <material name="red">
-        <color rgba="0.8 0 0 0.8"/>
+        <color rgba="0.8 0 0 0.9"/>
       </material>
     </visual>
   </link>
@@ -38,7 +38,35 @@
         />
       </geometry>
       <material name="red">
-        <color rgba="0.8 0 0 0.8"/>
+        <color rgba="0.8 0 0 0.9"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="wrist_link">
+    <visual>
+      <origin xyz="0.0 0 -0.017" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hekateros_desc/stl/hek_4L_1.0/wrist.stl" 
+              scale="0.001 0.001 0.001"
+        />
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 0.9"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="tool_zero">
+    <visual>
+      <origin xyz="0 0.06 0" rpy="3.14159 0 0"/>
+      <geometry>
+        <mesh filename="package://hekateros_desc/stl/hek_4L_1.0/tool_zero.stl" 
+              scale="0.001 0.001 0.001"
+        />
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0 0 0.9"/>
       </material>
     </visual>
   </link>
@@ -52,9 +80,26 @@
   </joint>
 
   <joint name="elbow" type="revolute">
-    <origin xyz="-0.01 0.0 0.405" rpy="0 0 0"/>
+    <origin xyz="-0.015 0.0 0.405" rpy="0 0 0"/>
     <parent link="upper_arm"/>
     <child link="forearm"/>
+
+    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+  </joint>
+
+  <joint name="wrist_pitch" type="revolute">
+    <origin xyz="-0.005 0 0.40" rpy="0 0 0"/>
+    <parent link="forearm"/>
+    <child link="wrist_link"/>
+
+    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+  </joint>
+
+  <joint name="wrist_rot" type="continuous">
+    <origin xyz="0 0 0.025" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <parent link="wrist_link"/>
+    <child link="tool_zero"/>
 
     <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
   </joint>
