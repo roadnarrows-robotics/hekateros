@@ -153,7 +153,7 @@
     <parent link="gear_assembly"/>
     <child link="finger_R"/>
 
-    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+    <limit effort="30" velocity="1.0" lower="-1.57" upper="0" />
   </joint>
 
   <joint name="grip_mimic" type="revolute">
@@ -161,9 +161,9 @@
     <origin xyz="0.0 0.0 0.03" rpy="0 -1.575 0"/>
     <parent link="gear_assembly"/>
     <child link="finger_L"/>
-
+    
     <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
-    <mimic joint="grip"/>
+    <mimic joint="grip" multiplier="1"/>
   </joint>
 
 
