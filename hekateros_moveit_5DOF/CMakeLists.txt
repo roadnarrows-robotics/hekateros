@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(hekateros_moveit_config_tmp)
+project(hekateros_moveit_5DOF)
 
 find_package(catkin REQUIRED)
 

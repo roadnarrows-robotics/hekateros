@@ -7,7 +7,7 @@
   <param name="planning_plugin" value="$(arg planning_plugin)" />
   <param name="request_adapters" value="$(arg planning_adapters)" />
 
-  <rosparam command="load" file="$(find hekateros_moveit_config_tmp)/config/kinematics.yaml"/>
-  <rosparam command="load" file="$(find hekateros_moveit_config_tmp)/config/ompl_planning.yaml"/>
+  <rosparam command="load" file="$(find hekateros_moveit_5DOF)/config/kinematics.yaml"/>
+  <rosparam command="load" file="$(find hekateros_moveit_5DOF)/config/ompl_planning.yaml"/>
 
 </launch>

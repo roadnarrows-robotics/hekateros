@@ -1,8 +1,8 @@
 <launch>
 
   <node name="moveit_benchmark_server" pkg="moveit_ros_benchmarks" type="moveit_run_benchmark" respawn="false" output="screen">
-    <rosparam command="load" file="$(find hekateros_moveit_config_tmp)/config/kinematics.yaml"/>
-    <rosparam command="load" file="$(find hekateros_moveit_config_tmp)/config/ompl_planning.yaml"/>
+    <rosparam command="load" file="$(find hekateros_moveit_5DOF)/config/kinematics.yaml"/>
+    <rosparam command="load" file="$(find hekateros_moveit_5DOF)/config/ompl_planning.yaml"/>
   </node>
 
 </launch>

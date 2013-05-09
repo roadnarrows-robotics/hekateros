@@ -1,9 +1,9 @@
 <package>
 
-  <name>hekateros_moveit_config</name>
+  <name>hekateros_moveit_4DOF</name>
   <version>0.1.0</version>
   <description>
-     hekateros_moveit_config
+     hekateros_moveit_4DOF
   </description>
   <author email="assistant@moveit.ros.org">MoveIt Setup Assistant</author>
   <maintainer email="assistant@moveit.ros.org">MoveIt Setup Assistant</maintainer>
