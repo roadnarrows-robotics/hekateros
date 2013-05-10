@@ -8,3 +8,6 @@ Here you will find a collection of [ROS](http://ros.org) packages for the Hekate
 Learn more about Hekateros on the [RoadNarrows R&D - Hekateros](http://roadnarrows.com/r-and-d/Hekateros/) page.
 
 Visit the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html) to get your very own!
+
+Learn more about using the ROS Hekateros packages on the wiki: 
+ * [Quick Start Guide](https://github.com/roadnarrows-robotics/hekateros/wiki/Hekateros-Quick-Start-Guide)
