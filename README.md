@@ -1,7 +1,7 @@
 Hekateros - **ROS** Packages
 =============
 
-Here you will find a collection of [ROS](http://ros.org) packages for the Hekateros family of Robotic Manipulators, including simulations and real-world applications. Hekateros is available in 4DOF and 5DOF configurations.
+Here you will find a collection of [ROS](http://ros.org) packages for the Hekateros family of robotic manipulators, including simulations and real-world applications. Hekateros is available in 4DOF and 5DOF configurations.
 
 ![Hekateros 5DOF Manipulator](http://www.roadnarrows.com/r-and-d/Hekateros/img/Hek_Reflect.png)
 
