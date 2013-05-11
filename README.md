@@ -1,4 +1,4 @@
-Hekateros
+Hekateros - **ROS** Packages
 =============
 
 Here you will find a collection of [ROS](http://ros.org) packages for the Hekateros family of Robotic Manipulators, including simulations and real-world applications. Hekateros is available in 4DOF and 5DOF configurations.
