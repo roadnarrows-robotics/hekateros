@@ -12,5 +12,4 @@ Visit the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.htm
 ***
 
 To get up and running quickly:
- * [**Quick Start Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS:-Hekateros-Quick-Start-Guide)
- * [**Quick Start Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Examples
+ * [**Quick Start Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS:-Hekateros-Quick-Start)
