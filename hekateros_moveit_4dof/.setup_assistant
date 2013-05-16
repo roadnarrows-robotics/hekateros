@@ -4,3 +4,5 @@ moveit_setup_assistant_config:
     relative_path: robots/hek_4L_1.0.xml
   SRDF:
     relative_path: config/hek_4L_1.0.srdf
+  CONFIG:
+    generated_timestamp: 1368717551
