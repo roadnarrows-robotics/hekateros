@@ -2,7 +2,7 @@
 <package>
   <name>hekateros_control</name>
   <version>0.0.1</version>
-  <description>The hekateros_control package - provides the hekateros control interface.</description>
+  <description>Provides the hekateros hardware control interface.</description>
 
   <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
   <license>BSD</license>
