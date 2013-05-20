@@ -2,7 +2,7 @@
 <package>
   <name>hekateros_launch</name>
   <version>0.0.1</version>
-  <description>The hekateros_launch package - provides hekateros ROS launch files.</description>
+  <description>Provides hekateros ROS launch files.</description>
 
   <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
   <author email="robin.knight@roadnarrows.com">robin knight</author>
