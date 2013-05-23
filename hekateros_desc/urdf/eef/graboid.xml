@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<robot name="hek_4L_1.0">
+
+  <link name="gear_assembly">
+    <visual>
+      <origin xyz="0 0 0.02" rpy="0 -1.575 3.14159"/>
+      <geometry>
+        <mesh filename="package://hekateros_desc/stl/graboid/gear_assembly.stl" 
+              scale="0.001 0.001 0.001"
+        />
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 0.7"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="finger_R">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 -1.7"/>
+      <geometry>
+        <mesh filename="package://hekateros_desc/stl/graboid/finger_R.stl" 
+              scale="0.001 0.001 0.001"
+        />
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0 0 0.9"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="finger_L">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 -3.141 -1.575"/>
+      <geometry>
+        <mesh filename="package://hekateros_desc/stl/graboid/finger_L.stl" 
+              scale="0.001 0.001 0.001"
+        />
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0 0 0.9"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="grip" type="revolute">
+    <axis xyz="0 0 1"/>
+    <origin xyz="0.005 -0.04 0.03" rpy="0 -1.575 0"/>
+    <parent link="gear_assembly"/>
+    <child link="finger_R"/>
+
+    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+  </joint>
+
+  <joint name="grip_mimic" type="revolute">
+    <axis xyz="0 0 1"/>
+    <origin xyz="0.0 0.0 0.03" rpy="0 -1.575 0"/>
+    <parent link="gear_assembly"/>
+    <child link="finger_L"/>
+
+    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+    <mimic joint="grip"/>
+  </joint>
+
+</robot>
+
