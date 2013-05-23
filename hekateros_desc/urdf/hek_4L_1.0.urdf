@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot name="hek_4L_1.0">
 
-  <link name="base">
+  <link name="base_footprint">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
@@ -73,7 +73,7 @@
 
   <joint name="shoulder" type="revolute">
     <origin xyz="0.23 -0.04 0.11" rpy="0 0 0"/>
-    <parent link="base"/>
+    <parent link="base_footprint"/>
     <child link="upper_arm"/>
 
     <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
