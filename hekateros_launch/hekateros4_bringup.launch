@@ -1,0 +1,12 @@
+<launch>
+  <arg name="ip_address" default="hekateros" />
+  <arg name="urdf" default="hek_4L_1.0.urdf" />
+  <param name="robot_ip_address" value="$(arg ip_address)" type="str" />
+  <param name="robot_description" value="$(arg urdf)" type="str" />
+
+  <machine name="hekateros" address="$(arg ip_address)">
+  </machine>
+
+  <node machine="hekateros" name="hekateros_control" pkg="hekateros_control"
+        type="hekateros_control_server" />
+</launch>
