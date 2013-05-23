@@ -1,6 +1,7 @@
 <launch>
   <arg name="ip_address" default="hekateros" />
-  <arg name="urdf" default="hek_4L_1.0.urdf" />
+  <arg name="urdf" default="$(find hekateros_desc)/urdf/hek_4L_1.0.urdf" />
+
   <param name="robot_ip_address" value="$(arg ip_address)" type="str" />
   <param name="robot_description" value="$(arg urdf)" type="str" />
 
