@@ -6,7 +6,7 @@ Here you will find a collection of [ROS](http://ros.org) packages for the Hekate
 To get up and running with a new Hekateros:
  * [**Quick Start Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Quick-Start-Guide)
 
-![Hekateros 5DOF Manipulator](http://www.roadnarrows.com/r-and-d/Hekateros/img/Hek_Reflect.png)
+![Hekateros 5DOF Manipulator](http://www.roadnarrows.com/r-and-d/Hekateros/img/hek_git.png)
 
 Learn more about Hekateros on the [RoadNarrows R&D - Hekateros](http://roadnarrows.com/r-and-d/Hekateros/) page.
 
