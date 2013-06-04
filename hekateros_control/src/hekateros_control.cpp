@@ -4,6 +4,8 @@
 
 #include "ros/ros.h"
 
+#include "rnr/rnrconfig.h"
+
 #include "hekateros_control/QueryVersion.h"
 #include "hekateros_control/Version.h"
 

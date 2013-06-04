@@ -6,6 +6,12 @@ project(hekateros_control)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs message_generation)
 
+# RDK, DHP TODO Create rnrpkgConfig.cmake
+find_library(
+  rnr_LIBRARIES
+  NAMES hekateros Dynamixel botsense netmsgs rnr_appkit rnr
+  PATHS /prj/lib /prj/lib/rnr)
+
 ## System dependencies are found with CMake's conventions
 ## this is where rnr deps will go
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -56,15 +62,19 @@ catkin_package(
 ###########
 ## Build ##
 ###########
-include_directories(include ${catkin_INCLUDE_DIRS})
+include_directories(include /prj/include ${catkin_INCLUDE_DIRS})
 
-add_executable(hekateros_control_server src/hekateros_control_server.cxx)
-target_link_libraries(hekateros_control_server ${catkin_LIBRARIES})
-add_dependencies(hekateros_control_server hekateros_control_server_gencpp)
+add_executable(hekateros_control src/hekateros_control.cpp)
+target_link_libraries(
+  hekateros_control 
+  ${rnr_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+add_dependencies(hekateros_control hekateros_control_gencpp)
 
-add_executable(hekateros_control_client src/hekateros_control_client.cxx)
-target_link_libraries(hekateros_control_client ${catkin_LIBRARIES})
-add_dependencies(hekateros_control_client hekateros_control_client_gencpp)
+#add_executable(hekateros_control_client src/hekateros_control_client.cxx)
+#target_link_libraries(hekateros_control_client ${catkin_LIBRARIES})
+#add_dependencies(hekateros_control_client hekateros_control_client_gencpp)
 
 #add_executable(hekateros_control_node src/hekateros_control_node.cxx)
 #target_link_libraries(hekateros_control_node ${catkin_LIBRARIES})
