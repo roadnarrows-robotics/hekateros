@@ -10,7 +10,8 @@ find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs message_generation
 find_library(
   rnr_LIBRARIES
   NAMES hekateros Dynamixel botsense netmsgs rnr_appkit rnr
-  PATHS /prj/lib /prj/lib/rnr)
+  PATHS /prj/lib /prj/lib/rnr
+)
 
 ## System dependencies are found with CMake's conventions
 ## this is where rnr deps will go
