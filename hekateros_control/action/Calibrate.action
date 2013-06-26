@@ -1,0 +1,5 @@
+---
+int8 rc
+---
+float32 percent_complete
+# DHP - include current arm pos? 
