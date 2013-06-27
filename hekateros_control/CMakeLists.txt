@@ -24,6 +24,8 @@ find_library(
   PATHS /prj/lib /prj/lib/rnr
 )
 
+catkin_python_setup()
+
 add_message_files(
   DIRECTORY msg
   FILES Version.msg
@@ -68,6 +70,11 @@ include_directories(
 
 add_executable(hekateros_control src/hekateros_control.cpp)
 add_executable(hekateros_control_client src/hekateros_control_client.cxx)
+
+install(
+  PROGRAMS scripts/test 
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 target_link_libraries(
   hekateros_control 
