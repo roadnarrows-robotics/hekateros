@@ -1,0 +1,5 @@
+#!/usr/bin/python
+
+import hekateros_control.test_mod
+
+hekateros_control.test_mod.hello()
