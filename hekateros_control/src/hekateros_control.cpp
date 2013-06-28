@@ -24,7 +24,6 @@ HekRobot *pRobot = NULL;
  */
 typedef actionlib::SimpleActionServer<hekateros_control::CalibrateAction> 
                                                                    CalibrateAS;
-
 /*!
  * \brief Calibrate Action Callback
  */
@@ -38,8 +37,15 @@ void CalibrateCB(const hekateros_control::CalibrateGoalConstPtr& req,
   as->setSucceeded();
 }
 
+
+/*!
+ *  \brief Hekatero ROS control node main 
+ */
 int main(int argc, char **argv)
 {
+  // set loglevel for RN libs
+  LOG_SET_THRESHOLD(LOG_LEVEL_DIAG3);
+
   ros::init(argc, argv, "hek_control_server");
   ros::NodeHandle nh_;
 
@@ -83,11 +89,13 @@ int main(int argc, char **argv)
     ROS_INFO("Robot connected.\n");
   }
 
+  /*
   // setup calibrate action server
   CalibrateAS calibAS(nh_, "calibrate", 
                        boost::bind(&CalibrateCB, _1, &calibAS), 
                        false);
   calibAS.start();
+  */
 
   ROS_INFO("Hekateros Control Server - ready for action!");
   ros::spin();
