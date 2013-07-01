@@ -3,7 +3,7 @@
   <arg name="load_robot_description" default="false"/>
 
   <!-- Load universal robotic description format (URDF) -->
-  <param if="$(arg load_robot_description)" name="robot_description" textfile="$(find hekateros_desc)/robots/hek_5L_1.0.xml" />
+  <param if="$(arg load_robot_description)" name="robot_description" textfile="$(find hekateros_desc)/urdf/hek_5L_1.0.urdf" />
       
   <!-- The semantic description that corresponds to the URDF -->
   <param name="robot_description_semantic" textfile="$(find hekateros_moveit_5dof)/config/hek_5L_1.0.srdf" />
