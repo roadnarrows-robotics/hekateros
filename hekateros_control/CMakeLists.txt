@@ -33,7 +33,7 @@ add_message_files(
 
 add_service_files(
   DIRECTORY srv
-  FILES QueryVersion.srv
+  FILES GetVersion.srv
 )
 
 add_action_files(
