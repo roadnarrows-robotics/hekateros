@@ -5,11 +5,13 @@ find_package(catkin
   REQUIRED COMPONENTS 
   actionlib
   actionlib_msgs
+  industrial_msgs
+  sensor_msgs
+  std_msgs 
   genmsg 
   message_generation 
   roscpp 
   rospy 
-  std_msgs 
 )
 
 find_package(Boost REQUIRED COMPONENTS system)
@@ -28,23 +30,29 @@ catkin_python_setup()
 
 add_message_files(
   DIRECTORY msg
-  FILES Version.msg
+  FILES 
+    Version.msg 
+    HekJointStateExtended.msg 
+    HekRobotStatusExtended.msg
+    ServoHealth.msg
 )
 
 add_service_files(
   DIRECTORY srv
-  FILES GetVersion.srv
+  FILES GetVersion.srv IsCalibrated.srv
 )
 
-add_action_files(
-  DIRECTORY action 
-  FILES Calibrate.action
-)
+#add_action_files(
+#DIRECTORY action 
+#FILES 
+#)
 
 ## Generate added messages/services/actions with any dependencies listed here
 generate_messages(
   DEPENDENCIES
   actionlib_msgs
+  industrial_msgs
+  sensor_msgs
   std_msgs
   hekateros_control
 )
@@ -69,7 +77,6 @@ include_directories(
 )
 
 add_executable(hekateros_control src/hekateros_control.cpp)
-add_executable(hekateros_control_client src/hekateros_control_client.cxx)
 
 install(
   PROGRAMS scripts/test 
@@ -82,14 +89,7 @@ target_link_libraries(
   ${catkin_LIBRARIES}
 )
 
-target_link_libraries(
-  hekateros_control_client
-  ${rnr_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
-
 add_dependencies(hekateros_control hekateros_control_gencpp)
-add_dependencies(hekateros_control_client hekateros_control_gencpp)
 
 #add_executable(hekateros_control_client src/hekateros_control_client.cxx)
 #target_link_libraries(hekateros_control_client ${catkin_LIBRARIES})

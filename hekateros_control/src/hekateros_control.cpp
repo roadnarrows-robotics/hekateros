@@ -1,80 +1,30 @@
 //
-//  TODO (dhp) - set header
+//  TODO (dhp) - set file header
 //
 #include <string>
 
 #include "ros/ros.h"
-
-#include "actionlib/server/simple_action_server.h"
-#include "control_msgs/FollowJointTrajectoryFeedback.h"
-
 #include "rnr/rnrconfig.h"
 #include "rnr/log.h"
 
-#include "hekateros_control/GetVersion.h"
+#include "sensor_msgs/JointState.h"
+#include "industrial_msgs/RobotStatus.h"
+#include "hekateros_control/HekJointStateExtended.h"
+#include "hekateros_control/HekRobotStatusExtended.h"
 
 #include "Hekateros/hekateros.h"
 #include "Hekateros/hekXmlCfg.h"
 #include "Hekateros/hekRobot.h"
 
+#include "hekateros_control.h"
+#include "hc_Bringup.h"
+#include "hc_Services.h"
+#include "hc_StatePub.h"
+#include "hc_FollowJointTrajectoryAS.h"
 
+
+using namespace ::std;
 using namespace ::hekateros;
-HekRobot *pRobot = NULL;
-
-/*!
- *  \brief Get the hekateros version and configuration
- */
-bool GetVersion(hekateros_control::GetVersion::Request  &req,
-                hekateros_control::GetVersion::Response &res)
-{
-  int maj, min, rev;
-  string verString;
-
-  // TODO DHP if(!pRobot->isDescLoaded())
-  if(false)
-  {
-    ROS_ERROR("Robot desc file not loaded - unable to determine version.");
-    return false;
-  }
-
-  pRobot->getVersion(maj, min, rev);
-  verString = pRobot->getVersion();
-
-  res.v.maj=maj;
-  res.v.min=min;
-  res.v.rev=rev;
-  res.v.configuration = verString;
-
-  return true;
-}
-
-/*!
- * \brief Update the current joint feedback states 
- */
-int updateJointTrajectoryFeedback(
-    control_msgs::FollowJointTrajectoryFeedback &feedback_states)
-{
-  int n=0; // number of joints reported
-
-  if(!pRobot->isCalibrated())
-  {
-    ROS_WARN("Hekateros not calibrated - joint states cannot be published.");
-    DHP return -1;
-  }
-
-  HekJointStatePoint states;
-  pRobot->getJointState(states);
-  
-  feedback_states.actual.positions.clear();
-  feedback_states.actual.velocities.clear();
-  for (n=0; n<states.getNumPoints(); ++n)
-  {
-    feedback_states.actual.positions.push_back(states[n].m_fPosition);
-    feedback_states.actual.velocities.push_back(states[n].m_fVelocity);
-  }
-
-  return n;
-}
 
 /*!
  *  \brief Hekatero ROS control node main 
@@ -82,81 +32,91 @@ int updateJointTrajectoryFeedback(
 int main(int argc, char **argv)
 {
   // set loglevel for RN libs
-  LOG_SET_THRESHOLD(LOG_LEVEL_DIAG1);
+  //LOG_SET_THRESHOLD(LOG_LEVEL_DIAG1);
 
   ros::init(argc, argv, "hek_control_server");
-  ros::NodeHandle nh_;
+  ros::NodeHandle n;
 
-  pRobot = new HekRobot;
+  pRobot = new HekRobot; // intialize global control robot
 
-  // hek bringup: load and parse hekateros.conf
-  // DHP TODO - make config_fn configurable as input param
-  string config_fn = "/etc/hekateros.conf"; 
-  HekXmlCfg xml;
-  if( xml.loadFile(config_fn) < 0 )
+  // TODO DHP -accept config filename as param
+  string config_fn = "/etc/hekateros.conf";
+  if( loadHekXml(config_fn) != 0)
   {
-    ROS_ERROR("Error: Loading XML file '%s' failed.", config_fn.c_str());
-    return -1; // DHP TODO - find suitable error code
-  }
-  else if( xml.setHekDescFromDOM(*pRobot->getHekDesc()) < 0 )
-  {
-    ROS_ERROR("Error: Setting robot description failed.");
-    return -1; // DHP TODO - find suitable error code
-  }
-  else if( pRobot->getHekDesc()->markAsDescribed() < 0 )
-  {
-    ROS_ERROR("Error: Failed to finalize descriptions.");
-    return -1; // DHP TODO - find suitable error code
-  }
-  else
-  {
-    ROS_INFO("Robot description loaded for %s - check!",
-       pRobot->getHekDesc()->getFullProdBrief().c_str());
+    ROS_FATAL("Unable to load Hekateros cfg file. Aborting node: %s", argv[0]);
+    return -1;
   }
 
-  //hek bringup: connect to robot
   // DHP TODO - make dev_name configurable as input param
   string dev_name = "/dev/ttyUSB0";
-  if( pRobot->connect(dev_name) < 0 )
+  if( connect(dev_name) != 0)
   {
-    ROS_ERROR("Error: Failed to connnect to '%s'.", dev_name.c_str());
-    return -1; // DHP TODO - find suitable error code
+    ROS_FATAL("Unable to connect to Hekateros. Aborting node: %s.", argv[0]);
+    return -1; // DHP
   }
-  else
-  {
-    ROS_INFO("Robot connected - check!");
-  }
-
 
   //
   // services 
-  ros::ServiceServer versionS = nh_.advertiseService("get_version", GetVersion);
+  ros::ServiceServer getVersionS = n.advertiseService("get_version", 
+                                                        GetVersion);
   ROS_INFO("get_version service - check!");
 
+  ros::ServiceServer isCalibratedS = n.advertiseService("is_calibrated", 
+                                                        IsCalibrated);
+
+  ROS_INFO("is_calibrated service - check!");
 
   //
   // published topics
-  ros::Publisher feedback_states_pub = 
-    nh_.advertise<control_msgs::FollowJointTrajectoryFeedback>("joint_states", 
-                                                               15);
+  ros::Publisher joint_states_pub = 
+    n.advertise<sensor_msgs::JointState>("joint_states", 10);
 
+  ros::Publisher joint_states_ex_pub = 
+    n.advertise<hekateros_control::HekJointStateExtended>(
+                                          "joint_states_ex", 10);
+
+  ros::Publisher robot_status_pub = 
+    n.advertise<industrial_msgs::RobotStatus>("robot_status", 10);
+
+  ros::Publisher robot_status_ex_pub = 
+    n.advertise<hekateros_control::HekRobotStatusExtended>(
+                                          "robot_status_ex", 10);
+
+  //
+  // Action Servers
+  FollowJointTrajectoryAS follow_joint_traj_as("follow_joint_traj_as", n);
   ROS_INFO("All systems go. Hekateros Control Server - ready for action!");
-  control_msgs::FollowJointTrajectoryFeedback feedback_states;
-  ros::Rate loop_rate(30);
+
+  // published data containers
+  sensor_msgs::JointState joint_states;
+  hekateros_control::HekJointStateExtended joint_states_ex;
+  industrial_msgs::RobotStatus robot_status;
+  hekateros_control::HekRobotStatusExtended robot_status_ex;
 
   int seq=0;
+  ros::Rate loop_rate(10);
   while(ros::ok())
   {
 
     int n;
-    if((n = updateJointTrajectoryFeedback(feedback_states)) > 0)
+    if((n = updateJointStates(joint_states, joint_states_ex)) > 0)
     {
-      ROS_INFO("Publishing state for %d joints", n);
-      feedback_states.header.seq=seq;
-      feedback_states.header.stamp=ros::Time::now();
-      feedback_states.header.frame_id="0";
-      feedback_states_pub.publish(feedback_states);
+      joint_states.header.seq=seq;
+      joint_states_pub.publish(joint_states);
+
+      joint_states_ex.header.seq=seq;
+      joint_states_ex_pub.publish(joint_states_ex);
     }
+
+    if(updateRobotStatus(robot_status, robot_status_ex) == 0)
+    {
+      robot_status.header.seq=seq;
+      robot_status_pub.publish(robot_status);
+
+      robot_status.header.seq=seq;
+      robot_status_ex_pub.publish(robot_status_ex);
+    }
+
 
     ros::spinOnce(); 
     loop_rate.sleep();
