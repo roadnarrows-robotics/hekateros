@@ -39,7 +39,7 @@ add_message_files(
 
 add_service_files(
   DIRECTORY srv
-  FILES GetVersion.srv IsCalibrated.srv
+  FILES GetVersion.srv IsCalibrated.srv IsDescLoaded.srv
 )
 
 #add_action_files(
