@@ -32,7 +32,7 @@ using namespace ::hekateros;
 int main(int argc, char **argv)
 {
   // set loglevel for RN libs
-  //LOG_SET_THRESHOLD(LOG_LEVEL_DIAG1);
+  LOG_SET_THRESHOLD(LOG_LEVEL_DIAG1);
 
   ros::init(argc, argv, "hek_control_server");
   ros::NodeHandle n;
@@ -57,14 +57,18 @@ int main(int argc, char **argv)
 
   //
   // services 
-  ros::ServiceServer getVersionS   = n.advertiseService("get_version", 
-                                                        GetVersion);
+  ros::ServiceServer getProductInfoS = n.advertiseService("get_product_info", 
+                                                        GetProductInfo);
 
   ros::ServiceServer isCalibratedS = n.advertiseService("is_calibrated", 
                                                         IsCalibrated);
 
-  ros::ServiceServer isDescLoaded  = n.advertiseService("is_desc_loaded", 
+  ros::ServiceServer isDescLoadedS = n.advertiseService("is_desc_loaded", 
                                                         IsDescLoaded);
+
+  // DHP - temp
+  ros::ServiceServer calibrateS    = n.advertiseService("calibrate", 
+                                                        Calibrate);
 
   // services TODO DHP -
   //    set_robot_mode
