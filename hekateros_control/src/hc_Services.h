@@ -3,7 +3,8 @@
 
 #include <string>
 
-#include "hekateros_control/GetVersion.h"
+#include "hekateros_control/Calibrate.h"
+#include "hekateros_control/GetProductInfo.h"
 #include "hekateros_control/IsCalibrated.h"
 #include "hekateros_control/IsDescLoaded.h"
 
@@ -16,8 +17,8 @@
 /*!
  *  \brief Get the hekateros version and configuration
  */
-bool GetVersion(hekateros_control::GetVersion::Request  &req,
-                hekateros_control::GetVersion::Response &res)
+bool GetProductInfo(hekateros_control::GetProductInfo::Request  &req,
+                    hekateros_control::GetProductInfo::Response &res)
 {
   int maj, min, rev;
   string verString;
@@ -32,10 +33,14 @@ bool GetVersion(hekateros_control::GetVersion::Request  &req,
   pRobot->getVersion(maj, min, rev);
   verString = pRobot->getVersion();
 
-  res.v.maj=maj;
-  res.v.min=min;
-  res.v.rev=rev;
-  res.v.configuration = verString;
+  res.i.version_string = verString;
+  res.i.maj=maj;
+  res.i.min=min;
+  res.i.rev=rev;
+
+  res.i.product_id = pRobot->getProdId();
+  res.i.product_name = pRobot->getProdName();
+  res.i.desc = pRobot->getFullProdBrief();
 
   return true;
 }
@@ -67,5 +72,25 @@ bool IsDescLoaded(hekateros_control::IsDescLoaded::Request  &req,
   
   return true;
 }
+
+/*!
+ *  \brief Request calibrate.
+ */
+bool Calibrate(hekateros_control::Calibrate::Request  &req,
+               hekateros_control::Calibrate::Response &res)
+{
+  if( pRobot->calibrate() < 0 )
+  {
+    printf("Error: Calibration failed.\n");
+    return false;
+  }
+  else
+  {
+    printf("Robot calibrated.\n");
+  }
+
+  return true;
+}
+
 
 #endif // _HC_SERVICES

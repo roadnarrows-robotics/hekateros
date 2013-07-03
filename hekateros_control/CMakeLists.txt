@@ -31,7 +31,7 @@ catkin_python_setup()
 add_message_files(
   DIRECTORY msg
   FILES 
-    Version.msg 
+    ProductInfo.msg 
     HekJointStateExtended.msg 
     HekRobotStatusExtended.msg
     ServoHealth.msg
@@ -39,7 +39,11 @@ add_message_files(
 
 add_service_files(
   DIRECTORY srv
-  FILES GetVersion.srv IsCalibrated.srv IsDescLoaded.srv
+  FILES
+    Calibrate.srv 
+    GetProductInfo.srv 
+    IsCalibrated.srv 
+    IsDescLoaded.srv
 )
 
 #add_action_files(
