@@ -5,6 +5,7 @@
 
 #include "hekateros_control/GetVersion.h"
 #include "hekateros_control/IsCalibrated.h"
+#include "hekateros_control/IsDescLoaded.h"
 
 #include "Hekateros/hekateros.h"
 #include "Hekateros/hekXmlCfg.h"
@@ -40,18 +41,28 @@ bool GetVersion(hekateros_control::GetVersion::Request  &req,
 }
 
 /*!
- *  \brief Get the hekateros version and configuration
+ *  \brief Check if Hekateros is [not] calibrated.
  */
 bool IsCalibrated(hekateros_control::IsCalibrated::Request  &req,
                   hekateros_control::IsCalibrated::Response &res)
 {
-  int maj, min, rev;
-  string verString;
-
-
   if((res.is_calibrated = pRobot->isCalibrated()) == false)
   {
     ROS_WARN("Hekateros Robot is uncalibrated.");
+  }
+  
+  return true;
+}
+
+/*!
+ *  \brief Check if Hekateros description is [not] loaded.
+ */
+bool IsDescLoaded(hekateros_control::IsDescLoaded::Request  &req,
+                  hekateros_control::IsDescLoaded::Response &res)
+{
+  if((res.is_desc_loaded = pRobot->isDescribed()) == false)
+  {
+    ROS_WARN("Hekateros Robot description file not loaded.");
   }
   
   return true;

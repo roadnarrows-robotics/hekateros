@@ -57,14 +57,23 @@ int main(int argc, char **argv)
 
   //
   // services 
-  ros::ServiceServer getVersionS = n.advertiseService("get_version", 
+  ros::ServiceServer getVersionS   = n.advertiseService("get_version", 
                                                         GetVersion);
-  ROS_INFO("get_version service - check!");
 
   ros::ServiceServer isCalibratedS = n.advertiseService("is_calibrated", 
                                                         IsCalibrated);
 
-  ROS_INFO("is_calibrated service - check!");
+  ros::ServiceServer isDescLoaded  = n.advertiseService("is_desc_loaded", 
+                                                        IsDescLoaded);
+
+  // services TODO DHP -
+  //    set_robot_mode
+  //    clear_alarms
+  //    estop
+  //    stop
+  //    is_described
+  //
+  ROS_INFO("services registered - check!");
 
   //
   // published topics
@@ -81,11 +90,14 @@ int main(int argc, char **argv)
   ros::Publisher robot_status_ex_pub = 
     n.advertise<hekateros_control::HekRobotStatusExtended>(
                                           "robot_status_ex", 10);
+  // publish TODO DHP - 
+  //    
+  ROS_INFO("published topics registered - check!");
 
   //
   // Action Servers
   FollowJointTrajectoryAS follow_joint_traj_as("follow_joint_traj_as", n);
-  ROS_INFO("All systems go. Hekateros Control Server - ready for action!");
+  ROS_INFO("FollowJointTrajectory Action Server registered - check!");
 
   // published data containers
   sensor_msgs::JointState joint_states;
