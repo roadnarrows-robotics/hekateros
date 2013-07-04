@@ -41,9 +41,15 @@ add_service_files(
   DIRECTORY srv
   FILES
     Calibrate.srv 
+    ClearAlarms.srv 
+    EStop.srv 
     GetProductInfo.srv 
+    IsAlarmed.srv 
     IsCalibrated.srv 
     IsDescLoaded.srv
+    Release.srv
+    SetRobotMode.srv
+    Stop.srv
 )
 
 #add_action_files(

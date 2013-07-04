@@ -20,8 +20,8 @@
 #include "hc_Bringup.h"
 #include "hc_Services.h"
 #include "hc_StatePub.h"
+#include "hc_Subscriptions.h"
 #include "hc_FollowJointTrajectoryAS.h"
-
 
 using namespace ::std;
 using namespace ::hekateros;
@@ -34,10 +34,10 @@ int main(int argc, char **argv)
   // set loglevel for RN libs
   LOG_SET_THRESHOLD(LOG_LEVEL_DIAG1);
 
-  ros::init(argc, argv, "hek_control_server");
-  ros::NodeHandle n;
+  ros::init(argc, argv, "hekateros_control");
+  ros::NodeHandle n("hekateros_control");
 
-  pRobot = new HekRobot; // intialize global control robot
+  //pRobot = new HekRobot; // intialize global control robot
 
   // TODO DHP -accept config filename as param
   string config_fn = "/etc/hekateros.conf";
@@ -57,19 +57,37 @@ int main(int argc, char **argv)
 
   //
   // services 
-  ros::ServiceServer getProductInfoS = n.advertiseService("get_product_info", 
-                                                        GetProductInfo);
+  ros::ServiceServer calibrate_ser     = n.advertiseService("calibrate", 
+                                                            Calibrate);
+  // TODO DHP - reimplement calibrate as an action server / non-blocking
 
-  ros::ServiceServer isCalibratedS = n.advertiseService("is_calibrated", 
-                                                        IsCalibrated);
+  ros::ServiceServer clear_alarms_ser   = n.advertiseService("clear_alarms", 
+                                                             ClearAlarms);
+ 
+  ros::ServiceServer estop_srv          = n.advertiseService("estop", 
+                                                             EStop);
+ 
+  ros::ServiceServer get_prod_info_ser  = n.advertiseService("get_product_info",
+                                                             GetProductInfo);
 
-  ros::ServiceServer isDescLoadedS = n.advertiseService("is_desc_loaded", 
-                                                        IsDescLoaded);
+  ros::ServiceServer is_alarmed_ser     = n.advertiseService("is_alarmed", 
+                                                             IsAlarmed);
 
-  // DHP - temp
-  ros::ServiceServer calibrateS    = n.advertiseService("calibrate", 
-                                                        Calibrate);
+  ros::ServiceServer is_calibrated_ser  = n.advertiseService("is_calibrated", 
+                                                             IsCalibrated);
 
+  ros::ServiceServer is_desc_ser        = n.advertiseService("is_desc_loaded", 
+                                                             IsDescLoaded);
+ 
+  ros::ServiceServer release_srv        = n.advertiseService("release", 
+                                                             Release);
+ 
+  ros::ServiceServer set_robot_mode_srv = n.advertiseService("set_robot_mode", 
+                                                             SetRobotMode);
+ 
+  ros::ServiceServer stop_srv           = n.advertiseService("stop", 
+                                                             Stop);
+ 
   // services TODO DHP -
   //    set_robot_mode
   //    clear_alarms
@@ -94,16 +112,20 @@ int main(int argc, char **argv)
   ros::Publisher robot_status_ex_pub = 
     n.advertise<hekateros_control::HekRobotStatusExtended>(
                                           "robot_status_ex", 10);
-  // publish TODO DHP - 
-  //    
   ROS_INFO("published topics registered - check!");
+
+  //
+  // subscribed topics
+  ros::Subscriber joint_command_sub = n.subscribe("joint_command", 1, 
+                                                  joint_commandCB);
+  ROS_INFO("subscribed topics registered - check!");
 
   //
   // Action Servers
   FollowJointTrajectoryAS follow_joint_traj_as("follow_joint_traj_as", n);
   ROS_INFO("FollowJointTrajectory Action Server registered - check!");
 
-  // published data containers
+  // containers for published data
   sensor_msgs::JointState joint_states;
   hekateros_control::HekJointStateExtended joint_states_ex;
   industrial_msgs::RobotStatus robot_status;

@@ -11,6 +11,6 @@
 #include "rnr/log.h"
 
 using namespace ::hekateros;
-HekRobot *pRobot = NULL; // one (application-global) robot to rule them all
+static HekRobot *pRobot = new HekRobot; // one (application-global) robot to rule them all
 
 #endif //  HEKATEROS_CONTROL_H_
