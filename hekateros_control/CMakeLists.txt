@@ -88,11 +88,6 @@ include_directories(
 
 add_executable(hekateros_control src/hekateros_control.cpp)
 
-install(
-  PROGRAMS scripts/test 
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
 target_link_libraries(
   hekateros_control 
   ${rnr_LIBRARIES}
@@ -101,9 +96,8 @@ target_link_libraries(
 
 add_dependencies(hekateros_control hekateros_control_gencpp)
 
-#add_executable(hekateros_control_client src/hekateros_control_client.cxx)
-#target_link_libraries(hekateros_control_client ${catkin_LIBRARIES})
-#add_dependencies(hekateros_control_client hekateros_control_client_gencpp)
+install(
+  PROGRAMS scripts/test 
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
-#add_executable(hekateros_control_node src/hekateros_control_node.cxx)
-#target_link_libraries(hekateros_control_node ${catkin_LIBRARIES})
