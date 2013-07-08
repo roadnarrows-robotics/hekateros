@@ -87,15 +87,11 @@ int main(int argc, char **argv)
  
   ros::ServiceServer stop_srv           = n.advertiseService("stop", 
                                                              Stop);
- 
+  ROS_INFO("services registered - check!");
+
   // services TODO DHP -
   //    set_robot_mode
   //    clear_alarms
-  //    estop
-  //    stop
-  //    is_described
-  //
-  ROS_INFO("services registered - check!");
 
   //
   // published topics

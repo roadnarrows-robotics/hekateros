@@ -15,8 +15,6 @@ using namespace ::hekateros;
 /*!
  * \brief Load Hekateros XML configuration file
  */
-  // hek bringup: load and parse hekateros.conf
-  // DHP TODO - make config_fn configurable as input param
 int loadHekXml(string filename)
 {
   int rc=0; // return code
@@ -49,6 +47,9 @@ int loadHekXml(string filename)
   return rc;
 }
 
+/*!
+ * \brief Connect to the hekateros robot
+ */
 int connect(string dev_name)
 {
   int rc=0; // return code

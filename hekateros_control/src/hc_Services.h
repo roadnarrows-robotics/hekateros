@@ -28,8 +28,8 @@ bool Calibrate(hekateros_control::Calibrate::Request  &req,
 {
   if(pRobot==NULL)
     fprintf(stderr, "\n\nUHOH\n\n");
-  // DHP - use nonblocking calb  - if( pRobot->nb_calibrate() < 0 )
-  if( pRobot->calibrate() < 0 )
+  //if( pRobot->calibrate() < 0 )
+  if( pRobot->calibrateAsync() < 0 )
   {
     ROS_ERROR("Calibration failed.");
     return false;
@@ -48,7 +48,7 @@ bool Calibrate(hekateros_control::Calibrate::Request  &req,
 bool ClearAlarms(hekateros_control::ClearAlarms::Request  &req,
                  hekateros_control::ClearAlarms::Response &res)
 {
-  // TODO DHP - pRobot->ClearAlarms();
+  // TODO DHP - pRobot->clearAlarms();
   ROS_WARN("ClearAlarm not yet implemented");
   return false;
 
