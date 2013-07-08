@@ -1,6 +1,8 @@
 #ifndef _HC_SUBSCRIPTIONS
 #define _HC_SUBSCRIPTIONS
 
+#include "ros/ros.h"
+
 #include "trajectory_msgs/JointTrajectoryPoint.h"
 #include "Hekateros/hekRobot.h"
 
@@ -8,7 +10,7 @@
 
 void joint_commandCB(const trajectory_msgs::JointTrajectoryPoint &joints)
 {
-  fprintf(stderr, "todo dhp - implement joint_commandCB\n");
+  ROS_WARN("joint_commandCB not yet implemented");
   return;
 }
 
