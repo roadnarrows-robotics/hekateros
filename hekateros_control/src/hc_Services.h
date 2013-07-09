@@ -48,9 +48,8 @@ bool Calibrate(hekateros_control::Calibrate::Request  &req,
 bool ClearAlarms(hekateros_control::ClearAlarms::Request  &req,
                  hekateros_control::ClearAlarms::Response &res)
 {
-  // TODO DHP - pRobot->clearAlarms();
-  ROS_WARN("ClearAlarm not yet implemented");
-  return false;
+  pRobot->clearAlarms();
+  return true;
 
 }
 

@@ -1,5 +1,5 @@
 ---
 int8 rc
 ---
-float32 percent_complete
-# DHP - include current arm pos? 
+string[]     name      
+HekOpState[] op_state

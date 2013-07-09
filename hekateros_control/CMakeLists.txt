@@ -31,6 +31,7 @@ catkin_python_setup()
 add_message_files(
   DIRECTORY msg
   FILES 
+    HekOpState.msg 
     ProductInfo.msg 
     HekJointStateExtended.msg 
     HekRobotStatusExtended.msg
@@ -52,10 +53,11 @@ add_service_files(
     Stop.srv
 )
 
-#add_action_files(
-#DIRECTORY action 
-#FILES 
-#)
+add_action_files(
+  DIRECTORY action 
+  FILES 
+    Calibrate.action
+)
 
 ## Generate added messages/services/actions with any dependencies listed here
 generate_messages(
