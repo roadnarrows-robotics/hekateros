@@ -1,5 +1,10 @@
 #ifndef _HC_STATE_PUB
 #define _HC_STATE_PUB
+
+#include "std_msgs/String.h"
+#include "hekateros_control/CalibrateAction.h"
+#include "hekateros_control/HekOpState.h"
+
 #include "sensor_msgs/JointState.h"
 #include "hekateros_control/HekJointStateExtended.h"
 
@@ -115,4 +120,27 @@ fprintf(stderr, "(!)-- dhp:but we're doing it anyway, until our testing arm is f
   return n;
 }
 
+/*!
+ * \brief Update the current joint states 
+ */
+int updateOpState(
+    std_msgs::String &names,
+    hekateros_control::CalibrateFeedback &fb)
+{
+
+  HekJointStatePoint states;
+  pRobot->getJointState(states);
+
+  fb.name.clear();
+  fb.op_state.clear();
+  
+  for (int n=0; n<states.getNumPoints(); ++n)
+  {
+    hekateros_control::HekOpState op;
+    op.calib_state = states[n].m_eOpState;
+    fb.name.push_back(states[n].m_strName);
+    fb.op_state.push_back(op);
+  }
+  
+}
 #endif // _HC_STATE_PUB

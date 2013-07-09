@@ -22,6 +22,7 @@
 #include "hc_StatePub.h"
 #include "hc_Subscriptions.h"
 #include "hc_FollowJointTrajectoryAS.h"
+#include "hc_CalibrateAS.h"
 
 using namespace ::std;
 using namespace ::hekateros;
@@ -87,7 +88,7 @@ int main(int argc, char **argv)
  
   ros::ServiceServer stop_srv           = n.advertiseService("stop", 
                                                              Stop);
-  ROS_INFO("services registered - check!");
+  ROS_INFO("services registered!");
 
   // services TODO DHP -
   //    set_robot_mode
@@ -100,26 +101,28 @@ int main(int argc, char **argv)
 
   ros::Publisher joint_states_ex_pub = 
     n.advertise<hekateros_control::HekJointStateExtended>(
-                                          "joint_states_ex", 10);
+                                         "joint_states_ex", 10);
 
   ros::Publisher robot_status_pub = 
-    n.advertise<industrial_msgs::RobotStatus>("robot_status", 10);
+    n.advertise<industrial_msgs::RobotStatus>(
+                                         "robot_status", 10);
 
   ros::Publisher robot_status_ex_pub = 
     n.advertise<hekateros_control::HekRobotStatusExtended>(
-                                          "robot_status_ex", 10);
-  ROS_INFO("published topics registered - check!");
+                                         "robot_status_ex", 10);
+  ROS_INFO("published topics registered!");
 
   //
   // subscribed topics
   ros::Subscriber joint_command_sub = n.subscribe("joint_command", 1, 
                                                   joint_commandCB);
-  ROS_INFO("subscribed topics registered - check!");
+  ROS_INFO("subscribed topics registered!");
 
   //
   // Action Servers
   FollowJointTrajectoryAS follow_joint_traj_as("follow_joint_traj_as", n);
-  ROS_INFO("FollowJointTrajectory Action Server registered - check!");
+  CalibrateAS             calibrate_as("calibrate_as", n);
+  ROS_INFO("Action Servers registered!");
 
   // containers for published data
   sensor_msgs::JointState joint_states;
