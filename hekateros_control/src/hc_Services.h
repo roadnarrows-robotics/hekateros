@@ -6,7 +6,11 @@
 #include "hekateros_control/Calibrate.h"
 #include "hekateros_control/ClearAlarms.h"
 #include "hekateros_control/EStop.h"
+#include "hekateros_control/Freeze.h"
 #include "hekateros_control/GetProductInfo.h"
+#include "hekateros_control/GotoBalancedPos.h"
+#include "hekateros_control/GotoParkedPos.h"
+#include "hekateros_control/GotoZeroPt.h"
 #include "hekateros_control/IsAlarmed.h"
 #include "hekateros_control/IsCalibrated.h"
 #include "hekateros_control/IsDescLoaded.h"
@@ -59,8 +63,19 @@ bool ClearAlarms(hekateros_control::ClearAlarms::Request  &req,
 bool EStop(hekateros_control::EStop::Request  &req,
                hekateros_control::EStop::Response &res)
 {
-  ROS_INFO("ESTOP!");
+  ROS_INFO("ESTOP! You must issue a clear_estop request to continue.");
   pRobot->estop();
+  return true;
+}
+
+/*!
+ *  \brief Request freeze
+ */
+bool Freeze(hekateros_control::Freeze::Request  &req,
+            hekateros_control::Freeze::Response &res)
+{
+  ROS_INFO("FREEZE!");
+  pRobot->freeze();
   return true;
 }
 
@@ -70,6 +85,7 @@ bool EStop(hekateros_control::EStop::Request  &req,
 bool GetProductInfo(hekateros_control::GetProductInfo::Request  &req,
                     hekateros_control::GetProductInfo::Response &res)
 {
+  ROS_INFO("Retrieving product info!");
   int maj, min, rev;
   string verString;
 
@@ -96,11 +112,47 @@ bool GetProductInfo(hekateros_control::GetProductInfo::Request  &req,
 }
 
 /*!
+ * \brief Go to hekateros balanced position
+ */
+bool GotoBalancedPos(hekateros_control::GotoBalancedPos::Request &req,
+                     hekateros_control::GotoBalancedPos::Response &rsp)
+{
+  ROS_INFO("Moving Hekateros to a balanced position.");
+  //pRobot->gotoBalancedPos();
+  ROS_WARN("wait for arm to be fixed before uncommenting this one.");
+  return true;
+}
+
+/*!
+ * \brief Go to hekateros parked position
+ */
+bool GotoParkedPos(hekateros_control::GotoParkedPos::Request &req,
+                   hekateros_control::GotoParkedPos::Response &rsp)
+{
+  ROS_INFO("Moving Hekateros to a parked position.");
+  //pRobot->gotoParkedPos();
+  ROS_WARN("wait for arm to be fixed before uncommenting this one.");
+  return true;
+}
+
+/*!
+ * \brief Go to hekateros balanced position
+ */
+bool GotoZeroPt(hekateros_control::GotoZeroPt::Request &req,
+                hekateros_control::GotoZeroPt::Response &rsp)
+{
+  ROS_INFO("Moving Hekateros to calibrated zero point.");
+  pRobot->gotoZeroPtPos();
+  return true;
+}
+
+/*!
  *  \brief Check if Hekateros is [not] alarmed.
  */
 bool IsAlarmed(hekateros_control::IsAlarmed::Request  &req,
                hekateros_control::IsAlarmed::Response &res)
 {
+  ROS_INFO("Checking Hekateros alarm state");
   if(res.is_alarmed = pRobot->isAlarmed())
   {
     ROS_WARN("Hekateros Robot is alarmed.");
@@ -115,6 +167,7 @@ bool IsAlarmed(hekateros_control::IsAlarmed::Request  &req,
 bool IsCalibrated(hekateros_control::IsCalibrated::Request  &req,
                   hekateros_control::IsCalibrated::Response &res)
 {
+  ROS_INFO("Checking Hekateros calibration state");
   if( !(res.is_calibrated = pRobot->isCalibrated()) )
   {
     ROS_WARN("Hekateros Robot is uncalibrated.");
@@ -129,6 +182,7 @@ bool IsCalibrated(hekateros_control::IsCalibrated::Request  &req,
 bool IsDescLoaded(hekateros_control::IsDescLoaded::Request  &req,
                   hekateros_control::IsDescLoaded::Response &res)
 {
+  ROS_INFO("Checking Hekateros description state");
   if( !(res.is_desc_loaded = pRobot->isDescribed()) )
   {
     ROS_WARN("Hekateros Robot description file not loaded.");
@@ -143,6 +197,7 @@ bool IsDescLoaded(hekateros_control::IsDescLoaded::Request  &req,
 bool Release(hekateros_control::Release::Request  &req,
              hekateros_control::Release::Response &res)
 {
+  ROS_INFO("Releasing Hekateros servos");
   pRobot->release();
   return true;
 }
@@ -153,19 +208,9 @@ bool Release(hekateros_control::Release::Request  &req,
 bool SetRobotMode(hekateros_control::SetRobotMode::Request  &req,
                   hekateros_control::SetRobotMode::Response &res)
 {
+  ROS_INFO("Setting robot mode.");
   // TODO DHP - pRobot->setRobotMode();
   ROS_WARN("SetRobotMode not yet implemented");
-  return false;
-}
-
-/*!
- *  \brief Request stop.
- */
-bool Stop(hekateros_control::Stop::Request  &req,
-               hekateros_control::Stop::Response &res)
-{
-  // TODO DHP - pRobot->stop();
-  ROS_WARN("Stop not yet implemented");
   return false;
 }
 

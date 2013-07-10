@@ -1,9 +1,14 @@
 #ifndef _HC_FOLLOW_JOINT_TRAJECTORY_AS
 #define _HC_FOLLOW_JOINT_TRAJECTORY_AS
+
+#include <unistd.h>
+
 #include "ros/ros.h"
 
 #include "actionlib/server/simple_action_server.h"
 #include "control_msgs/FollowJointTrajectoryAction.h"
+
+#include "Hekateros/hekTraj.h"
 
 #include "hekateros_control.h"
 
@@ -33,15 +38,30 @@ public:
   {
     ROS_INFO("Executing FollowJointTrajectory goal.");
     
-    //goal.m;
+    trajectory_msgs::JointTrajectory jt = goal->trajectory;
 
-      /*
     for(int i=0; i<jt.points.size(); ++i)
     {
+      HekJointTrajectoryPoint pt;
+
+      // load trajectory point
+      for(int j=0; j<jt.joint_names.size(); ++j)
+      {
+        pt.append(jt.joint_names[j],
+                  jt.points[i].positions[j], 
+                  jt.points[i].velocities[j]);
+        ROS_INFO("j = %d", j);
+      }
+      
       ROS_INFO("moving to trajectory point %d", i);
-      //pRobot->moveTo();
+      pRobot->moveArm(pt);
+
+      // temp fix - wait 2 seconds to reach set point
+      sleep(2);
+
     }
-      */
+
+    as_.setSucceeded();
 
   }
 
@@ -69,8 +89,6 @@ protected:
   control_msgs::JointTolerance goal_tol_;
 
   //std_msgs::Duration goal_time_tol_;
-
-
 
 };
 
