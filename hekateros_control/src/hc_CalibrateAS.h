@@ -37,17 +37,17 @@ public:
 
   void execute_cb(const hekateros_control::CalibrateGoalConstPtr &goal)
   {
-    ROS_WARN("execute_cb");
+    ROS_INFO("Executing Calibrate goal.");
     pRobot->calibrateAsync();
+
     while(pRobot->getAsyncState() && !(as_.isPreemptRequested()))
     {
-      ROS_WARN("calibrating");
       updateOpState(names_, feedback_);
       as_.publishFeedback(feedback_);
-      sleep(2);
+      sleep(1);
     }
 
-    ROS_WARN("done");
+    ROS_WARN("Calibration complete.");
     as_.setSucceeded();
 
     return;
@@ -55,14 +55,10 @@ public:
 
   void goal_cb()
   {
+    ROS_INFO("New calibration goal received.");
     pRobot->cancelAsyncTask();
-
-    ROS_INFO("waiting...");
-    sleep(1);
-    ROS_INFO("continuing!");
-
+    as_.setPreempted();
     as_.acceptNewGoal();
-    ROS_WARN("goal_cb");
   }
 
   void preempt_cb()
@@ -70,6 +66,7 @@ public:
     ROS_INFO("Calibration goal cancelled.");
     pRobot->cancelAsyncTask();
     as_.setPreempted();
+    as_.acceptNewGoal();
   }
 
 protected:
