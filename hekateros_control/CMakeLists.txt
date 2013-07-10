@@ -44,7 +44,11 @@ add_service_files(
     Calibrate.srv 
     ClearAlarms.srv 
     EStop.srv 
+    Freeze.srv 
     GetProductInfo.srv 
+    GotoBalancedPos.srv 
+    GotoParkedPos.srv 
+    GotoZeroPt.srv 
     IsAlarmed.srv 
     IsCalibrated.srv 
     IsDescLoaded.srv

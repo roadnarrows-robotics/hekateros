@@ -68,8 +68,20 @@ int main(int argc, char **argv)
   ros::ServiceServer estop_srv          = n.advertiseService("estop", 
                                                              EStop);
  
+  ros::ServiceServer freeze_srv         = n.advertiseService("freeze", 
+                                                             Freeze);
+ 
   ros::ServiceServer get_prod_info_ser  = n.advertiseService("get_product_info",
                                                              GetProductInfo);
+
+  ros::ServiceServer goto_balanced_ser  = n.advertiseService("goto_balanced",
+                                                             GotoBalancedPos);
+
+  ros::ServiceServer goto_parked_ser    = n.advertiseService("goto_parked",
+                                                             GotoParkedPos);
+
+  ros::ServiceServer goto_zero_ser      = n.advertiseService("goto_zero",
+                                                             GotoZeroPt);
 
   ros::ServiceServer is_alarmed_ser     = n.advertiseService("is_alarmed", 
                                                              IsAlarmed);
@@ -86,8 +98,6 @@ int main(int argc, char **argv)
   ros::ServiceServer set_robot_mode_srv = n.advertiseService("set_robot_mode", 
                                                              SetRobotMode);
  
-  ros::ServiceServer stop_srv           = n.advertiseService("stop", 
-                                                             Stop);
   ROS_INFO("services registered!");
 
   // services TODO DHP -
