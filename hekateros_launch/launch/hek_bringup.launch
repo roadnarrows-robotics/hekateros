@@ -1,0 +1,4 @@
+<launch>
+  <node name="hek_server" pkg="hekateros_control" type="hekateros_control"/>
+  <node name="hek_panel" pkg="hekateros_control" type="hek_panel"/>
+</launch>

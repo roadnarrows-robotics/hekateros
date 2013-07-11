@@ -6,37 +6,14 @@
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
 
-import actionlib
-import hekateros_control.msg
-import trajectory_msgs.msg
+from hekateros_control.calibrate_ac import *
 
-def hek_demo():
-    client = actionlib.SimpleActionClient( 
-            'hekateros_control/calibrate_as', 
-            hekateros_control.msg.CalibrateAction)
-
-    print "Waiting for action server"
-    client.wait_for_server()
-    print "Connected"
-
-    goal = hekateros_control.msg.CalibrateGoal()
-
-    # Sends the goal to the action server.
-    print "Sending calibrate action goal"
-    client.send_goal(goal)
-
-    # Waits for the server to finish performing the action.
-    print "Waiting for result"
-    client.wait_for_result()
-    print "Done!"
-
-    # Prints out the result of executing the action
-    return client.get_result()
+def feedback_h(fb):
+    print "Calibration Feedback: " + fb
 
 if __name__ == '__main__':
-    try:
-        rospy.init_node('calibrate_client')
-        result = hek_calib()
+    calib_client = calibrate_ac(timeout=2)
+    calib_client.request_calib(feedback_h)
 
-    except rospy.ROSInterruptException:
-        print "program interrupted before completion"
+    print calib_action.get_action_state()
+
