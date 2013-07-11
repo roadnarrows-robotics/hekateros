@@ -98,7 +98,7 @@ int main(int argc, char **argv)
   ros::ServiceServer set_robot_mode_srv = n.advertiseService("set_robot_mode", 
                                                              SetRobotMode);
  
-  ROS_INFO("services registered!");
+  ROS_INFO(" -- Services registered!");
 
   // services TODO DHP -
   //    set_robot_mode
@@ -120,19 +120,19 @@ int main(int argc, char **argv)
   ros::Publisher robot_status_ex_pub = 
     n.advertise<hekateros_control::HekRobotStatusExtended>(
                                          "robot_status_ex", 10);
-  ROS_INFO("published topics registered!");
+  ROS_INFO(" -- Published topics registered!");
 
   //
   // subscribed topics
   ros::Subscriber joint_command_sub = n.subscribe("joint_command", 1, 
                                                   joint_commandCB);
-  ROS_INFO("subscribed topics registered!");
+  ROS_INFO(" -- Subscribed topics registered!");
 
   //
   // Action Servers
   FollowJointTrajectoryAS follow_joint_traj_as("follow_joint_traj_as", n);
   CalibrateAS             calibrate_as("calibrate_as", n);
-  ROS_INFO("Action Servers registered!");
+  ROS_INFO(" -- Action servers registered!");
 
   // containers for published data
   sensor_msgs::JointState joint_states;
@@ -140,8 +140,12 @@ int main(int argc, char **argv)
   industrial_msgs::RobotStatus robot_status;
   hekateros_control::HekRobotStatusExtended robot_status_ex;
 
+  ROS_INFO(" -- Ready to calibrate Hekateros");
+  ROS_WARN(" -- Please put Hekateros in a safe position before calibrating.");
+  ROS_WARN(" -- See user manual: \"Calibrating Hekateros\" for guidance.");
+
   int seq=0;
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(5);
   while(ros::ok())
   {
 

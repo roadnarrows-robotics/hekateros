@@ -67,13 +67,6 @@ int updateJointStates(
 {
   int n=0; // number of joints reported
 
-  if(!pRobot->isCalibrated())
-  {
-    ROS_WARN("Hekateros not calibrated - joint states should not be trusted.");
-fprintf(stderr, "(!)-- dhp:but we're doing it anyway, until our testing arm is fixed\n\n");
-    // TODO DHP - return -1;
-  }
-
   HekJointStatePoint states;
   pRobot->getJointState(states);
   

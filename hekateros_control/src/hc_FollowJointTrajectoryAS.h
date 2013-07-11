@@ -22,8 +22,6 @@ public:
   action_name_(name)
   {
     //register the goal and feeback callbacks
-    as_.registerGoalCallback(
-        boost::bind(&FollowJointTrajectoryAS::goal_cb, this));
     as_.registerPreemptCallback(
         boost::bind(&FollowJointTrajectoryAS::preempt_cb, this));
 
@@ -56,10 +54,10 @@ public:
       ROS_INFO("moving to trajectory point %d", i);
       pRobot->moveArm(pt);
 
-      // temp fix - wait 2 seconds to reach set point
+      // temp fix - wait 2 seconds to reach each trajectory waypoint
       sleep(2);
 
-      // real - check state vs waypoint, send next point when near way point)
+      // real fix - check delta from goal, send next goal when near waypoint)
       //  while (delta > tol)
       //  { 
       //    sleep 0.1
@@ -71,14 +69,6 @@ public:
 
     as_.setSucceeded();
 
-  }
-
-  void goal_cb()
-  {
-    ROS_INFO("New FollowJointTrajectory goal received.");
-    pRobot->cancelAsyncTask();
-    as_.setPreempted();
-    as_.acceptNewGoal();
   }
 
   void preempt_cb()
