@@ -1,0 +1,44 @@
+#! /usr/bin/env python
+## 
+## Graphical panel to interface with the hekateros_control node.
+##
+
+import roslib; roslib.load_manifest('hekateros_control')
+import rospy
+
+import actionlib
+import hekateros_control.msg
+import trajectory_msgs.msg
+
+class hek_panel(object):
+    def __init__(self):
+        self.calib_cl = actionlib.SimpleActionClient( 
+                    'hekateros_control/calibrate_as', 
+                    hekateros_control.msg.CalibrateAction)
+
+    def run(self):
+        print "Waiting for action server"
+        if self.calib_cl.wait_for_server(rospy.Duration(1)):
+            print "Connected"
+        else:
+            print "Unable to connect"
+            return False
+
+
+        # Send goal to the action server.
+        goal = hekateros_control.msg.CalibrateGoal()
+        print "Sending calibrate action goal"
+        self.calib_cl.send_goal(goal)
+
+        # Waits for the server to finish performing the action.
+        print "Waiting for result"
+        self.calib_cl.wait_for_result()
+        print "Done!"
+
+        # Prints out the result of executing the action
+        return self.calib_cl.get_result()
+
+if __name__ == '__main__':
+    rospy.init_node('hek_panel')
+    t=hek_panel()
+    t.run()
