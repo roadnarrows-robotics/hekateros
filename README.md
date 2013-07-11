@@ -13,12 +13,3 @@ To get up and running with a new Hekateros, check out our docs in the Wiki:
 Learn more about Hekateros on the [RoadNarrows R&D - Hekateros](http://roadnarrows.com/r-and-d/Hekateros/) page.
 
 Visit the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html) to get your very own!
-
-***
-
-
-Once your system is configured, you can move on to some of the examples!
-
- * [**Examples**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Examples)
-
-***
