@@ -118,8 +118,7 @@ bool GotoBalancedPos(hekateros_control::GotoBalancedPos::Request &req,
                      hekateros_control::GotoBalancedPos::Response &rsp)
 {
   ROS_INFO("Moving Hekateros to a balanced position.");
-  //pRobot->gotoBalancedPos();
-  ROS_WARN("wait for arm to be fixed before uncommenting this one.");
+  pRobot->gotoBalancedPos();
   return true;
 }
 
@@ -130,8 +129,7 @@ bool GotoParkedPos(hekateros_control::GotoParkedPos::Request &req,
                    hekateros_control::GotoParkedPos::Response &rsp)
 {
   ROS_INFO("Moving Hekateros to a parked position.");
-  //pRobot->gotoParkedPos();
-  ROS_WARN("wait for arm to be fixed before uncommenting this one.");
+  pRobot->gotoParkedPos();
   return true;
 }
 
