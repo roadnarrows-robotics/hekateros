@@ -48,14 +48,14 @@ public:
         pt.append(jt.joint_names[j],
                   jt.points[i].positions[j], 
                   jt.points[i].velocities[j]);
-        ROS_INFO("j = %d", j);
+        ROS_INFO("j = %d pos=%2.1f speed=%2.1f", j, jt.points[i].positions[j]);
       }
       
       ROS_INFO("moving to trajectory point %d", i);
       pRobot->moveArm(pt);
 
       // temp fix - wait 2 seconds to reach each trajectory waypoint
-      sleep(2);
+      sleep(4);
 
       // real fix - check delta from goal, send next goal when near waypoint)
       //  while (delta > tol)
