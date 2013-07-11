@@ -90,6 +90,7 @@ fprintf(stderr, "(!)-- dhp:but we're doing it anyway, until our testing arm is f
   joint_states.effort.clear();
 
   // clear previous joint_states_ex data
+  joint_states_ex.name.clear();
   joint_states_ex.position.clear();
   joint_states_ex.velocity.clear();
   joint_states_ex.effort.clear();
