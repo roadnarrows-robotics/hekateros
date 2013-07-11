@@ -94,7 +94,9 @@ target_link_libraries(
 add_dependencies(hekateros_control hekateros_control_gencpp)
 
 install(
-  PROGRAMS scripts/test 
+  PROGRAMS 
+    scripts/joint_trajectory_demo 
+    scripts/calibrate_arm
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

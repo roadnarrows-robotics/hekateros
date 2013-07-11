@@ -1,0 +1,42 @@
+#! /usr/bin/env python
+## 
+## Demonstrate Hekateros' capabilities by executing a canned trajectory motion
+##
+
+import roslib; roslib.load_manifest('hekateros_control')
+import rospy
+
+import actionlib
+import hekateros_control.msg
+import trajectory_msgs.msg
+
+def hek_demo():
+    client = actionlib.SimpleActionClient( 
+            'hekateros_control/calibrate_as', 
+            hekateros_control.msg.CalibrateAction)
+
+    print "Waiting for action server"
+    client.wait_for_server()
+    print "Connected"
+
+    goal = hekateros_control.msg.CalibrateGoal()
+
+    # Sends the goal to the action server.
+    print "Sending calibrate action goal"
+    client.send_goal(goal)
+
+    # Waits for the server to finish performing the action.
+    print "Waiting for result"
+    client.wait_for_result()
+    print "Done!"
+
+    # Prints out the result of executing the action
+    return client.get_result()
+
+if __name__ == '__main__':
+    try:
+        rospy.init_node('calibrate_client')
+        result = hek_calib()
+
+    except rospy.ROSInterruptException:
+        print "program interrupted before completion"
