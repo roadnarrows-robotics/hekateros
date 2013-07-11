@@ -95,8 +95,9 @@ add_dependencies(hekateros_control hekateros_control_gencpp)
 
 install(
   PROGRAMS 
-    scripts/joint_trajectory_demo 
     scripts/calibrate_arm
+    scripts/hek_panel
+    scripts/joint_trajectory_demo 
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
