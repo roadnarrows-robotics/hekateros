@@ -23,8 +23,6 @@ public:
   action_name_(name)
   {
     //register the goal and feeback callbacks
-    as_.registerGoalCallback(
-        boost::bind(&CalibrateAS::goal_cb, this));
     as_.registerPreemptCallback(
         boost::bind(&CalibrateAS::preempt_cb, this));
 
@@ -37,7 +35,9 @@ public:
 
   void execute_cb(const hekateros_control::CalibrateGoalConstPtr &goal)
   {
-    ROS_INFO("Executing Calibrate goal.");
+    ROS_INFO(
+        "Executing Calibrate action - please standby.");
+
     pRobot->calibrateAsync();
 
     while(pRobot->getAsyncState() && !(as_.isPreemptRequested()))
@@ -47,18 +47,10 @@ public:
       sleep(1);
     }
 
-    ROS_WARN("Calibration complete.");
+    ROS_INFO("Calibration complete.");
     as_.setSucceeded();
 
     return;
-  }
-
-  void goal_cb()
-  {
-    ROS_INFO("New calibration goal received.");
-    pRobot->cancelAsyncTask();
-    as_.setPreempted();
-    as_.acceptNewGoal();
   }
 
   void preempt_cb()

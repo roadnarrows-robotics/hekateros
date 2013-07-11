@@ -5,15 +5,23 @@
 
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
+import time
+import sys
 
 from hekateros_control.calibrate_ac import *
 
 def feedback_h(fb):
-    print "Calibration Feedback: " + fb
+    rospy.logdebug(fb)
 
 if __name__ == '__main__':
     calib_client = calibrate_ac(timeout=2)
-    calib_client.request_calib(feedback_h)
+    calib_client.exec_calib(feedback_h)
 
-    print calib_action.get_action_state()
+    seq = 0
+    while calib_client.get_action_state()<3: # everyone <3's action states! 
+        sys.stderr.write(".")
+        time.sleep(2)
 
+    sys.stderr.write("\n")
+    rospy.loginfo("Calibration sequence complete!")
+    

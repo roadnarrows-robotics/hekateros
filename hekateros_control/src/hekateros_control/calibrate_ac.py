@@ -15,8 +15,7 @@ class calibrate_ac(object):
                     'hekateros_control/calibrate_as',
                     hekateros_control.msg.CalibrateAction)
                     
-    def request_calib(self, feedback_handler = None, timeout=1):
-        rospy.loginfo("Connecting to calibrate action server...")
+    def exec_calib(self, feedback_handler = None, timeout=1):
         if self.c.wait_for_server(rospy.Duration(timeout)):
             rospy.loginfo("Connected to calibrate action server!")
         else:
@@ -24,13 +23,14 @@ class calibrate_ac(object):
             rospy.logwarn("Is hekateros_control node running???")
             return false;
 
-        rospy.loginfo("Requesting calibrate action - please standby...")
+        rospy.loginfo("Requesting calibrate action")
         goal = hekateros_control.msg.CalibrateGoal()
         self.c.send_goal(goal, feedback_cb=feedback_handler)
+        rospy.loginfo("Calibrating - ")
         return True
 
     def cancel(self):
-        c.cancel_goal()
+        self.c.cancel_goal()
 
     def get_action_state(self):
         return self.c.get_state()
