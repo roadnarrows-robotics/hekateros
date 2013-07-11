@@ -21,40 +21,42 @@ def hek_demo():
 
     joint_traj = trajectory_msgs.msg.JointTrajectory()
 
-    joint_traj.joint_names.insert(0,'grip')
-    joint_traj.joint_names.insert(1,'wrist_rot')
-    joint_traj.joint_names.insert(2,'wrist_pitch')
+    joint_traj.joint_names.insert(0,'base_rot')
+    joint_traj.joint_names.insert(1,'shoulder')
+    joint_traj.joint_names.insert(2,'elbow')
+    joint_traj.joint_names.insert(3,'wrist_pitch')
+    joint_traj.joint_names.insert(4,'wrist_rot')
+    joint_traj.joint_names.insert(5,'grip')
 
     jtp1 = trajectory_msgs.msg.JointTrajectoryPoint()
-    jtp1.positions.insert(0,0.4); jtp1.velocities.insert(0,10)
-    jtp1.positions.insert(1,3.2); jtp1.velocities.insert(1, 100)
-    jtp1.positions.insert(2,1.5); jtp1.velocities.insert(2, 100)
+    jtp1.positions.insert(0, 0.1); jtp1.velocities.insert(2, 10)
+    jtp1.positions.insert(1,-0.1); jtp1.velocities.insert(2, 2)
+    jtp1.positions.insert(2, 0.2); jtp1.velocities.insert(2, 2)
+    jtp1.positions.insert(3,-0.2); jtp1.velocities.insert(2, 50)
+    jtp1.positions.insert(4, 1.6); jtp1.velocities.insert(1, 50)
+    jtp1.positions.insert(5, 0.4); jtp1.velocities.insert(0, 100)
 
     jtp2 = trajectory_msgs.msg.JointTrajectoryPoint()
-    jtp2.positions.insert(0,0.9); jtp2.velocities.insert(0,10)
-    jtp2.positions.insert(1,-3.2); jtp2.velocities.insert(1, 100)
-    jtp2.positions.insert(2,-1.5); jtp2.velocities.insert(2, 100)
+    jtp2.positions.insert(0,-0.1); jtp2.velocities.insert(2, 10)
+    jtp2.positions.insert(1, 0.1); jtp2.velocities.insert(2, 2)
+    jtp2.positions.insert(2,-0.2); jtp2.velocities.insert(2, 2)
+    jtp2.positions.insert(3, 0.2); jtp2.velocities.insert(2, 50)
+    jtp2.positions.insert(4,-1.6); jtp2.velocities.insert(1, 50)
+    jtp2.positions.insert(5, 0.4); jtp2.velocities.insert(0, 100)
     
     jtp3 = trajectory_msgs.msg.JointTrajectoryPoint()
-    jtp3.positions.insert(0,0.0); jtp3.velocities.insert(0,10)
-    jtp3.positions.insert(1,0.0); jtp3.velocities.insert(1, 100)
-    jtp3.positions.insert(2,0.0); jtp3.velocities.insert(2, 100)
-
-    jtp4 = trajectory_msgs.msg.JointTrajectoryPoint()
-    jtp4.positions.insert(0,0.4); jtp4.velocities.insert(0,5)
-    jtp4.positions.insert(1,0.0); jtp4.velocities.insert(1, 100)
-    jtp4.positions.insert(2,0.0); jtp4.velocities.insert(2, 100)
-
-    jtp5 = trajectory_msgs.msg.JointTrajectoryPoint()
-    jtp5.positions.insert(0,0.0); jtp5.velocities.insert(0,5)
-    jtp5.positions.insert(1,0.0); jtp5.velocities.insert(1, 100)
-    jtp5.positions.insert(2,0.0); jtp5.velocities.insert(2, 100)
+    jtp3.positions.insert(0, 0.0); jtp3.velocities.insert(2, 10)
+    jtp3.positions.insert(1, 0.0); jtp3.velocities.insert(2, 2)
+    jtp3.positions.insert(2, 0.0); jtp3.velocities.insert(2, 2)
+    jtp3.positions.insert(3, 0.0); jtp3.velocities.insert(2, 50)
+    jtp3.positions.insert(4, 0.0); jtp3.velocities.insert(1, 50)
+    jtp3.positions.insert(5, 0.0); jtp3.velocities.insert(0, 100)
 
     joint_traj.points.insert(0,jtp1)
     joint_traj.points.insert(1,jtp2)
     joint_traj.points.insert(2,jtp3)
-    joint_traj.points.insert(3,jtp4)
-    joint_traj.points.insert(4,jtp5)
+
+    print joint_traj
 
     goal = control_msgs.msg.FollowJointTrajectoryGoal()
     goal.trajectory = joint_traj
