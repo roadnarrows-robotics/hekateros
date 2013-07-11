@@ -59,6 +59,14 @@ public:
       // temp fix - wait 2 seconds to reach set point
       sleep(2);
 
+      // real - check state vs waypoint, send next point when near way point)
+      //  while (delta > tol)
+      //  { 
+      //    sleep 0.1
+      //    update delta
+      //  }
+      // piece of cake, right?
+
     }
 
     as_.setSucceeded();
