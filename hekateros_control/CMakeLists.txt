@@ -43,6 +43,7 @@ add_service_files(
   FILES
     Calibrate.srv 
     ClearAlarms.srv 
+    CloseGripper.srv 
     EStop.srv 
     Freeze.srv 
     GetProductInfo.srv 
@@ -52,6 +53,7 @@ add_service_files(
     IsAlarmed.srv 
     IsCalibrated.srv 
     IsDescLoaded.srv
+    OpenGripper.srv
     Release.srv
     SetRobotMode.srv
     Stop.srv
