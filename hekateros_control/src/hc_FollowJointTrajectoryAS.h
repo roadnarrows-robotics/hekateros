@@ -48,7 +48,9 @@ public:
         pt.append(jt.joint_names[j],
                   jt.points[i].positions[j], 
                   jt.points[i].velocities[j]);
-        ROS_INFO("j = %d pos=%2.1f speed=%2.1f", j, jt.points[i].positions[j]);
+        ROS_INFO("j = %d pos=%2.1f speed=%2.1f", j, 
+                                                jt.points[i].positions[j], 
+                                                jt.points[i].velocities[j]);
       }
       
       ROS_INFO("moving to trajectory point %d", i);

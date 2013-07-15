@@ -5,6 +5,7 @@
 
 #include "hekateros_control/Calibrate.h"
 #include "hekateros_control/ClearAlarms.h"
+#include "hekateros_control/CloseGripper.h"
 #include "hekateros_control/EStop.h"
 #include "hekateros_control/Freeze.h"
 #include "hekateros_control/GetProductInfo.h"
@@ -14,6 +15,7 @@
 #include "hekateros_control/IsAlarmed.h"
 #include "hekateros_control/IsCalibrated.h"
 #include "hekateros_control/IsDescLoaded.h"
+#include "hekateros_control/OpenGripper.h"
 #include "hekateros_control/Release.h"
 #include "hekateros_control/SetRobotMode.h"
 #include "hekateros_control/Stop.h"
@@ -54,7 +56,16 @@ bool ClearAlarms(hekateros_control::ClearAlarms::Request  &req,
 {
   pRobot->clearAlarms();
   return true;
+}
 
+/*!
+ *  \brief Request close gripper
+ */
+bool CloseGripper(hekateros_control::CloseGripper::Request  &req,
+                  hekateros_control::CloseGripper::Response &res)
+{
+  pRobot->closeGripper();
+  return true;
 }
 
 /*!
@@ -186,6 +197,16 @@ bool IsDescLoaded(hekateros_control::IsDescLoaded::Request  &req,
     ROS_WARN("Hekateros Robot description file not loaded.");
   }
   
+  return true;
+}
+
+/*!
+ *  \brief Request open gripper
+ */
+bool OpenGripper(hekateros_control::OpenGripper::Request  &req,
+                 hekateros_control::OpenGripper::Response &res)
+{
+  pRobot->openGripper();
   return true;
 }
 

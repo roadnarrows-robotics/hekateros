@@ -65,6 +65,9 @@ int main(int argc, char **argv)
   ros::ServiceServer clear_alarms_ser   = n.advertiseService("clear_alarms", 
                                                              ClearAlarms);
  
+  ros::ServiceServer close_gripper_ser  = n.advertiseService("close_gripper", 
+                                                             CloseGripper);
+ 
   ros::ServiceServer estop_srv          = n.advertiseService("estop", 
                                                              EStop);
  
@@ -91,6 +94,9 @@ int main(int argc, char **argv)
 
   ros::ServiceServer is_desc_ser        = n.advertiseService("is_desc_loaded", 
                                                              IsDescLoaded);
+ 
+  ros::ServiceServer open_gripper_ser   = n.advertiseService("open_gripper", 
+                                                             OpenGripper);
  
   ros::ServiceServer release_srv        = n.advertiseService("release", 
                                                              Release);
