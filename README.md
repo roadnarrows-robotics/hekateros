@@ -7,7 +7,7 @@ Here you will find a collection of [ROS](http://ros.org) packages for the Hekate
 
 To get up and running with a new Hekateros, check out the documentation in the Hekateros ROS Wiki:
 
-* [**Hekateros ROS Wiki**](https://github.com/roadnarrows-robotics/hekateros/wiki)
+* [**Hekateros ROS Wiki - Home**](https://github.com/roadnarrows-robotics/hekateros/wiki)
  * [**Installation Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Installation-Guide)
  * [**Quick Start Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Quick-Start-Guide)
  * [**Examples**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Examples)
