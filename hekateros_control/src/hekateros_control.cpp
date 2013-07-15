@@ -33,7 +33,7 @@ using namespace ::hekateros;
 int main(int argc, char **argv)
 {
   // set loglevel for RN libs
-  LOG_SET_THRESHOLD(LOG_LEVEL_DIAG1);
+  LOG_SET_THRESHOLD(LOG_LEVEL_DIAG3);
 
   ros::init(argc, argv, "hekateros_control");
   ros::NodeHandle n("hekateros_control");
