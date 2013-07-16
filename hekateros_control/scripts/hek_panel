@@ -18,7 +18,7 @@ import hekateros_control.msg
 import trajectory_msgs.msg
 
 ## calibration status table
-ct=['uncalibrated', 'calibrating', 'calibrated']
+ct=['X', '---', 'O']
 
 class hek_panel(object):
 
