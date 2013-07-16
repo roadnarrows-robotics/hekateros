@@ -23,7 +23,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_library(
   rnr_LIBRARIES
   NAMES hekateros Dynamixel botsense netmsgs rnr_appkit rnr
-  PATHS /prj/lib /prj/lib/rnr
+  PATHS /prj/lib /prj/lib/rnr /usr/local/lib /usr/local/lib/rnr
 )
 
 catkin_python_setup()
