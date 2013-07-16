@@ -10,6 +10,8 @@ import rospy
 
 from hekateros_control.calibrate_ac import *
 from hekateros_control.msg import HekJointStateExtended
+from hekateros_control.srv import OpenGripper
+from hekateros_control.srv import CloseGripper
 
 import actionlib
 import hekateros_control.msg
@@ -39,10 +41,20 @@ class hek_panel(object):
                                           command=self.cancel_calib_cb)
         self.cancel_calib_button.pack(side="left")
 
-        self.calib_button = Button(self.main_frame,
-                                   text="quit", 
-                                   command=quit)
-        self.calib_button.pack(side="left")
+        self.open_grip_button = Button(self.main_frame,
+                                   text="Open Gripper!", 
+                                   command=self.open_grip_cb)
+        self.open_grip_button.pack(side="left")
+
+        self.open_grip_button = Button(self.main_frame,
+                                   text="Close Gripper!", 
+                                   command=self.close_grip_cb)
+        self.open_grip_button.pack(side="left")
+
+        self.quit_button = Button(self.main_frame,
+                                  text="quit", 
+                                  command=quit)
+        self.quit_button.pack(side="left")
 
         self.joint_state_txt = StringVar()
         self.joint_state_txt.set("Joint states: 0  0  0  0  0")
@@ -63,7 +75,7 @@ class hek_panel(object):
                          HekJointStateExtended, 
                          self.update_joint_states) 
                           # spec callback for when new data is received
-        
+
         ## calibration action client
         self.calib_cl = calibrate_ac()
 
@@ -114,6 +126,24 @@ class hek_panel(object):
                 data.position[3],
                 data.position[4],
                 data.position[5]))
+
+    def open_grip_cb(self):
+        rospy.wait_for_service("hekateros_control/open_gripper")
+        try:
+            open_gripper = rospy.ServiceProxy('hekateros_control/open_gripper', 
+                                           OpenGripper)
+            open_gripper()
+        except rospy.ServiceException, e:
+            self.status_txt.set("'open_gripper' request failed - {}".format(e))
+
+    def close_grip_cb(self):
+        rospy.wait_for_service("hekateros_control/close_gripper")
+        try:
+            close_gripper =rospy.ServiceProxy('hekateros_control/close_gripper',
+                                           CloseGripper)
+            close_gripper()
+        except rospy.ServiceException, e:
+            self.status_txt.set("'close_gripper' request failed - {}".format(e))
 
 
 if __name__ == '__main__':
