@@ -9,8 +9,7 @@ import hekateros_control.msg
 
 class calibrate_ac(object):
 
-    def __init__(self, timeout=3):
-        rospy.init_node("calibrate_ac")
+    def __init__(self):
         self.c = actionlib.SimpleActionClient(
                     'hekateros_control/calibrate_as',
                     hekateros_control.msg.CalibrateAction)
@@ -19,9 +18,9 @@ class calibrate_ac(object):
         if self.c.wait_for_server(rospy.Duration(timeout)):
             rospy.loginfo("Connected to calibrate action server!")
         else:
-            rospy.logwarn("Unable to connect after %d seconds.")
+            rospy.logwarn("Unable to connect after {} seconds.".format(timeout))
             rospy.logwarn("Is hekateros_control node running???")
-            return false;
+            return False;
 
         rospy.loginfo("Requesting calibrate action")
         goal = hekateros_control.msg.CalibrateGoal()

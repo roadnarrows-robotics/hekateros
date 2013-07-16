@@ -14,7 +14,9 @@ def feedback_h(fb):
     rospy.logdebug(fb)
 
 if __name__ == '__main__':
-    calib_client = calibrate_ac(timeout=2)
+    rospy.init_node("calibrate_ac")
+
+    calib_client = calibrate_ac()
     calib_client.exec_calib(feedback_h)
 
     seq = 0

@@ -3,42 +3,123 @@
 ## Graphical panel to interface with the hekateros_control node.
 ##
 
+from Tkinter import *
+
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
+
+from hekateros_control.calibrate_ac import *
+from hekateros_control.msg import HekJointStateExtended
 
 import actionlib
 import hekateros_control.msg
 import trajectory_msgs.msg
 
+## calibration status table
+ct=['uncalibrated', 'calibrating', 'calibrated']
+
 class hek_panel(object):
+
     def __init__(self):
-        self.calib_cl = actionlib.SimpleActionClient( 
-                    'hekateros_control/calibrate_as', 
-                    hekateros_control.msg.CalibrateAction)
+        self.initGui()
+        self.initRobot()
 
-    def run(self):
-        print "Waiting for action server"
-        if self.calib_cl.wait_for_server(rospy.Duration(1)):
-            print "Connected"
+    ## @brief Setup the Hek Panel GUI interface
+    def initGui(self):
+        self.main_frame = Frame(relief=RAISED, borderwidth=1, width=1000)
+        self.main_frame.pack(fill=BOTH, expand=1, side="top", padx=8, pady=8)
+
+        self.calib_button = Button(self.main_frame,
+                                   text="Calibrate!", 
+                                   command=self.calib_cb)
+        self.calib_button.pack(side="left")
+
+        self.cancel_calib_button = Button(self.main_frame,
+                                          text="cancel calibration", 
+                                          command=self.cancel_calib_cb)
+        self.cancel_calib_button.pack(side="left")
+
+        self.calib_button = Button(self.main_frame,
+                                   text="quit", 
+                                   command=quit)
+        self.calib_button.pack(side="left")
+
+        self.joint_state_txt = StringVar()
+        self.joint_state_txt.set("Joint states: 0  0  0  0  0")
+        self.joint_state_msg = Message(textvar=self.joint_state_txt, width=1000)
+        self.joint_state_msg.pack()
+
+        self.status_txt = StringVar()
+        self.status_txt.set("Status: --- gui initialized ---")
+        self.status_msg = Message(textvar=self.status_txt, width=1000)
+        self.status_msg.pack()
+
+    ## @brief Initialise interface to hek_robot
+    def initRobot(self):
+        rospy.init_node("hek_panel")
+
+        # subscribe to extended joint state data
+        rospy.Subscriber("hekateros_control/joint_states_ex", 
+                         HekJointStateExtended, 
+                         self.update_joint_states) 
+                          # spec callback for when new data is received
+        
+        ## calibration action client
+        self.calib_cl = calibrate_ac()
+
+        ##
+        ## TODO RDK - subscribe to additional topics, add services, etc
+        ##
+
+        self.status_txt.set("Status: --- robot initialized ---")
+
+
+    ## @brief Initiate the calibration goal.
+    def calib_cb(self):
+        self.status_txt.set("Status: --- calibrating robot ---")
+        self.calib_cl.exec_calib(self.monitor_calib)
+        self.main_frame.after(1000, self.check_calib_done)
+
+    ## @brief Cancel the calibration action
+    def cancel_calib_cb(self):
+        self.status_txt.set("Status: --- cancelled calibration ---")
+        self.calib_cl.cancel()
+
+    ## @brief Check if the calibratoin sequence is done, and set
+    ##         the status message appropriately.
+    def check_calib_done(self):
+        if self.calib_cl.get_action_state() < 3:
+            self.main_frame.after(1000, self.check_calib_done)
         else:
-            print "Unable to connect"
-            return False
+            self.status_txt.set("Status: Calibration done!")
 
+    ## @brief monitor the calibration feedback
+    def monitor_calib(self, fb):
+        self.status_txt.set(
+        "calib: {}:{}  {}:{}  {}:{}  {}:{}  {}:{}  {}:{}".format(
+                fb.name[0], ct[fb.op_state[0].calib_state],
+                fb.name[1], ct[fb.op_state[1].calib_state],
+                fb.name[2], ct[fb.op_state[2].calib_state],
+                fb.name[3], ct[fb.op_state[3].calib_state],
+                fb.name[4], ct[fb.op_state[4].calib_state],
+                fb.name[5], ct[fb.op_state[5].calib_state]))
 
-        # Send goal to the action server.
-        goal = hekateros_control.msg.CalibrateGoal()
-        print "Sending calibrate action goal"
-        self.calib_cl.send_goal(goal)
+    ## @brief callback when joint states are published
+    def update_joint_states(self, data):
+        self.joint_state_txt.set(
+        "Joint states: {:0.2f} {:0.2f} {:0.2f} {:0.2f} {:0.2f} {:0.2f}".format(
+                data.position[0],
+                data.position[1],
+                data.position[2],
+                data.position[3],
+                data.position[4],
+                data.position[5]))
 
-        # Waits for the server to finish performing the action.
-        print "Waiting for result"
-        self.calib_cl.wait_for_result()
-        print "Done!"
-
-        # Prints out the result of executing the action
-        return self.calib_cl.get_result()
 
 if __name__ == '__main__':
-    rospy.init_node('hek_panel')
-    t=hek_panel()
-    t.run()
+    root=Tk()
+    root.title("--- Hekateros Control Panel ---")
+
+    w = hek_panel()
+
+    root.mainloop()
