@@ -10,7 +10,7 @@ To get up and running with a new Hekateros, check out the documentation in the H
 * [**Hekateros ROS Wiki - Home**](https://github.com/roadnarrows-robotics/hekateros/wiki)
  * [**Installation Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Installation-Guide)
  * [**Quick Start Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Quick-Start-Guide)
- * [**Examples**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Examples)
+* [**Intro to the hekateros_control node**](https://github.com/roadnarrows-robotics/hekateros/wiki/Introduction-to-the-hekateros_control-node)
 
 Visit the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html) to get your very own!
 
