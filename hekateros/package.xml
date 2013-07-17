@@ -2,17 +2,19 @@
 <package>
   <name>hekateros</name>
   <version>0.0.1</version>
-  <description>The Hekateros Robotic Manipulator ROS metapackage - provides complete hekateros software bundle.</description>
-  <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
 
-  <license>BSD</license>
-
- <url type="website">http://github.com/roadnarrows-robotics/hekateros/wiki</url>
- <url type="website">http://roadnarrows.com/r-and-d/Hekateros</url>
-
+  <description>
+    The Hekateros Robotic Manipulator ROS metapackage - provides complete 
+    hekateros software bundle.
+  </description>
 
   <author email="robin.knight@roadnarrows.com">robin knight</author>
   <author email="daniel@roadnarrows.com">daniel packard</author>
+  <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
+  <license>BSD</license>
+
+  <url type="website">http://roadnarrows.com/Hekateros</url>
+  <url type="website">http://roadnarrows.com/r-and-d/Hekateros</url>
 
   <buildtool_depend>catkin</buildtool_depend>
 
