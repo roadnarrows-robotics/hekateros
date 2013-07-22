@@ -218,7 +218,6 @@ class window(Frame):
     wframe = Frame(self)
     wframe['borderwidth'] = 2
     wframe['relief'] = 'flat'
-    wframe['width'] = 140
     wframe.grid(row=0, column=0, columnspan=3, padx=1, pady=3, sticky=W+E)
 
     # rn logo
@@ -452,7 +451,7 @@ class window(Frame):
 
     # release
     w = self.createButton(wframe, "Release",
-                                  None, self.releaseArm)
+                                  "icons/icon_stop.png", self.releaseArm)
     w.grid(row=2, column=0, sticky=N+E+W)
 
     # quit
@@ -481,7 +480,6 @@ class window(Frame):
     key = str.lower(text.replace("\n", "_"))
     self.m_icons[key] = self.loadIcon(imagefile)
     w = Button(parent)
-    w['width']    = 15
     w['text']     = text
     if self.m_icons[key]:
       w['image']    = self.m_icons[key]
@@ -489,8 +487,10 @@ class window(Frame):
       w['padx']     = 0
       w['pady']     = 0
       w['anchor']   = W
+      w['width']    = 105
     else:
       w['anchor']   = CENTER
+      w['width']    = 10
     w['fg']       = fg
     w['command']  = command
     self.m_wBttn[key] = w
@@ -694,11 +694,6 @@ Options and arguments:
 
     ## calibration action client
     #self.calib_cl = calibrate_ac()
-
-    ##
-    ## TODO RDK - subscribe to additional topics, add services, etc
-    ##
-    #self.status_txt.set("Status: --- robot initialized ---")
 
     self.m_win.showInfo("Interface to Hekateros initialized.")
 
