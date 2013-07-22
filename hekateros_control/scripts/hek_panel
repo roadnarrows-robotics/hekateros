@@ -1,17 +1,49 @@
 #! /usr/bin/env python
-## 
-## Graphical panel to interface with the hekateros_control node.
+
+###############################################################################
+#
+# Package:  hekateros
+#
+# File: hek_panel
+#
+## \file 
 ##
+## $LastChangedDate: 2012-12-06 16:33:18 -0700 (Thu, 06 Dec 2012) $
+## $Rev: 330 $
+##
+## \brief Graphical panel to interface with the hekateros_control node.
+##
+## \author Daniel Packard (daniel@roadnarrows.com)
+## \author Robin Knight (robin.knight@roadnarrows.com)
+##  
+## \par Copyright:
+##   (C) 2013.  RoadNarrows LLC.\n
+##   (http://www.roadnarrows.com)\n
+##   All Rights Reserved
+##
+# @EulaBegin@
+# @EulaEnd@
+#
+###############################################################################
+
+import sys
+import os
+import time
+import getopt
 
 from Tkinter import *
+from Tkconstants import *
+from tkFileDialog import *
 
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
 
+""" RDK
 from hekateros_control.calibrate_ac import *
 from hekateros_control.msg import HekJointStateExtended
 from hekateros_control.srv import OpenGripper
 from hekateros_control.srv import CloseGripper
+RDK """
 
 import actionlib
 import hekateros_control.msg
@@ -24,7 +56,7 @@ class hek_panel(object):
 
     def __init__(self):
         self.initGui()
-        self.initRobot()
+        # RDK self.initRobot()
 
     ## @brief Setup the Hek Panel GUI interface
     def initGui(self):
@@ -145,11 +177,278 @@ class hek_panel(object):
         except rospy.ServiceException, e:
             self.status_txt.set("'close_gripper' request failed - {}".format(e))
 
+##
+## \brief Application window class.
+##
+class Window(Frame):
+  def __init__(self, master=None, cnf={}, **kw):
+    Frame.__init__(self, master=master, cnf=cnf, **kw)
+    self.master.title("Hekateros Control Panel")
+    self.grid(row=0, column=0, padx=5, pady=5)
+    self.createWidgets()
+    self.m_results = None
 
+  ## \brief Create gui widgets with supporting data and show.
+  def createWidgets(self):
+    self.m_wBttn = { }
+    self.m_robotStatus = {}
+    self.m_robotJoint = []
+    self.createHeading()
+    self.createLeftButtons()
+    self.createCenterPanel()
+    self.createRightButtons()
+    self.createStatusBar()
+
+  ## \brief Create top gui heading.
+  def createHeading(self):
+    wframe = Frame(self)
+    wframe['borderwidth'] = 2
+    wframe['relief'] = 'flat'
+    wframe['width'] = 140
+    wframe.grid(row=0, column=0, columnspan=3, padx=1, pady=3, sticky=W+E)
+
+    # rn logo
+    w = Label(wframe)
+    w['text'] = 'rn'
+    w['justify'] = LEFT
+    w.grid(row=0, column=0, sticky=W)
+    
+    # title
+    w = Label(wframe)
+    w['font'] =('Helvetica', 16)
+    w['text'] = 'Hekateros'
+    w['justify'] = CENTER
+    w.grid(row=0, column=1, sticky=E+W)
+
+    # hek logo
+    w = Label(wframe)
+    w['text'] = 'hek'
+    w['justify'] = RIGHT
+    w.grid(row=0, column=2, sticky=E)
+    
+  ## \brief Create gui left hand side buttons.
+  def createLeftButtons(self):
+    wframe = Frame(self)
+    wframe['borderwidth'] = 2
+    wframe['relief'] = 'ridge'
+    wframe.grid(row=1, column=0, padx=1, pady=3, sticky=W+E)
+
+    # calibrate
+    w = Button(wframe)
+    w['width']   = 10
+    w['text']    = 'Calibrate'
+    w['fg']      = 'black'
+    w['command'] = self.calibrate
+    w.grid(row=0, column=0, sticky=N+E+W)
+    self.m_wBttn['calibrate'] = w
+
+  ## \brief Create robot status and joint state center panel
+  def createCenterPanel(self):
+    wframe = Frame(self)
+    wframe['borderwidth'] = 2
+    wframe['relief'] = 'ridge'
+    wframe.grid(row=1, column=1, padx=1, pady=3, sticky=W+E)
+
+    # robot mode status
+    var = StringVar()
+    var.set("auto mode")
+    w = Entry(wframe)
+    w['borderwidth'] = 2
+    w['relief']   = 'flat'
+    w['textvar']  = var
+    w['fg']       = 'black'
+    w['state']    = 'readonly'
+    w.grid(row=0, column=0, padx=3, pady=3, sticky=W)
+    d = {'var': var, 'w': w}
+    self.m_robotStatus['mode'] = d
+
+    # robot calibration status
+    var = StringVar()
+    var.set("not calibrated")
+    w = Entry(wframe)
+    w['borderwidth'] = 2
+    w['relief']   = 'flat'
+    w['textvar']  = var
+    w['fg']       = 'black'
+    w['state']    = 'readonly'
+    w.grid(row=0, column=1, padx=3, pady=3, sticky=W)
+    d = {'var': var, 'w': w}
+    self.m_robotStatus['calibration'] = d
+
+    # robot driven status
+    var = StringVar()
+    var.set("motors driven")
+    w = Entry(wframe)
+    w['borderwidth'] = 2
+    w['relief']   = 'flat'
+    w['textvar']  = var
+    w['fg']       = 'black'
+    w['state']    = 'readonly'
+    w.grid(row=0, column=2, padx=3, pady=3, sticky=W)
+    d = {'var': var, 'w': w}
+    self.m_robotStatus['driven'] = d
+
+    # robot alarms status
+    w = Label(wframe)
+    w['text'] = 'alarms'
+    w['justify'] = RIGHT
+    w.grid(row=0, column=3, sticky=E)
+
+    # alarms icon
+    w = Label(wframe)
+    w['text'] = 'o'
+    w['justify'] = LEFT
+    w.grid(row=0, column=4, sticky=W)
+    d = {'var': None, 'w': w}
+    self.m_robotStatus['alarms'] = d
+
+  ## \brief Create gui right hand side buttons.
+  def createRightButtons(self):
+    wframe = Frame(self)
+    wframe['borderwidth'] = 2
+    wframe['relief'] = 'ridge'
+    wframe.grid(row=1, column=2, padx=1, pady=3, sticky=W+E)
+
+    # quit
+    w = Button(wframe)
+    w['width']   = 10
+    w['text']    = "Quit"
+    w['fg']      = 'red'
+    w['command'] = self.destroy
+    w.grid(row=0, column=0, sticky=N+E+W)
+    self.m_wBttn['quit'] = w
+
+  ## \brief Create gui status bar at bottom of gui window.
+  def createStatusBar(self):
+    wframe = Frame(self)
+    wframe['borderwidth'] = 2
+    wframe['relief'] = 'ridge'
+    wframe.grid(row=2, column=0, columnspan=3, padx=1, pady=3, sticky=W+E)
+
+    self.m_varStatus = StringVar()
+    self.m_varStatus.set("Calibration required.")
+    self.m_wStatusBar = Entry(wframe)
+    self.m_wStatusBar['width']    = wframe['width']
+    self.m_wStatusBar['relief']   = 'flat'
+    self.m_wStatusBar['textvar']  = self.m_varStatus
+    self.m_wStatusBar['fg']       = 'black'
+    self.m_wStatusBar['state']    = 'readonly'
+    self.m_wStatusBar.grid(row=0, column=0, padx=3, pady=3, sticky=W+E)
+
+  def destroy(self):
+    self.quit()
+
+  def calibrate(self):
+    pass
+  
+
+##
+## \brief Unit test command-line exception class.
+##
+## Raise usage excpetion.
+##
+class usage(Exception):
+
+  ##
+  ## \brief Constructor.
+  ##
+  ## \param msg   Error message string.
+  ##
+  def __init__(self, msg):
+    ## error message attribute
+    self.msg = msg
+
+##
+## \brief Unit test harness class.
+##
+class Application():
+
+  ## \brief Unit test constructor.
+  def __init__(self):
+    self._Argv0 = __file__
+
+  ## \brief Print usage error.
+  ##
+  ## \param emsg  Error message string.
+  def printUsageErr(self, emsg):
+    if emsg:
+      print "%s: %s" % (self._Argv0, emsg)
+    else:
+      print "%s: error" % (self._Argv0)
+    print "Try '%s --help' for more information." % (self._Argv0)
+
+  ## \brief Print Command-Line Usage Message.
+  def printUsage(self):
+    print \
+"""
+usage: %s [OPTIONS] <image_dir>
+
+     %s --help
+
+Options and arguments:
+
+-h, --help                : Display this help and exit.
+"""  % (self._Argv0, self._Argv0)
+ 
+  ## \brief Get command-line options
+  ##  
+  ## \param argv          Argument list. If not None, then overrides
+  ##                      command-line arguments.
+  ## \param [out] kwargs  Keyword argument list.  
+  def getOptions(self, argv=None, **kwargs):
+    if argv is None:
+      argv = sys.argv
+
+    self._Argv0 = kwargs.get('argv0', __file__)
+
+    # defaults
+    kwargs['debug'] = 0
+
+    # parse command-line options
+    try:
+      try:
+        opts, args = getopt.getopt(argv[1:], "?h",
+            ['help', ''])
+      except getopt.error, msg:
+        raise usage(msg)
+      for opt, optarg in opts:
+        if opt in ('-h', '--help', '-?'):
+          printUsage()
+          sys.exit(0)
+    except usage, err:
+      printUsageErr(err.msg)
+      sys.exit(2)
+
+    #if len(args) < 1:
+    #  printUsageErr("No input xml file specified")
+    #  sys.exit(2)
+    #else:
+    #  kwargs['filename'] = args[0]
+
+    return kwargs
+
+  ## \brief Run application.
+  ##    
+  ## \param argv    Optional argument list to override command-line arguments.
+  ## \param kwargs  Optional keyword argument list.
+  def run(self, argv=None, **kwargs):
+  
+    kwargs = self.getOptions(argv, **kwargs)
+
+    root = Tk()
+
+    win = Window(master=root)
+
+    root.protocol('WM_DELETE_WINDOW', root.destroy)
+
+    # RDK self.initRobot()
+
+    win.mainloop()
+
+    return 0
+
+
+# --
 if __name__ == '__main__':
-    root=Tk()
-    root.title("--- Hekateros Control Panel ---")
-
-    w = hek_panel()
-
-    root.mainloop()
+  app = Application();
+  sys.exit( app.run() );
