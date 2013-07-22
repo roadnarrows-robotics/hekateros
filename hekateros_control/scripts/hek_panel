@@ -35,19 +35,27 @@ from Tkinter import *
 from Tkconstants import *
 from tkFileDialog import *
 
+from PIL import Image, ImageTk
+
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
 
-""" RDK
 from hekateros_control.calibrate_ac import *
+from hekateros_control.msg import HekRobotStatusExtended
 from hekateros_control.msg import HekJointStateExtended
 from hekateros_control.srv import OpenGripper
 from hekateros_control.srv import CloseGripper
-RDK """
 
 import actionlib
 import hekateros_control.msg
 import trajectory_msgs.msg
+
+imagePath = [
+  "/prj/pkg/Hekateros/share/images",
+  "/usr/local/share/Hekateros/images",
+  "/prj/pkg/appkit/share/images",
+  "/usr/local/share/appkit/images"
+]
 
 ## calibration status table
 ct=['X', '---', 'O']
@@ -56,7 +64,7 @@ class hek_panel(object):
 
     def __init__(self):
         self.initGui()
-        # RDK self.initRobot()
+        self.initRobot()
 
     ## @brief Setup the Hek Panel GUI interface
     def initGui(self):
@@ -177,10 +185,15 @@ class hek_panel(object):
         except rospy.ServiceException, e:
             self.status_txt.set("'close_gripper' request failed - {}".format(e))
 
+
+# ------------------------------------------------------------------------------
+# Class window
+# ------------------------------------------------------------------------------
+
 ##
-## \brief Application window class.
+## \brief Window class supporting application.
 ##
-class Window(Frame):
+class window(Frame):
   def __init__(self, master=None, cnf={}, **kw):
     Frame.__init__(self, master=master, cnf=cnf, **kw)
     self.master.title("Hekateros Control Panel")
@@ -190,9 +203,10 @@ class Window(Frame):
 
   ## \brief Create gui widgets with supporting data and show.
   def createWidgets(self):
-    self.m_wBttn = { }
-    self.m_robotStatus = {}
-    self.m_robotJoint = []
+    self.m_icons        = {}    # must keep loaded icons referenced
+    self.m_wBttn        = {}    # button widgets
+    self.m_robotStatus  = {}    # robot status 
+    self.m_robotJoint   = {}    # robot joint state
     self.createHeading()
     self.createLeftButtons()
     self.createCenterPanel()
@@ -210,20 +224,20 @@ class Window(Frame):
     # rn logo
     w = Label(wframe)
     w['text'] = 'rn'
-    w['justify'] = LEFT
+    w['anchor'] = W
     w.grid(row=0, column=0, sticky=W)
     
-    # title
+    # top heading
     w = Label(wframe)
     w['font'] =('Helvetica', 16)
     w['text'] = 'Hekateros'
-    w['justify'] = CENTER
+    w['anchor'] = CENTER
     w.grid(row=0, column=1, sticky=E+W)
 
     # hek logo
     w = Label(wframe)
     w['text'] = 'hek'
-    w['justify'] = RIGHT
+    w['anchor'] = E
     w.grid(row=0, column=2, sticky=E)
     
   ## \brief Create gui left hand side buttons.
@@ -231,23 +245,65 @@ class Window(Frame):
     wframe = Frame(self)
     wframe['borderwidth'] = 2
     wframe['relief'] = 'ridge'
-    wframe.grid(row=1, column=0, padx=1, pady=3, sticky=W+E)
+    wframe.grid(row=1, column=0, padx=1, pady=3, sticky=N+W+E)
 
     # calibrate
-    w = Button(wframe)
-    w['width']   = 10
-    w['text']    = 'Calibrate'
-    w['fg']      = 'black'
-    w['command'] = self.calibrate
+    w = self.createButton(wframe, "Calibrate", "icons/icon_calib.png",
+                            self.calibrate)
     w.grid(row=0, column=0, sticky=N+E+W)
-    self.m_wBttn['calibrate'] = w
 
-  ## \brief Create robot status and joint state center panel
+    # park
+    w = self.createButton(wframe, "Park", "icons/icon_hek_park.png",
+                            self.gotoParkPos)
+    w.grid(row=1, column=0, sticky=N+E+W)
+
+    # balance
+    w = self.createButton(wframe, "Balance", "icons/icon_hek_balance.png",
+                            self.gotoBalancedPos)
+    w.grid(row=2, column=0, sticky=N+E+W)
+
+    # zero point
+    w = self.createButton(wframe, "Zero\nPoint", "icons/icon_hek_zeropt.png",
+                            self.gotoZeroPt)
+    w.grid(row=3, column=0, sticky=N+E+W)
+
+    # open gripper
+    w = self.createButton(wframe, "Open\nGripper",
+                                  "icons/icon_gripper_open.png",
+                                  self.openGripper)
+    w.grid(row=4, column=0, sticky=N+E+W)
+
+    # close gripper
+    w = self.createButton(wframe, "Close\nGripper",
+                                  "icons/icon_gripper_close.png",
+                                  self.closeGripper)
+    w.grid(row=5, column=0, sticky=N+E+W)
+
+  ## \brief Create robot status and joint state center panel.
   def createCenterPanel(self):
-    wframe = Frame(self)
+    self.m_wPanelFrame = Frame(self)
+    self.m_wPanelFrame['borderwidth'] = 2
+    self.m_wPanelFrame['relief'] = 'ridge'
+    self.m_wPanelFrame.grid(row=1, column=1, padx=1, pady=3, sticky=N+W+E)
+
+    self.createRobotStatusPanel(self.m_wPanelFrame)
+    self.createJointStatePanel(self.m_wPanelFrame, None) # RDK
+
+  ## \brief Create robot status upper center panel.
+  ##
+  ## \param parent  Parent widget
+  def createRobotStatusPanel(self, parent):
+    wframe = Frame(parent)
     wframe['borderwidth'] = 2
     wframe['relief'] = 'ridge'
-    wframe.grid(row=1, column=1, padx=1, pady=3, sticky=W+E)
+    wframe.grid(row=0, column=0, padx=1, pady=3, sticky=N+W+E)
+
+    # heading
+    w = Label(wframe)
+    w['font'] =('Helvetica', 12)
+    w['text'] = 'Robot Status'
+    w['justify'] = CENTER
+    w.grid(row=0, column=1, columnspan=6, sticky=E+W)
 
     # robot mode status
     var = StringVar()
@@ -258,7 +314,7 @@ class Window(Frame):
     w['textvar']  = var
     w['fg']       = 'black'
     w['state']    = 'readonly'
-    w.grid(row=0, column=0, padx=3, pady=3, sticky=W)
+    w.grid(row=1, column=0, padx=3, pady=3, sticky=W)
     d = {'var': var, 'w': w}
     self.m_robotStatus['mode'] = d
 
@@ -271,7 +327,7 @@ class Window(Frame):
     w['textvar']  = var
     w['fg']       = 'black'
     w['state']    = 'readonly'
-    w.grid(row=0, column=1, padx=3, pady=3, sticky=W)
+    w.grid(row=1, column=1, padx=3, pady=3, sticky=W)
     d = {'var': var, 'w': w}
     self.m_robotStatus['calibration'] = d
 
@@ -284,7 +340,7 @@ class Window(Frame):
     w['textvar']  = var
     w['fg']       = 'black'
     w['state']    = 'readonly'
-    w.grid(row=0, column=2, padx=3, pady=3, sticky=W)
+    w.grid(row=1, column=2, padx=3, pady=3, sticky=W)
     d = {'var': var, 'w': w}
     self.m_robotStatus['driven'] = d
 
@@ -292,38 +348,124 @@ class Window(Frame):
     w = Label(wframe)
     w['text'] = 'alarms'
     w['justify'] = RIGHT
-    w.grid(row=0, column=3, sticky=E)
+    w.grid(row=1, column=3, sticky=E)
 
     # alarms icon
     w = Label(wframe)
     w['text'] = 'o'
     w['justify'] = LEFT
-    w.grid(row=0, column=4, sticky=W)
+    w.grid(row=1, column=4, sticky=W)
     d = {'var': None, 'w': w}
     self.m_robotStatus['alarms'] = d
 
+    # robot estop status
+    w = Label(wframe)
+    w['text'] = 'estop'
+    w['justify'] = RIGHT
+    w.grid(row=1, column=5, sticky=E)
+
+    # alarms icon
+    w = Label(wframe)
+    w['text'] = 'o'
+    w['justify'] = LEFT
+    w.grid(row=1, column=6, sticky=W)
+    d = {'var': None, 'w': w}
+    self.m_robotStatus['alarms'] = d
+
+  ## \brief Create joint state lower center panel.
+  ##
+  ## \param parent  Parent widget
+  def createJointStatePanel(self, parent, joint):
+    wframe = Frame(parent)
+    wframe['borderwidth'] = 2
+    wframe['relief'] = 'ridge'
+    wframe.grid(row=1, column=0, padx=1, pady=3, sticky=N+W+E)
+
+    # heading
+    w = Label(wframe)
+    w['font'] =('Helvetica', 12)
+    w['text'] = 'Joint State'
+    w['anchor'] = CENTER
+    w.grid(row=0, column=1, columnspan=10, sticky=E+W)
+
+    # left column of labels
+    w = Label(wframe, width=16, anchor=E, text='Joint:')
+    w.grid(row=1, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Servo Id:')
+    w.grid(row=2, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='State:')
+    w.grid(row=3, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Position(deg):')
+    w.grid(row=4, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Odometer(ticks):')
+    w.grid(row=5, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Encoder(ticks):')
+    w.grid(row=6, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Velocity(%max):')
+    w.grid(row=7, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Speed(raw):')
+    w.grid(row=8, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Effort(raw):')
+    w.grid(row=9, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Temperature(C):')
+    w.grid(row=10, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Voltage(volts):')
+    w.grid(row=11, column=0, sticky=W)
+    w = Label(wframe, width=16, anchor=E, text='Alarms:')
+    w.grid(row=12, column=0, sticky=W)
+
+    return  # RDK
+
+    for i in range(0, len(joint.name)):
+      name = jonit.name[i]
+      self.m_robotJoint[name] = {}
+
+      col = 1 + i
+
+      w = Label(wframe, width=10, anchor=CENTER, text=name)
+      w.grid(row=1, column=col, sticky=W)
+
+      var = IntVar()
+      var.set(joint.master_servo_id)
+      w = Entry(wframe, relief='flat', anchor=CENTER, textvar=var, fg='black',
+                        state='readonly')
+      w.grid(row=2, column=col, padx=3, pady=3, sticky=W)
+      d = {'var': var, 'w': w}
+      self.m_robotJoint[name]['servo_id'] = d
+    
   ## \brief Create gui right hand side buttons.
   def createRightButtons(self):
     wframe = Frame(self)
     wframe['borderwidth'] = 2
     wframe['relief'] = 'ridge'
-    wframe.grid(row=1, column=2, padx=1, pady=3, sticky=W+E)
+    wframe.grid(row=1, column=2, padx=1, pady=3, sticky=N+W+E)
+
+    # estop
+    w = self.createButton(wframe, "ESTOP", "icons/icon_estop.png", self.estop,
+                                  fg='red')
+    w.grid(row=0, column=0, sticky=N+E+W)
+
+    # freeze
+    w = self.createButton(wframe, "Freeze",
+                                  "icons/icon_pause.png", self.freezeArm)
+    w.grid(row=1, column=0, sticky=N+E+W)
+
+    # release
+    w = self.createButton(wframe, "Release",
+                                  None, self.releaseArm)
+    w.grid(row=2, column=0, sticky=N+E+W)
 
     # quit
-    w = Button(wframe)
-    w['width']   = 10
-    w['text']    = "Quit"
-    w['fg']      = 'red'
-    w['command'] = self.destroy
-    w.grid(row=0, column=0, sticky=N+E+W)
-    self.m_wBttn['quit'] = w
+    w = self.createButton(wframe, "Quit", "icons/icon_exit.png", self.destroy,
+                                  fg='red')
+    w.grid(row=3, column=0, sticky=N+E+W)
 
   ## \brief Create gui status bar at bottom of gui window.
   def createStatusBar(self):
     wframe = Frame(self)
     wframe['borderwidth'] = 2
     wframe['relief'] = 'ridge'
-    wframe.grid(row=2, column=0, columnspan=3, padx=1, pady=3, sticky=W+E)
+    wframe.grid(row=2, column=0, columnspan=3, padx=1, pady=3, sticky=N+W+E)
 
     self.m_varStatus = StringVar()
     self.m_varStatus.set("Calibration required.")
@@ -335,12 +477,113 @@ class Window(Frame):
     self.m_wStatusBar['state']    = 'readonly'
     self.m_wStatusBar.grid(row=0, column=0, padx=3, pady=3, sticky=W+E)
 
+  def createButton(self, parent, text, imagefile, command, fg='black'):
+    key = str.lower(text.replace("\n", "_"))
+    self.m_icons[key] = self.loadIcon(imagefile)
+    w = Button(parent)
+    w['width']    = 15
+    w['text']     = text
+    if self.m_icons[key]:
+      w['image']    = self.m_icons[key]
+      w['compound'] = LEFT
+      w['padx']     = 0
+      w['pady']     = 0
+      w['anchor']   = W
+    else:
+      w['anchor']   = CENTER
+    w['fg']       = fg
+    w['command']  = command
+    self.m_wBttn[key] = w
+    return self.m_wBttn[key]
+
   def destroy(self):
     self.quit()
 
   def calibrate(self):
     pass
   
+  def gotoParkPos(self):
+    pass
+  
+  def gotoBalancedPos(self):
+    pass
+  
+  def gotoZeroPt(self):
+    pass
+  
+  def openGripper(self):
+    pass
+  
+  def closeGripper(self):
+    pass
+  
+  def estop(self):
+    pass
+  
+  def freezeArm(self):
+    pass
+  
+  def releaseArm(self):
+    pass
+  
+  def updateJointStates(self, joint):
+    # no joints
+    if len(joint.name) == 0:
+      return
+
+    if len(self.m_robotJoint) == 0:
+      self.createJointStatePanel(self.m_wPanelFrame, joint)
+
+    self.showJointStates(joint)
+
+  def showJointStates(self, joint):
+    pass;
+    """
+    self.joint_state_txt.set(
+        "Joint states: {:0.2f} {:0.2f} {:0.2f} {:0.2f} {:0.2f} {:0.2f}".format(
+                data.position[0],
+                data.position[1],
+                data.position[2],
+                data.position[3],
+                data.position[4],
+                data.position[5]))
+                """
+
+  def showInfo(self, msg):
+    self.m_wStatusBar["state"] = "normal"
+    self.m_wStatusBar["fg"]    = "black"
+    self.m_varStatus.set(msg)
+    self.m_wStatusBar["state"] = "readonly"
+
+  def showError(self, msg):
+    self.m_wStatusBar["state"] = "normal"
+    self.m_wStatusBar["fg"]    = "red"
+    self.m_varStatus.set(msg)
+    self.m_wStatusBar["state"] = "readonly"
+
+  def loadIcon(self, filename):
+    # no file name
+    if filename is None or len(filename) == 0:
+      return None;
+    # absolute file name
+    if filename[0] == os.path.sep:
+      try:
+        return ImageTk.PhotoImage(Image.open(filename))
+      except IOError:
+        return None
+    # relative file name - search path for file
+    for path in imagePath:
+      fqname = path + os.path.sep + filename
+      try:
+        return ImageTk.PhotoImage(Image.open(fqname))
+      except IOError:
+        continue
+    return None
+
+
+# ------------------------------------------------------------------------------
+# Exception Class usage
+# ------------------------------------------------------------------------------
 
 ##
 ## \brief Unit test command-line exception class.
@@ -358,14 +601,20 @@ class usage(Exception):
     ## error message attribute
     self.msg = msg
 
+
+# ------------------------------------------------------------------------------
+# Class application
+# ------------------------------------------------------------------------------
+
 ##
 ## \brief Unit test harness class.
 ##
-class Application():
+class application():
 
   ## \brief Unit test constructor.
   def __init__(self):
     self._Argv0 = __file__
+    self.m_win = None
 
   ## \brief Print usage error.
   ##
@@ -427,6 +676,41 @@ Options and arguments:
 
     return kwargs
 
+  ## \brief Initialize interface to hek_robot.
+  def initRobot(self):
+    self.m_win.showInfo("Initializing interface to Hekateros.")
+
+    rospy.init_node("hek_panel")
+
+    # subscribe to extended robot status data
+    rospy.Subscriber("hekateros_control/robot_status_ex", 
+                     HekRobotStatusExtended, 
+                     self.updateRobotStatus) 
+
+    # subscribe to extended joint state data
+    rospy.Subscriber("hekateros_control/joint_states_ex", 
+                     HekJointStateExtended, 
+                     self.updateJointStates) 
+
+    ## calibration action client
+    #self.calib_cl = calibrate_ac()
+
+    ##
+    ## TODO RDK - subscribe to additional topics, add services, etc
+    ##
+    #self.status_txt.set("Status: --- robot initialized ---")
+
+    self.m_win.showInfo("Interface to Hekateros initialized.")
+
+
+  ## \brief Callback when robot status is published.
+  def updateRobotStatus(self, data):
+    pass
+
+  ## \brief Callback when joint states are published.
+  def updateJointStates(self, data):
+    self.m_win.updateJointStates(data)
+
   ## \brief Run application.
   ##    
   ## \param argv    Optional argument list to override command-line arguments.
@@ -437,18 +721,18 @@ Options and arguments:
 
     root = Tk()
 
-    win = Window(master=root)
+    self.m_win = window(master=root)
+
+    self.initRobot()
 
     root.protocol('WM_DELETE_WINDOW', root.destroy)
 
-    # RDK self.initRobot()
-
-    win.mainloop()
+    self.m_win.mainloop()
 
     return 0
 
 
 # --
 if __name__ == '__main__':
-  app = Application();
+  app = application();
   sys.exit( app.run() );
