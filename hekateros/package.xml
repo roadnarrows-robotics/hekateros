@@ -21,8 +21,6 @@
   <run_depend>hekateros_control</run_depend>
   <run_depend>hekateros_desc</run_depend>
   <run_depend>hekateros_launch</run_depend>
-  <run_depend>hekateros_moveit_config_4dof</run_depend>
-  <run_depend>hekateros_moveit_config_5dof</run_depend>
 
   <export>
     <metapackage/>
