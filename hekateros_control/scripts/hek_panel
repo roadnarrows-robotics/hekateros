@@ -215,29 +215,36 @@ class window(Frame):
 
   ## \brief Create top gui heading.
   def createHeading(self):
-    wframe = Frame(self)
-    wframe['borderwidth'] = 2
-    wframe['relief'] = 'flat'
-    wframe.grid(row=0, column=0, columnspan=3, padx=1, pady=3, sticky=W+E)
-
     # rn logo
-    w = Label(wframe)
-    w['text'] = 'rn'
-    w['anchor'] = W
+    w = Label(self)
+    self.m_icons['rn_logo'] = self.loadIcon("RNLogo48.png");
+    if self.m_icons['rn_logo']:
+      w['image'] = self.m_icons['rn_logo']
+    else:
+      w['text'] = 'rn'
+      w['anchor'] = W
+      w['width'] = 5
     w.grid(row=0, column=0, sticky=W)
     
     # top heading
-    w = Label(wframe)
-    w['font'] =('Helvetica', 16)
-    w['text'] = 'Hekateros'
+    w = Label(self)
+    w['font']   = ('Helvetica', 16)
+    w['text']   = 'Hekateros'
     w['anchor'] = CENTER
     w.grid(row=0, column=1, sticky=E+W)
 
     # hek logo
-    w = Label(wframe)
-    w['text'] = 'hek'
-    w['anchor'] = E
+    w = Label(self)
+    self.m_icons['hek_logo'] = self.loadIcon("icons/icon_hek_logo.png");
+    if self.m_icons['hek_logo']:
+      w['image'] = self.m_icons['hek_logo']
+      w['anchor'] = E
+    else:
+      w['text'] = 'hek'
+      w['anchor'] = E
+      w['width'] = 5
     w.grid(row=0, column=2, sticky=E)
+    
     
   ## \brief Create gui left hand side buttons.
   def createLeftButtons(self):
@@ -607,7 +614,7 @@ class usage(Exception):
 # ------------------------------------------------------------------------------
 
 ##
-## \brief Unit test harness class.
+## \brief Hekateros control panel.
 ##
 class application():
 
@@ -655,21 +662,17 @@ Options and arguments:
 
     # parse command-line options
     try:
-      try:
-        opts, args = getopt.getopt(argv[1:], "?h",
-            ['help', ''])
-      except getopt.error, msg:
-        raise usage(msg)
-      for opt, optarg in opts:
-        if opt in ('-h', '--help', '-?'):
-          printUsage()
-          sys.exit(0)
-    except usage, err:
-      printUsageErr(err.msg)
-      sys.exit(2)
+      opts, args = getopt.getopt(argv[1:], "?h",
+          ['help', ''])
+    except getopt.error, msg:
+      raise usage(msg)
+    for opt, optarg in opts:
+      if opt in ('-h', '--help', '-?'):
+        self.printUsage()
+        sys.exit(0)
 
     #if len(args) < 1:
-    #  printUsageErr("No input xml file specified")
+    #  self.printUsageErr("No input xml file specified")
     #  sys.exit(2)
     #else:
     #  kwargs['filename'] = args[0]
@@ -712,22 +715,29 @@ Options and arguments:
   ## \param kwargs  Optional keyword argument list.
   def run(self, argv=None, **kwargs):
   
+    # parse command-line options and arguments
     kwargs = self.getOptions(argv, **kwargs)
 
+    # create root 
     root = Tk()
 
+    # create application window
     self.m_win = window(master=root)
-
-    self.initRobot()
 
     root.protocol('WM_DELETE_WINDOW', root.destroy)
 
+    # initialize robot interface
+    self.initRobot()
+
+    # go for it
     self.m_win.mainloop()
 
     return 0
 
 
-# --
+# ------------------------------------------------------------------------------
+# main
+# ------------------------------------------------------------------------------
 if __name__ == '__main__':
   app = application();
   sys.exit( app.run() );
