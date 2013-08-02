@@ -804,6 +804,7 @@ class window(Frame):
     if not self.m_calibState['calibrating']:
       self.m_calibState['calibrating'] = True
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate_cancel']
+      self.m_wBttn['calibrate']['text'] = "Cancel\nCalibrate"
       self.showInfo("Calibrating Hekateros.")
       self.update_idletasks()
 
@@ -833,6 +834,7 @@ class window(Frame):
       self.m_calibState['ac'].cancel()
       self.m_calibState['calibrating'] = False
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate']
+      self.m_wBttn['calibrate']['text'] = "Calibrate"
       if self.m_calibState['id'] != 0:
         self.m_calibState['id'] = 0
       self.update_idletasks()
@@ -853,7 +855,7 @@ class window(Frame):
   ## @brief monitor the calibration feedback
   #
   def calibrate_monitor(self, fb):
-    self.showJointStatus(fb)
+    self.showJointState(fb)
   
   #
   ## \brief Go to parked position callback.
@@ -877,7 +879,11 @@ class window(Frame):
   ## \brief Open gripper callback.
   #
   def openGripper(self):
-    rospy.wait_for_service("hekateros_control/open_gripper")
+    try:
+      rospy.wait_for_service("hekateros_control/open_gripper", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Open gripper ' + e.message + '.')
+      return
     try:
       open_gripper = rospy.ServiceProxy('hekateros_control/open_gripper', 
                                         OpenGripper)
@@ -889,7 +895,11 @@ class window(Frame):
   ## \brief Close gripper callback.
   #
   def closeGripper(self):
-    rospy.wait_for_service("hekateros_control/close_gripper")
+    try:
+      rospy.wait_for_service("hekateros_control/close_gripper", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Close gripper ' + e.message + '.')
+      return
     try:
       close_gripper =rospy.ServiceProxy('hekateros_control/close_gripper',
                                            CloseGripper)
@@ -901,7 +911,20 @@ class window(Frame):
   ## \brief (Reset) emergency stop callback.
   #
   def estop(self):
-    pass
+    if self.m_robotStatus['estop_led']['val'] == TriState.FALSE:
+      self.m_wBttn['estop']['image']  = self.m_icons['estop_reset']
+      self.m_wBttn['estop']['text']   = "Reset\nESTOP"
+      self.m_wBttn['estop']['fg']     = fgColors['normal']
+      self.showError("Hekateros emergency stopped.")
+      self.update_idletasks()
+      # TODO service call here
+    else:
+      self.m_wBttn['estop']['image'] = self.m_icons['estop']
+      self.m_wBttn['estop']['text']   = "ESTOP"
+      self.m_wBttn['estop']['fg']     = fgColors['error']
+      self.showError("Hekateros emergency stop has been reset.")
+      self.update_idletasks()
+      # TODO service call here
   
   #
   ## \brief Freeze arm callback.
