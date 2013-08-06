@@ -119,6 +119,7 @@ int updateJointStates(
   return n;
 }
 
+#if 0
 /*!
  * \brief Update the current joint states 
  */
@@ -142,4 +143,5 @@ int updateOpState(
   }
   
 }
+#endif
 #endif // _HC_STATE_PUB
