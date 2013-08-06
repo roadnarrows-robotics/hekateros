@@ -35,8 +35,11 @@ import getopt
 from Tkinter import *
 from Tkconstants import *
 from tkFileDialog import *
+import tkFont
 
 from PIL import Image, ImageTk
+
+import webbrowser
 
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
@@ -49,8 +52,13 @@ from hekateros_control.msg import HekRobotStatusExtended
 from hekateros_control.msg import HekJointStateExtended
 from hekateros_control.msg import ServoHealth
 from hekateros_control.msg import HekOpState
+from hekateros_control.msg import ProductInfo
+from hekateros_control.srv import GotoParkedPos
+from hekateros_control.srv import GotoBalancedPos
+from hekateros_control.srv import GotoZeroPt
 from hekateros_control.srv import OpenGripper
 from hekateros_control.srv import CloseGripper
+from hekateros_control.srv import GetProductInfo
 
 import actionlib
 import hekateros_control.msg
@@ -85,120 +93,438 @@ fgColors = {
   'error':    '#cc0000'
 }
 
-def fillDummyJointState():
-  dummyJointState = HekJointStateExtended()
-  dummyJointState.name = []
-  dummyJointState.position = []
-  dummyJointState.velocity = []
-  dummyJointState.effort = []
-  dummyJointState.master_servo_id = []
-  dummyJointState.slave_servo_id = []
-  dummyJointState.odometer_pos = []
-  dummyJointState.encoder_pos = []
-  dummyJointState.raw_speed = []
-  dummyJointState.op_state = []
 
-  dummyJointState.name.append("base_rot")
-  dummyJointState.position.append(math.radians(93.05))
-  dummyJointState.velocity.append(20.4)
-  dummyJointState.effort.append(625.0)
-  dummyJointState.master_servo_id.append(1)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.UNCALIBRATED)
+# ------------------------------------------------------------------------------
+# Utilities
+# ------------------------------------------------------------------------------
 
-  dummyJointState.name.append("shoulder")
-  dummyJointState.position.append(math.radians(-120.0532))
-  dummyJointState.velocity.append(0.4)
-  dummyJointState.effort.append(625.0)
-  dummyJointState.master_servo_id.append(2)
-  dummyJointState.slave_servo_id.append(3)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.UNCALIBRATED)
+#
+## \brief Load icon image from file name.
+##
+## \param filename    Icon file name.
+##
+## \return Returns icon widget on success, None on failure.
+#
+def loadIcon(filename):
+  # no file name
+  if filename is None or len(filename) == 0:
+    return None;
+  # absolute file name
+  if filename[0] == os.path.sep:
+    try:
+      return ImageTk.PhotoImage(Image.open(filename))
+    except IOError:
+      return None
+  # relative file name - search path for file
+  for path in imagePath:
+    fqname = path + os.path.sep + filename
+    try:
+      return ImageTk.PhotoImage(Image.open(fqname))
+    except IOError:
+      continue
+  return None
 
-  dummyJointState.name.append("elbow")
-  dummyJointState.position.append(math.radians(-120.0593))
-  dummyJointState.velocity.append(50.634)
-  dummyJointState.effort.append(1023.0)
-  dummyJointState.master_servo_id.append(4)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.CALIBRATING)
 
-  dummyJointState.name.append("wrist_pitch")
-  dummyJointState.position.append(math.radians(170.0532))
-  dummyJointState.velocity.append(90.009)
-  dummyJointState.effort.append(625.0)
-  dummyJointState.master_servo_id.append(5)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.CALIBRATED)
+# ------------------------------------------------------------------------------
+# Class warnDlg
+# ------------------------------------------------------------------------------
 
-  dummyJointState.name.append("wrist_rot")
-  dummyJointState.position.append(math.radians(-.0532))
-  dummyJointState.velocity.append(20.4)
-  dummyJointState.effort.append(625.0)
-  dummyJointState.master_servo_id.append(6)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.CALIBRATED)
+class warnDlg(Toplevel):
+  #
+  ## \brief Constructor.
+  ##
+  ## \param cnf     Configuration dictionary.
+  ## \param kw      Keyword options.
+  #
+  def __init__(self, master=None, cnf={}, **kw):
+    # initialize dialog data
+    kw = self.initData(kw)
 
-  dummyJointState.name.append("gripper")
-  dummyJointState.position.append(math.radians(0.0532))
-  dummyJointState.velocity.append(20.4)
-  dummyJointState.effort.append(988.0)
-  dummyJointState.master_servo_id.append(10)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.CALIBRATED)
+    Toplevel.__init__(self, master=master, cnf=cnf, **kw)
+    self.title(self.m_title)
 
-  return dummyJointState
+    # create and show widgets
+    self.createWidgets()
 
-def fillDummyRobotStatus():
-  dummyRobotStatus = HekRobotStatusExtended()
-  dummyRobotStatus.servo_health = []
+    # allows the enter button to fire either button's action
+    self.m_bttnCancel.bind('<KeyPress-Return>', func=self.cancel)
 
-  dummyRobotStatus.mode = RobotMode.MANUAL
-  dummyRobotStatus.e_stopped = TriState.TRUE
-  dummyRobotStatus.drives_powered = TriState.FALSE
-  dummyRobotStatus.motion_possible = TriState.TRUE
-  dummyRobotStatus.in_motion = TriState.TRUE
-  dummyRobotStatus.in_error = TriState.TRUE
-  dummyRobotStatus.is_calibrated = TriState.TRUE
-  
-  for i in [1, 2, 3, 4, 5, 6, 10]:
-    health = ServoHealth()
-    health.servo_id = i
-    health.temp = 50.0
-    health.voltage = 12.3
-    health.alarm = ServoHealth.ALARM_NONE
-    if i == 2:
-      health.temp     = 68.0
-      health.voltage  = 10.9
-    elif i == 4:
-      health.temp   = 77.0
-      health.alarm  = ServoHealth.ALARM_TEMP | ServoHealth.ALARM_LOAD
-    elif i == 10:
-      health.temp   = 80.0
-      health.alarm  = ServoHealth.ALARM_TEMP | \
-                      ServoHealth.ALARM_LOAD | \
-                      ServoHealth.ALARM_ANGLE
-    dummyRobotStatus.servo_health.append(health)
+    # center the dialog over parent panel
+    if master is not None:
+      self.update_idletasks()
+      x0 = master.winfo_rootx()
+      y0 = master.winfo_rooty()
+      xp = x0 + (master.winfo_width() - self.winfo_width()) / 2 - 8
+      yp = y0 + (master.winfo_height() - self.winfo_height()) / 2 - 20
+      glist = [self.winfo_width(), self.winfo_height(), xp, yp]
+      #self.withdraw() # hide the dialog until position and size is set
+      self.geometry('{0}x{1}+{2}+{3}'.format(*glist))
+      #self.deiconify() # now show
 
-  return dummyRobotStatus
+    # start with ok button focused
+    #self.m_bttnOk.focus_set()
 
+    # allows us to customize what happens when the close button is pressed
+    self.protocol("WM_DELETE_WINDOW", self.close)
+
+    #
+    # Modal diagle settings.
+    #
+    # set the focus on dialog window (needed on Windows)
+    self.focus_set()
+
+    # make sure events only go to our dialog
+    self.grab_set()
+
+    # make sure dialog stays on top of its parent window (if needed)
+    self.transient(master)
+
+    # isplay the window and wait for it to close
+    self.wait_window(self)
+
+  #
+  ## \brief Initialize class state data.
+  ##
+  ## \param kw      Keyword options.
+  ##
+  ## \return Modified keywords sans this specific class.
+  ##
+  def initData(self, kw):
+    self.m_icons          = {}    # must keep loaded icons referenced
+    if kw.has_key('title'):
+      self.m_title = kw['title']
+      del kw['title']
+    else:
+      self.m_title = "Warning"
+    if kw.has_key('image'):
+      self.m_icons['image'] = loadIcon(kw['image'])
+      del kw['image']
+    else:
+      self.m_icons['image'] = None
+    if kw.has_key('msg'):
+      self.m_msg = kw['msg']
+      del kw['msg']
+    else:
+      self.m_msg = "Warn what???"
+    self.m_result = False
+    return kw
+
+  #
+  ## \brief Create gui widgets with supporting data and show.
+  #
+  def createWidgets(self):
+    frame = Frame(self)
+    frame.grid(row=0, column=0)
+
+    # top heading
+    w = Label(frame)
+    helv18 = tkFont.Font(family="Helvetica",size=32,weight="bold")
+    w['font']   = helv18
+    w['text']   = 'Warning'
+    w['anchor'] = CENTER
+    w.grid(row=0, column=1, sticky=E+W)
+
+    # product logo
+    w = Label(frame)
+    if self.m_icons['image'] is not None:
+      w = Label(frame)
+      w['image']  = self.m_icons['hek_logo']
+    w['anchor'] = CENTER
+    w.grid(row=0, column=0, rowspan=2, sticky=W+N+S)
+
+    row = 1
+
+    # warning message
+    w = Label(frame)
+    w['text']   = self.m_msg
+    w['anchor'] = W
+    w['justify'] = LEFT
+    w.grid(row=row, column=1, sticky=E+W)
+
+    row += 1
+
+    # cancel button
+    w = Button(frame, width=10, text='Cancel', command=self.close)
+    w.grid(row=row, column=0, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnCancel = w
+
+    # ok button
+    w = Button(frame, width=10, text='OK', command=self.ok)
+    w.grid(row=row, column=1, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnOk = w
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def ok(self):
+    self.m_result = True
+    self.close()
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def close(self):
+    self.destroy()
+
+
+# ------------------------------------------------------------------------------
+# Class aboutDlg
+# ------------------------------------------------------------------------------
+
+class aboutDlg(Toplevel):
+  #
+  ## \brief Constructor.
+  ##
+  ## \param cnf     Configuration dictionary.
+  ## \param kw      Keyword options.
+  #
+  def __init__(self, master=None, cnf={}, **kw):
+    # initialize dialog data
+    kw = self.initData(kw)
+
+    Toplevel.__init__(self, master=master, cnf=cnf, **kw)
+    self.title("About Hekateros")
+
+    # create and show widgets
+    self.createWidgets()
+
+    # allows the enter button to fire either button's action
+    self.m_bttnOk.bind('<KeyPress-Return>', func=self.close)
+
+    # center the dialog over parent panel
+    if master is not None:
+      self.update_idletasks()
+      x0 = master.winfo_rootx()
+      y0 = master.winfo_rooty()
+      xp = x0 + (master.winfo_width() - self.winfo_width()) / 2 - 8
+      yp = y0 + (master.winfo_height() - self.winfo_height()) / 2 - 20
+      glist = [self.winfo_width(), self.winfo_height(), xp, yp]
+      #self.withdraw() # hide the dialog until position and size is set
+      self.geometry('{0}x{1}+{2}+{3}'.format(*glist))
+      #self.deiconify() # now show
+
+    # start with ok button focused
+    #self.m_bttnOk.focus_set()
+
+    # allows us to customize what happens when the close button is pressed
+    self.protocol("WM_DELETE_WINDOW", self.close)
+
+    #
+    # Modal diagle settings.
+    #
+    # set the focus on dialog window (needed on Windows)
+    self.focus_set()
+
+    # make sure events only go to our dialog
+    self.grab_set()
+
+    # make sure dialog stays on top of its parent window (if needed)
+    self.transient(master)
+
+    # isplay the window and wait for it to close
+    self.wait_window(self)
+
+  #
+  ## \brief Initialize class state data.
+  ##
+  ## \param kw      Keyword options.
+  ##
+  ## \return Modified keywords sans this specific class.
+  ##
+  def initData(self, kw):
+    self.m_icons          = {}    # must keep loaded icons referenced
+    self.m_prodName       = "Hekateros"
+    self.m_hwVer          = "1.0.0"
+    self.m_prodId         = 0x00
+    self.m_prodBrief      = "Hekateros Robotic Manipulator"
+    self.m_rnUrl          = "http://www.roadnarrows.com/Hekateros"
+    self.m_rnEmail        = "support@roadnarrows.com"
+    self.m_rnTel          = "+1.800.275.9568"
+    if kw.has_key('info'):
+      info = kw['info']
+      if info is not None:
+        self.m_hwVer = info.version_string
+        self.m_prodName = info.product_name
+        self.m_prodId = info.product_id
+        self.m_prodBrief = info.desc
+      del kw['info']
+    return kw
+
+  #
+  ## \brief Create gui widgets with supporting data and show.
+  #
+  def createWidgets(self):
+    frame = Frame(self)
+    frame.grid(row=0, column=0)
+
+    self.m_icons['hek_logo'] = loadIcon("HekaterosLogo.png")
+
+    # top heading
+    w = Label(frame)
+    times32 = tkFont.Font(family="Times",size=32,weight="bold")
+    w['font']   = times32
+    w['text']   = 'Hekateros'
+    w['anchor'] = W
+    w.grid(row=0, column=1, columnspan=2, sticky=E+W)
+
+    lwidth = 10
+    rwidth = 26
+
+    row = 1
+
+    # product brief
+    w = Label(frame)
+    w['text']   = self.m_prodBrief
+    w['anchor'] = W
+    w['width']  = rwidth
+    w.grid(row=row, column=1, columnspan=2, padx=2, sticky=W)
+
+    row += 1
+
+    # product name
+    w = Label(frame)
+    w['text']   = 'Product:'
+    w['anchor'] = W
+    w['width'] = lwidth
+    w.grid(row=row, column=1, padx=2, sticky=W)
+
+    w = Label(frame)
+    w['text']   = self.m_prodName
+    w['anchor'] = W
+    w['width']  = rwidth
+    w.grid(row=row, column=2, padx=2, sticky=W)
+
+    row += 1
+
+    # product id
+    w = Label(frame)
+    w['text']   = 'Product Id:'
+    w['anchor'] = W
+    w['width'] = lwidth
+    w.grid(row=row, column=1, padx=2, sticky=W)
+
+    w = Label(frame)
+    w['text']   = "%08x" % (self.m_prodId)
+    w['anchor'] = W
+    w['width']  = rwidth
+    w.grid(row=row, column=2, padx=2, sticky=W)
+
+    row += 1
+
+    # hw version
+    w = Label(frame)
+    w['text']   = 'HW Version:'
+    w['anchor'] = W
+    w['width'] = lwidth
+    w.grid(row=row, column=1, padx=2, sticky=W)
+
+    w = Label(frame)
+    w['text']   = self.m_hwVer
+    w['anchor'] = W
+    w['width']  = rwidth
+    w.grid(row=row, column=2, padx=2, sticky=W)
+
+    row += 1
+
+    # url
+    w = Label(frame)
+    w['text']   = 'URL:'
+    w['anchor'] = W
+    w['width'] = lwidth
+    w.grid(row=row, column=1, padx=2, sticky=W)
+
+    w = Button(frame)
+    w['text']   = 'www.roadnarrows.com/Hekateros'
+    w['fg']   = '#aa0000'
+    w['activeforeground']   = '#cc0033'
+    w['activebackground']   = w['bg']
+    w['cursor'] = 'hand1'
+    w['anchor'] = W
+    w['justify'] = LEFT
+    w['relief']   = 'flat'
+    w['borderwidth']   = 0
+    w['padx']   = 0
+    w['pady']   = 0
+    w['width']  = rwidth
+    w['command']  = lambda aurl=self.m_rnUrl:webbrowser.open_new(self.m_rnUrl)
+    w.grid(row=row, column=2, ipadx=0, ipady=0, padx=2, pady=0, sticky=W)
+
+    row += 1
+
+    # support email
+    w = Label(frame)
+    w['text']   = 'Email:'
+    w['anchor'] = W
+    w['width'] = lwidth
+    w.grid(row=row, column=1, padx=2, sticky=W)
+
+    w = Label(frame)
+    w['text']   = self.m_rnEmail
+    w['anchor'] = W
+    w['width']  = rwidth
+    w.grid(row=row, column=2, padx=2, sticky=W)
+
+    row += 1
+
+    # telephone
+    w = Label(frame)
+    w['text']   = 'Tel:'
+    w['anchor'] = W
+    w['width'] = lwidth
+    w.grid(row=row, column=1, padx=2, sticky=W)
+
+    w = Label(frame)
+    w['text']   = self.m_rnTel
+    w['anchor'] = W
+    w['width']  = rwidth
+    w.grid(row=row, column=2, padx=2, sticky=W)
+
+    row += 1
+
+    # product logo
+    w = Label(frame)
+    if self.m_icons['hek_logo'] is not None:
+      w['image']  = self.m_icons['hek_logo']
+    w['anchor'] = CENTER
+    w.grid(row=0, column=0, rowspan=row, sticky=W+N+S)
+
+    # who
+    w = Label(frame)
+    w['text']   = """
+Hekateros is designed and developed by RoadNarrows, a robotics and intelligent systems
+company base in Colorado USA. We are dedictated to supporting open software and
+hardware interfaces to foster a global community of users and developers."""
+    w['justify'] = LEFT
+    w['anchor'] = W
+    w.grid(row=row, column=0, columnspan=3, padx=5, sticky=W)
+
+    row += 1
+
+    # ok button
+    w = Button(frame, width=10, text='OK', command=self.close)
+    w.grid(row=row, column=0, columnspan=3, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnOk = w
+
+    row += 1
+
+    # legal
+    w = Label(frame)
+    helv8 = tkFont.Font(family="Helvetica",size=8)
+    w['font']   = helv8
+    w['anchor'] = W
+    w['fg']     = '#666666'
+    w['text']   = "Hekateros and the Hekateros logos are the trademarks of " \
+                  "RoadNarrows LLC"
+    w.grid(row=row, column=0, columnspan=3, pady=5)
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def close(self):
+    self.destroy()
 
 
 # ------------------------------------------------------------------------------
@@ -217,10 +543,14 @@ class window(Frame):
   ## \param kw      Keyword options.
   #
   def __init__(self, master=None, cnf={}, **kw):
-    self.initData(**kw)
+    # intialize window data
+    kw = self.initData(**kw)
+
     Frame.__init__(self, master=master, cnf=cnf, **kw)
     self.master.title("Hekateros Control Panel")
     self.grid(row=0, column=0, padx=5, pady=5)
+
+    # craete and show widgets
     self.createWidgets()
 
   #
@@ -230,8 +560,16 @@ class window(Frame):
   ## by the Frame Tkinter class must be removed.
   ##
   ## \param kw      Keyword options.
+  ##
+  ## \return Modified keywords sans this specific class.
   #
   def initData(self, **kw):
+                                  # application configuration
+    self.m_config         = \
+      {
+        'warn_on_calib':    True, # do [not] warn user at calibration start
+        'warn_on_release':  True, # do [not] warn user on release
+      }
     self.m_icons          = {}    # must keep loaded icons referenced
     self.m_wBttn          = {}    # button widgets
     self.m_keysCalibDeps  = []    # gui button keys depending on calibration
@@ -242,11 +580,12 @@ class window(Frame):
                                   # calibration state
     self.m_calibState     = \
       {
-          'calibrating':  False,  # [not] calibrating
-          'ac':           None,   # calibration action client
-          'id':           0       # after id
+        'calibrating':  False,    # [not] calibrating
+        'ac':           None,     # calibration action client
+        'id':           0         # after id
       }
     self.m_results        = None
+    return kw
 
   #
   ## \brief Create gui widgets with supporting data and show.
@@ -264,7 +603,7 @@ class window(Frame):
   def createHeading(self):
     # rn logo
     w = Label(self)
-    self.m_icons['rn_logo'] = self.loadIcon("RNLogo48.png");
+    self.m_icons['rn_logo'] = loadIcon("RNLogo48.png");
     if self.m_icons['rn_logo']:
       w['image'] = self.m_icons['rn_logo']
     else:
@@ -282,7 +621,7 @@ class window(Frame):
 
     # hek logo
     w = Label(self)
-    self.m_icons['hek_logo'] = self.loadIcon("icons/icon_hek_logo.png");
+    self.m_icons['hek_logo'] = loadIcon("icons/icon_hek_logo.png");
     if self.m_icons['hek_logo']:
       w['image'] = self.m_icons['hek_logo']
       w['anchor'] = E
@@ -305,13 +644,12 @@ class window(Frame):
     w = self.createButton(wframe, "Calibrate", "icons/icon_calib.png",
                             self.calibrate)
     w.grid(row=0, column=0, sticky=N+E+W)
-    self.m_icons['calibrate_cancel'] = \
-                        self.loadIcon("icons/icon_calib_cancel.png")
+    self.m_icons['calibrate_cancel'] = loadIcon("icons/icon_calib_cancel.png")
     self.m_keysModeDeps.append('calibrate')
 
     # park
     w = self.createButton(wframe, "Park", "icons/icon_hek_park.png",
-                            self.gotoParkPos)
+                            self.gotoParkedPos)
     w.grid(row=1, column=0, sticky=N+E+W)
     self.m_keysCalibDeps.append('park')
     self.m_keysModeDeps.append('park')
@@ -428,9 +766,9 @@ class window(Frame):
 
     col += 1
 
-    self.m_icons['led_dark'] = self.loadIcon("icons/icon_led_dark_16.png")
-    self.m_icons['led_green']  = self.loadIcon("icons/icon_led_green_16.png")
-    self.m_icons['led_red']  = self.loadIcon("icons/icon_led_red_16.png")
+    self.m_icons['led_dark']  = loadIcon("icons/icon_led_dark_16.png")
+    self.m_icons['led_green'] = loadIcon("icons/icon_led_green_16.png")
+    self.m_icons['led_red']   = loadIcon("icons/icon_led_red_16.png")
 
     # moving status
     w = Label(wframe)
@@ -584,14 +922,14 @@ class window(Frame):
 
       # master servo id
       var = IntVar()
-      var.set(joint.master_servo_id[i])
+      var.set(ord(joint.master_servo_id[i]))
       w = Entry(wframe, relief='flat', justify=LEFT, textvar=var,
                         fg=fgColors['normal'], state='readonly')
       w['width'] = width
       w.grid(row=2, column=col, padx=1, pady=0, sticky=W)
       d = {'var': var, 'w': w}
       self.m_robotJoint[name]['servo_id'] = d
-      self.m_robotServo[joint.master_servo_id[i]] = name
+      self.m_robotServo[ord(joint.master_servo_id[i])] = name
     
       # joint state
       var = StringVar()
@@ -710,8 +1048,7 @@ class window(Frame):
     w = self.createButton(wframe, "ESTOP", "icons/icon_estop.png", self.estop,
                                   fg='red')
     w.grid(row=0, column=0, sticky=N+E+W)
-    self.m_icons['estop_reset'] = \
-                        self.loadIcon("icons/icon_estop_reset.png")
+    self.m_icons['estop_reset'] = loadIcon("icons/icon_estop_reset.png")
 
     # freeze
     w = self.createButton(wframe, "Freeze",
@@ -772,7 +1109,7 @@ class window(Frame):
   #
   def createButton(self, parent, text, imagefile, command, fg='black'):
     key = str.lower(text.replace("\n", "_"))
-    self.m_icons[key] = self.loadIcon(imagefile)
+    self.m_icons[key] = loadIcon(imagefile)
     w = Button(parent)
     w['text']     = text
     if self.m_icons[key]:
@@ -802,8 +1139,13 @@ class window(Frame):
   def calibrate(self):
     # not calibrating - so start calibration
     if not self.m_calibState['calibrating']:
+      if self.m_config['warn_on_calib']:
+        dlg = warnDlg(msg="You are going to die!")
+        if not dlg.m_result:
+          return
       self.m_calibState['calibrating'] = True
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate_cancel']
+      self.m_wBttn['calibrate']['text'] = "Cancel\nCalibrate"
       self.showInfo("Calibrating Hekateros.")
       self.update_idletasks()
 
@@ -833,6 +1175,7 @@ class window(Frame):
       self.m_calibState['ac'].cancel()
       self.m_calibState['calibrating'] = False
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate']
+      self.m_wBttn['calibrate']['text'] = "Calibrate"
       if self.m_calibState['id'] != 0:
         self.m_calibState['id'] = 0
       self.update_idletasks()
@@ -853,80 +1196,216 @@ class window(Frame):
   ## @brief monitor the calibration feedback
   #
   def calibrate_monitor(self, fb):
-    self.showJointStatus(fb)
+    self.showJointState(fb)
   
   #
   ## \brief Go to parked position callback.
   #
-  def gotoParkPos(self):
-    pass
+  def gotoParkedPos(self):
+    try:
+      rospy.wait_for_service("hekateros_control/goto_parked", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Goto parked position: ' + e.message + '.')
+      return
+    try:
+      goto_parked_pos = rospy.ServiceProxy('hekateros_control/goto_parked', 
+                                        GotoParkedPos)
+      goto_parked_pos()
+    except rospy.ServiceException, e:
+      self.showError("Goto parked position request failed: %s." % (e.message))
+      return
+    self.showInfo("Parked.")
   
   #
   ## \brief Go to balanced position callback.
   #
   def gotoBalancedPos(self):
-    pass
+    try:
+      rospy.wait_for_service("hekateros_control/goto_balanceded", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Goto balanced position: ' + e.message + '.')
+      return
+    try:
+      goto_balanced_pos = rospy.ServiceProxy(
+                                        'hekateros_control/goto_balanced', 
+                                        GotoBalancedPos)
+      goto_balanced_pos()
+    except rospy.ServiceException, e:
+      self.showError("Goto balanced position request failed: %s." % (e.message))
+      return
+    self.showInfo("Balanced.")
   
   #
   ## \brief Go to zero point position callback.
   #
   def gotoZeroPt(self):
-    pass
+    try:
+      rospy.wait_for_service("hekateros_control/goto_zero", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Goto zero point: ' + e.message + '.')
+      return
+    try:
+      goto_zero_pt = rospy.ServiceProxy('hekateros_control/goto_zero', 
+                                        GotoZeroPt)
+      goto_zero_pt()
+    except rospy.ServiceException, e:
+      self.showError("Goto zero point failed: %s." % (e.message))
+      return
+    self.showInfo("Zero point.")
   
   #
   ## \brief Open gripper callback.
   #
   def openGripper(self):
-    rospy.wait_for_service("hekateros_control/open_gripper")
+    try:
+      rospy.wait_for_service("hekateros_control/open_gripper", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Open gripper: ' + e.message + '.')
+      return
     try:
       open_gripper = rospy.ServiceProxy('hekateros_control/open_gripper', 
                                         OpenGripper)
       open_gripper()
     except rospy.ServiceException, e:
-      self.showError("Open grippper request failed: %s." % (e))
+      self.showError("Open grippper request failed: %s." % (e.message))
+      return
+    self.showInfo("Gripper opened.")
+  
 
   #
   ## \brief Close gripper callback.
   #
   def closeGripper(self):
-    rospy.wait_for_service("hekateros_control/close_gripper")
     try:
-      close_gripper =rospy.ServiceProxy('hekateros_control/close_gripper',
-                                           CloseGripper)
+      rospy.wait_for_service("hekateros_control/close_gripper", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Close gripper: ' + e.message + '.')
+      return
+    try:
+      close_gripper = rospy.ServiceProxy('hekateros_control/close_gripper',
+                                          CloseGripper)
       close_gripper()
     except rospy.ServiceException, e:
-      self.showError("Close grippper request failed: %s." % (e))
+      self.showError("Close grippper request failed: %s." % (e.message))
+      return
+    self.showInfo("Gripper closed.")
 
   #
   ## \brief (Reset) emergency stop callback.
   #
   def estop(self):
-    pass
+    if self.m_robotStatus['estop_led']['val'] == TriState.FALSE:
+      self.showResetEStop()
+      try:
+        rospy.wait_for_service("hekateros_control/estop", timeout=1)
+      except rospy.ROSException, e:
+        self.showError('Emergency stop: ' + e.message + '.')
+        self.showEStop()
+        return
+      try:
+        estop = rospy.ServiceProxy('hekateros_control/estop',
+                                          EStop)
+        estop()
+      except rospy.ServiceException, e:
+        self.showError("Emergency stop request failed: %s." % (e.message))
+        self.showEStop()
+        return
+      self.showError("Hekateros emergency stopped.")
+    else:
+      self.showEStop()
+      try:
+        rospy.wait_for_service("hekateros_control/reset_estop", timeout=1)
+      except rospy.ROSException, e:
+        self.showError('Reset emergency stop: ' + e.message + '.')
+        self.showResetEStop()
+        return
+      try:
+        reset_estop = rospy.ServiceProxy('hekateros_control/reset_estop',
+                                          ResetEStop)
+        reset_estop()
+      except rospy.ServiceException, e:
+        self.showError("Reset emergency stop request failed: %s." % (e.message))
+        self.showResetEStop()
+        return
+      self.showError("Hekateros emergency stop has been reset.")
   
+  #
+  ## \brief Show estop button.
+  #
+  def showEStop(self):
+    self.m_wBttn['estop']['image'] = self.m_icons['estop']
+    self.m_wBttn['estop']['text']   = "ESTOP"
+    self.m_wBttn['estop']['fg']     = fgColors['error']
+    self.update_idletasks()
+
+  #
+  ## \brief Show reset estop button.
+  #
+  def showResetEStop(self):
+    self.m_wBttn['estop']['image']  = self.m_icons['estop_reset']
+    self.m_wBttn['estop']['text']   = "Reset\nESTOP"
+    self.m_wBttn['estop']['fg']     = fgColors['normal']
+    self.update_idletasks()
+
   #
   ## \brief Freeze arm callback.
   #
   def freezeArm(self):
-    pass
-  
+    try:
+      rospy.wait_for_service("hekateros_control/freeze", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Freeze arm: ' + e.message + '.')
+      return
+    try:
+      freeze = rospy.ServiceProxy('hekateros_control/freeze', Freeze)
+      freeze()
+    except rospy.ServiceException, e:
+      self.showError("Freeze arm request failed: %s." % (e.message))
+      return
+    self.showInfo("Hekateros has been frozen at current position.")
+
   #
   ## \brief Release arm callback.
   #
   def releaseArm(self):
-    self.updateJointStates(fillDummyJointState()) # RDK
+    try:
+      rospy.wait_for_service("hekateros_control/release", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Release arm: ' + e.message + '.')
+      return
+    try:
+      freeze = rospy.ServiceProxy('hekateros_control/release', Freeze)
+      freeze()
+    except rospy.ServiceException, e:
+      self.showError("Release arm request failed: %s." % (e.message))
+      return
+    self.showInfo("Hekateros has been release, motors are unpowered.")
   
   #
   ## \brief Open settings dialog callback.
   #
   def settings(self):
-    status = fillDummyRobotStatus() # RDK
-    self.updateRobotStatus(status) # RDK
+    pass
   
   #
   ## \brief Show about dialog callback.
   #
   def about(self):
-    pass
+    prodInfo = None
+    try:
+      rospy.wait_for_service("hekateros_control/get_product_info", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Get product info: ' + e.message + '.')
+    else:
+      try:
+        get_product_id = rospy.ServiceProxy(
+                                          'hekateros_control/get_product_info',
+                                          GetProductId)
+        rsp = get_product_id()
+        prodInfo = rsp.i
+      except rospy.ServiceException, e:
+        self.showError("Get product info request failed: %s." % (e.message))
+    dlg = aboutDlg(master=self, info=prodInfo)
   
   #
   ## \brief Update robot status.
@@ -1019,7 +1498,7 @@ class window(Frame):
         continue
 
       key = 'state'
-      val, fg = self.toJointState(joint.op_state[i])
+      val, fg = self.toJointState(joint.op_state[i].calib_state)
       if self.m_robotJoint[name][key]['var'].get() != val:
         self.showEntry(self.m_robotJoint[name][key]['w'],
                      self.m_robotJoint[name][key]['var'], val, fg)
@@ -1070,7 +1549,7 @@ class window(Frame):
   #
   def showServoHealth(self, health):
     for i in range(0, len(health)):
-      servo_id = health[i].servo_id
+      servo_id = ord(health[i].servo_id)
       if not self.m_robotServo.has_key(servo_id):
         continue
 
@@ -1131,32 +1610,6 @@ class window(Frame):
     w['fg']    = fg
     var.set(val)
     w['state'] = 'readonly'
-
-  #
-  ## \brief Load icon image from file name.
-  ##
-  ## \param filename    Icon file name.
-  ##
-  ## \return Returns icon widget on success, None on failure.
-  #
-  def loadIcon(self, filename):
-    # no file name
-    if filename is None or len(filename) == 0:
-      return None;
-    # absolute file name
-    if filename[0] == os.path.sep:
-      try:
-        return ImageTk.PhotoImage(Image.open(filename))
-      except IOError:
-        return None
-    # relative file name - search path for file
-    for path in imagePath:
-      fqname = path + os.path.sep + filename
-      try:
-        return ImageTk.PhotoImage(Image.open(fqname))
-      except IOError:
-        continue
-    return None
 
   def toRobotMode(self, mode):
     if mode == RobotMode.MANUAL:
