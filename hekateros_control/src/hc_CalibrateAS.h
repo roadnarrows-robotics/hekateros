@@ -42,8 +42,8 @@ public:
 
     while(pRobot->getAsyncState() && !(as_.isPreemptRequested()))
     {
-      //updateOpState(names_, feedback_);
-      //as_.publishFeedback(feedback_);
+      updateOpState(names_, feedback_);
+      as_.publishFeedback(feedback_);
       sleep(1);
     }
 
