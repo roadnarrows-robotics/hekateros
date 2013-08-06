@@ -93,121 +93,6 @@ fgColors = {
   'error':    '#cc0000'
 }
 
-def fillDummyJointState():
-  dummyJointState = HekJointStateExtended()
-  dummyJointState.name = []
-  dummyJointState.position = []
-  dummyJointState.velocity = []
-  dummyJointState.effort = []
-  dummyJointState.master_servo_id = []
-  dummyJointState.slave_servo_id = []
-  dummyJointState.odometer_pos = []
-  dummyJointState.encoder_pos = []
-  dummyJointState.raw_speed = []
-  dummyJointState.op_state = []
-
-  dummyJointState.name.append("base_rot")
-  dummyJointState.position.append(math.radians(93.05))
-  dummyJointState.velocity.append(20.4)
-  dummyJointState.effort.append(625.0)
-  dummyJointState.master_servo_id.append(1)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.UNCALIBRATED)
-
-  dummyJointState.name.append("shoulder")
-  dummyJointState.position.append(math.radians(-120.0532))
-  dummyJointState.velocity.append(0.4)
-  dummyJointState.effort.append(625.0)
-  dummyJointState.master_servo_id.append(2)
-  dummyJointState.slave_servo_id.append(3)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.UNCALIBRATED)
-
-  dummyJointState.name.append("elbow")
-  dummyJointState.position.append(math.radians(-120.0593))
-  dummyJointState.velocity.append(50.634)
-  dummyJointState.effort.append(1023.0)
-  dummyJointState.master_servo_id.append(4)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.CALIBRATING)
-
-  dummyJointState.name.append("wrist_pitch")
-  dummyJointState.position.append(math.radians(170.0532))
-  dummyJointState.velocity.append(90.009)
-  dummyJointState.effort.append(625.0)
-  dummyJointState.master_servo_id.append(5)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.CALIBRATED)
-
-  dummyJointState.name.append("wrist_rot")
-  dummyJointState.position.append(math.radians(-.0532))
-  dummyJointState.velocity.append(20.4)
-  dummyJointState.effort.append(625.0)
-  dummyJointState.master_servo_id.append(6)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.CALIBRATED)
-
-  dummyJointState.name.append("gripper")
-  dummyJointState.position.append(math.radians(0.0532))
-  dummyJointState.velocity.append(20.4)
-  dummyJointState.effort.append(988.0)
-  dummyJointState.master_servo_id.append(10)
-  dummyJointState.slave_servo_id.append(-1)
-  dummyJointState.odometer_pos.append(92307)
-  dummyJointState.encoder_pos.append(1038)
-  dummyJointState.raw_speed.append(219)
-  dummyJointState.op_state.append(HekOpState.CALIBRATED)
-
-  return dummyJointState
-
-def fillDummyRobotStatus():
-  dummyRobotStatus = HekRobotStatusExtended()
-  dummyRobotStatus.servo_health = []
-
-  dummyRobotStatus.mode = RobotMode.MANUAL
-  dummyRobotStatus.e_stopped = TriState.TRUE
-  dummyRobotStatus.drives_powered = TriState.FALSE
-  dummyRobotStatus.motion_possible = TriState.TRUE
-  dummyRobotStatus.in_motion = TriState.TRUE
-  dummyRobotStatus.in_error = TriState.TRUE
-  dummyRobotStatus.is_calibrated = TriState.TRUE
-  
-  for i in [1, 2, 3, 4, 5, 6, 10]:
-    health = ServoHealth()
-    health.servo_id = i
-    health.temp = 50.0
-    health.voltage = 12.3
-    health.alarm = ServoHealth.ALARM_NONE
-    if i == 2:
-      health.temp     = 68.0
-      health.voltage  = 10.9
-    elif i == 4:
-      health.temp   = 77.0
-      health.alarm  = ServoHealth.ALARM_TEMP | ServoHealth.ALARM_LOAD
-    elif i == 10:
-      health.temp   = 80.0
-      health.alarm  = ServoHealth.ALARM_TEMP | \
-                      ServoHealth.ALARM_LOAD | \
-                      ServoHealth.ALARM_ANGLE
-    dummyRobotStatus.servo_health.append(health)
-
-  return dummyRobotStatus
-
-
 
 # ------------------------------------------------------------------------------
 # Utilities
@@ -241,6 +126,150 @@ def loadIcon(filename):
 
 
 # ------------------------------------------------------------------------------
+# Class warnDlg
+# ------------------------------------------------------------------------------
+
+class warnDlg(Toplevel):
+  #
+  ## \brief Constructor.
+  ##
+  ## \param cnf     Configuration dictionary.
+  ## \param kw      Keyword options.
+  #
+  def __init__(self, master=None, cnf={}, **kw):
+    # initialize dialog data
+    kw = self.initData(kw)
+
+    Toplevel.__init__(self, master=master, cnf=cnf, **kw)
+    self.title(self.m_title)
+
+    # create and show widgets
+    self.createWidgets()
+
+    # allows the enter button to fire either button's action
+    self.m_bttnCancel.bind('<KeyPress-Return>', func=self.cancel)
+
+    # center the dialog over parent panel
+    if master is not None:
+      self.update_idletasks()
+      x0 = master.winfo_rootx()
+      y0 = master.winfo_rooty()
+      xp = x0 + (master.winfo_width() - self.winfo_width()) / 2 - 8
+      yp = y0 + (master.winfo_height() - self.winfo_height()) / 2 - 20
+      glist = [self.winfo_width(), self.winfo_height(), xp, yp]
+      #self.withdraw() # hide the dialog until position and size is set
+      self.geometry('{0}x{1}+{2}+{3}'.format(*glist))
+      #self.deiconify() # now show
+
+    # start with ok button focused
+    #self.m_bttnOk.focus_set()
+
+    # allows us to customize what happens when the close button is pressed
+    self.protocol("WM_DELETE_WINDOW", self.close)
+
+    #
+    # Modal diagle settings.
+    #
+    # set the focus on dialog window (needed on Windows)
+    self.focus_set()
+
+    # make sure events only go to our dialog
+    self.grab_set()
+
+    # make sure dialog stays on top of its parent window (if needed)
+    self.transient(master)
+
+    # isplay the window and wait for it to close
+    self.wait_window(self)
+
+  #
+  ## \brief Initialize class state data.
+  ##
+  ## \param kw      Keyword options.
+  ##
+  ## \return Modified keywords sans this specific class.
+  ##
+  def initData(self, kw):
+    self.m_icons          = {}    # must keep loaded icons referenced
+    if kw.has_key('title'):
+      self.m_title = kw['title']
+      del kw['title']
+    else:
+      self.m_title = "Warning"
+    if kw.has_key('image'):
+      self.m_icons['image'] = loadIcon(kw['image'])
+      del kw['image']
+    else:
+      self.m_icons['image'] = None
+    if kw.has_key('msg'):
+      self.m_msg = kw['msg']
+      del kw['msg']
+    else:
+      self.m_msg = "Warn what???"
+    self.m_result = False
+    return kw
+
+  #
+  ## \brief Create gui widgets with supporting data and show.
+  #
+  def createWidgets(self):
+    frame = Frame(self)
+    frame.grid(row=0, column=0)
+
+    # top heading
+    w = Label(frame)
+    helv18 = tkFont.Font(family="Helvetica",size=32,weight="bold")
+    w['font']   = helv18
+    w['text']   = 'Warning'
+    w['anchor'] = CENTER
+    w.grid(row=0, column=1, sticky=E+W)
+
+    # product logo
+    w = Label(frame)
+    if self.m_icons['image'] is not None:
+      w = Label(frame)
+      w['image']  = self.m_icons['hek_logo']
+    w['anchor'] = CENTER
+    w.grid(row=0, column=0, rowspan=2, sticky=W+N+S)
+
+    row = 1
+
+    # warning message
+    w = Label(frame)
+    w['text']   = self.m_msg
+    w['anchor'] = W
+    w['justify'] = LEFT
+    w.grid(row=row, column=1, sticky=E+W)
+
+    row += 1
+
+    # cancel button
+    w = Button(frame, width=10, text='Cancel', command=self.close)
+    w.grid(row=row, column=0, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnCancel = w
+
+    # ok button
+    w = Button(frame, width=10, text='OK', command=self.ok)
+    w.grid(row=row, column=1, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnOk = w
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def ok(self):
+    self.m_result = True
+    self.close()
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def close(self):
+    self.destroy()
+
+
+# ------------------------------------------------------------------------------
 # Class aboutDlg
 # ------------------------------------------------------------------------------
 
@@ -253,7 +282,7 @@ class aboutDlg(Toplevel):
   #
   def __init__(self, master=None, cnf={}, **kw):
     # initialize dialog data
-    self.initData(kw)
+    kw = self.initData(kw)
 
     Toplevel.__init__(self, master=master, cnf=cnf, **kw)
     self.title("About Hekateros")
@@ -309,18 +338,18 @@ class aboutDlg(Toplevel):
     self.m_prodName       = "Hekateros"
     self.m_hwVer          = "1.0.0"
     self.m_prodId         = 0x00
-    self.m_prodBrief      = "Hekateros Manipulator"
+    self.m_prodBrief      = "Hekateros Robotic Manipulator"
     self.m_rnUrl          = "http://www.roadnarrows.com/Hekateros"
     self.m_rnEmail        = "support@roadnarrows.com"
     self.m_rnTel          = "+1.800.275.9568"
     if kw.has_key('info'):
       info = kw['info']
-      self.m_hwVer = info.version_string
-      self.m_prodName = info.product_name
-      self.m_prodId = info.product_id
-      self.m_prodBrief = info.desc
+      if info is not None:
+        self.m_hwVer = info.version_string
+        self.m_prodName = info.product_name
+        self.m_prodId = info.product_id
+        self.m_prodBrief = info.desc
       del kw['info']
-    del kw['ooga']
     return kw
 
   #
@@ -456,7 +485,6 @@ class aboutDlg(Toplevel):
 
     # product logo
     w = Label(frame)
-    w['font']   = ('Franklin', 16)
     if self.m_icons['hek_logo'] is not None:
       w['image']  = self.m_icons['hek_logo']
     w['anchor'] = CENTER
@@ -498,8 +526,6 @@ hardware interfaces to foster a global community of users and developers."""
   def close(self):
     self.destroy()
 
-    
-
 
 # ------------------------------------------------------------------------------
 # Class window
@@ -538,6 +564,12 @@ class window(Frame):
   ## \return Modified keywords sans this specific class.
   #
   def initData(self, **kw):
+                                  # application configuration
+    self.m_config         = \
+      {
+        'warn_on_calib':    True, # do [not] warn user at calibration start
+        'warn_on_release':  True, # do [not] warn user on release
+      }
     self.m_icons          = {}    # must keep loaded icons referenced
     self.m_wBttn          = {}    # button widgets
     self.m_keysCalibDeps  = []    # gui button keys depending on calibration
@@ -548,9 +580,9 @@ class window(Frame):
                                   # calibration state
     self.m_calibState     = \
       {
-          'calibrating':  False,  # [not] calibrating
-          'ac':           None,   # calibration action client
-          'id':           0       # after id
+        'calibrating':  False,    # [not] calibrating
+        'ac':           None,     # calibration action client
+        'id':           0         # after id
       }
     self.m_results        = None
     return kw
@@ -890,14 +922,14 @@ class window(Frame):
 
       # master servo id
       var = IntVar()
-      var.set(joint.master_servo_id[i])
+      var.set(ord(joint.master_servo_id[i]))
       w = Entry(wframe, relief='flat', justify=LEFT, textvar=var,
                         fg=fgColors['normal'], state='readonly')
       w['width'] = width
       w.grid(row=2, column=col, padx=1, pady=0, sticky=W)
       d = {'var': var, 'w': w}
       self.m_robotJoint[name]['servo_id'] = d
-      self.m_robotServo[joint.master_servo_id[i]] = name
+      self.m_robotServo[ord(joint.master_servo_id[i])] = name
     
       # joint state
       var = StringVar()
@@ -1107,6 +1139,10 @@ class window(Frame):
   def calibrate(self):
     # not calibrating - so start calibration
     if not self.m_calibState['calibrating']:
+      if self.m_config['warn_on_calib']:
+        dlg = warnDlg(msg="You are going to die!")
+        if not dlg.m_result:
+          return
       self.m_calibState['calibrating'] = True
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate_cancel']
       self.m_wBttn['calibrate']['text'] = "Cancel\nCalibrate"
@@ -1167,12 +1203,12 @@ class window(Frame):
   #
   def gotoParkedPos(self):
     try:
-      rospy.wait_for_service("hekateros_control/goto_parked_pos", timeout=1)
+      rospy.wait_for_service("hekateros_control/goto_parked", timeout=1)
     except rospy.ROSException, e:
       self.showError('Goto parked position: ' + e.message + '.')
       return
     try:
-      goto_parked_pos = rospy.ServiceProxy('hekateros_control/goto_parked_pos', 
+      goto_parked_pos = rospy.ServiceProxy('hekateros_control/goto_parked', 
                                         GotoParkedPos)
       goto_parked_pos()
     except rospy.ServiceException, e:
@@ -1185,13 +1221,13 @@ class window(Frame):
   #
   def gotoBalancedPos(self):
     try:
-      rospy.wait_for_service("hekateros_control/goto_balanceded_pos", timeout=1)
+      rospy.wait_for_service("hekateros_control/goto_balanceded", timeout=1)
     except rospy.ROSException, e:
       self.showError('Goto balanced position: ' + e.message + '.')
       return
     try:
       goto_balanced_pos = rospy.ServiceProxy(
-                                        'hekateros_control/goto_balanced_pos', 
+                                        'hekateros_control/goto_balanced', 
                                         GotoBalancedPos)
       goto_balanced_pos()
     except rospy.ServiceException, e:
@@ -1204,12 +1240,12 @@ class window(Frame):
   #
   def gotoZeroPt(self):
     try:
-      rospy.wait_for_service("hekateros_control/goto_zero_pt", timeout=1)
+      rospy.wait_for_service("hekateros_control/goto_zero", timeout=1)
     except rospy.ROSException, e:
       self.showError('Goto zero point: ' + e.message + '.')
       return
     try:
-      goto_zero_pt = rospy.ServiceProxy('hekateros_control/goto_zero_pt', 
+      goto_zero_pt = rospy.ServiceProxy('hekateros_control/goto_zero', 
                                         GotoZeroPt)
       goto_zero_pt()
     except rospy.ServiceException, e:
@@ -1332,7 +1368,6 @@ class window(Frame):
   ## \brief Release arm callback.
   #
   def releaseArm(self):
-    # self.updateJointStates(fillDummyJointState()) # RDK
     try:
       rospy.wait_for_service("hekateros_control/release", timeout=1)
     except rospy.ROSException, e:
@@ -1350,14 +1385,27 @@ class window(Frame):
   ## \brief Open settings dialog callback.
   #
   def settings(self):
-    status = fillDummyRobotStatus() # RDK
-    self.updateRobotStatus(status) # RDK
+    pass
   
   #
   ## \brief Show about dialog callback.
   #
   def about(self):
-    dlg = aboutDlg(master=self, ooga=True)
+    prodInfo = None
+    try:
+      rospy.wait_for_service("hekateros_control/get_product_info", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Get product info: ' + e.message + '.')
+    else:
+      try:
+        get_product_id = rospy.ServiceProxy(
+                                          'hekateros_control/get_product_info',
+                                          GetProductId)
+        rsp = get_product_id()
+        prodInfo = rsp.i
+      except rospy.ServiceException, e:
+        self.showError("Get product info request failed: %s." % (e.message))
+    dlg = aboutDlg(master=self, info=prodInfo)
   
   #
   ## \brief Update robot status.
@@ -1450,7 +1498,7 @@ class window(Frame):
         continue
 
       key = 'state'
-      val, fg = self.toJointState(joint.op_state[i])
+      val, fg = self.toJointState(joint.op_state[i].calib_state)
       if self.m_robotJoint[name][key]['var'].get() != val:
         self.showEntry(self.m_robotJoint[name][key]['w'],
                      self.m_robotJoint[name][key]['var'], val, fg)
@@ -1501,7 +1549,7 @@ class window(Frame):
   #
   def showServoHealth(self, health):
     for i in range(0, len(health)):
-      servo_id = health[i].servo_id
+      servo_id = ord(health[i].servo_id)
       if not self.m_robotServo.has_key(servo_id):
         continue
 
