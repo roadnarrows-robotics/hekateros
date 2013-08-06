@@ -1,5 +1,4 @@
 ---
 int8 rc
 ---
-string[]     name      
-HekOpState[] op_state
+HekJointStateExtended joint

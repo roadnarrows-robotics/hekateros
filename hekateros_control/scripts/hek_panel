@@ -147,7 +147,7 @@ class warnDlg(Toplevel):
     self.createWidgets()
 
     # allows the enter button to fire either button's action
-    self.m_bttnCancel.bind('<KeyPress-Return>', func=self.cancel)
+    self.m_bttnCancel.bind('<KeyPress-Return>', func=self.close)
 
     # center the dialog over parent panel
     if master is not None:
@@ -218,8 +218,8 @@ class warnDlg(Toplevel):
 
     # top heading
     w = Label(frame)
-    helv18 = tkFont.Font(family="Helvetica",size=32,weight="bold")
-    w['font']   = helv18
+    helv = tkFont.Font(family="Helvetica",size=24,weight="bold")
+    w['font']   = helv
     w['text']   = 'Warning'
     w['anchor'] = CENTER
     w.grid(row=0, column=1, sticky=E+W)
@@ -1140,7 +1140,7 @@ class window(Frame):
     # not calibrating - so start calibration
     if not self.m_calibState['calibrating']:
       if self.m_config['warn_on_calib']:
-        dlg = warnDlg(msg="You are going to die!")
+        dlg = warnDlg(master=self, msg="You are going to die!")
         if not dlg.m_result:
           return
       self.m_calibState['calibrating'] = True
@@ -1196,7 +1196,7 @@ class window(Frame):
   ## @brief monitor the calibration feedback
   #
   def calibrate_monitor(self, fb):
-    self.showJointState(fb)
+    self.showJointStates(fb.joint)
   
   #
   ## \brief Go to parked position callback.
