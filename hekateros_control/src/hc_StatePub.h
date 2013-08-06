@@ -92,6 +92,7 @@ int updateJointStates(
   joint_states_ex.odometer_pos.clear();
   joint_states_ex.encoder_pos.clear();
   joint_states_ex.raw_speed.clear();
+  joint_states_ex.op_state.clear();
 
   for (n=0; n<states.getNumPoints(); ++n)
   {
@@ -109,6 +110,10 @@ int updateJointStates(
     joint_states_ex.odometer_pos.push_back(states[n].m_nOdPos);
     joint_states_ex.encoder_pos.push_back(states[n].m_nEncPos);
     joint_states_ex.raw_speed.push_back(states[n].m_nSpeed);
+
+    hekateros_control::HekOpState opstate;
+    opstate.calib_state = (int)states[n].m_eOpState;
+    joint_states_ex.op_state.push_back(opstate);
   }
 
   return n;
@@ -129,7 +134,7 @@ int updateOpState(
   fb.op_state.clear();
   
   for (int n=0; n<states.getNumPoints(); ++n)
-  {
+  {note:
     hekateros_control::HekOpState op;
     op.calib_state = states[n].m_eOpState;
     fb.name.push_back(states[n].m_strName);
