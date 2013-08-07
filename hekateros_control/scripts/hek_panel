@@ -161,9 +161,6 @@ class warnDlg(Toplevel):
       self.geometry('{0}x{1}+{2}+{3}'.format(*glist))
       #self.deiconify() # now show
 
-    # start with ok button focused
-    #self.m_bttnOk.focus_set()
-
     # allows us to customize what happens when the close button is pressed
     self.protocol("WM_DELETE_WINDOW", self.close)
 
@@ -216,6 +213,14 @@ class warnDlg(Toplevel):
     frame = Frame(self)
     frame.grid(row=0, column=0)
 
+    # warning image 
+    w = Label(frame)
+    if self.m_icons['image'] is not None:
+      w = Label(frame)
+      w['image']  = self.m_icons['image']
+    w['anchor'] = CENTER
+    w.grid(row=0, column=0, rowspan=2, sticky=W+N+S)
+
     # top heading
     w = Label(frame)
     helv = tkFont.Font(family="Helvetica",size=24,weight="bold")
@@ -224,14 +229,6 @@ class warnDlg(Toplevel):
     w['anchor'] = CENTER
     w.grid(row=0, column=1, sticky=E+W)
 
-    # product logo
-    w = Label(frame)
-    if self.m_icons['image'] is not None:
-      w = Label(frame)
-      w['image']  = self.m_icons['hek_logo']
-    w['anchor'] = CENTER
-    w.grid(row=0, column=0, rowspan=2, sticky=W+N+S)
-
     row = 1
 
     # warning message
@@ -239,21 +236,24 @@ class warnDlg(Toplevel):
     w['text']   = self.m_msg
     w['anchor'] = W
     w['justify'] = LEFT
-    w.grid(row=row, column=1, sticky=E+W)
+    w.grid(row=row, column=1, padx=5, sticky=E+W)
 
     row += 1
 
+    wframe = Frame(frame)
+    wframe.grid(row=row, column=1)
+
     # cancel button
-    w = Button(frame, width=10, text='Cancel', command=self.close)
-    w.grid(row=row, column=0, pady=5)
+    w = Button(wframe, width=10, text='Cancel', command=self.close)
+    w.grid(row=0, column=0, pady=5)
     w['anchor']  = CENTER
     self.m_bttnCancel = w
 
     # ok button
-    w = Button(frame, width=10, text='OK', command=self.ok)
-    w.grid(row=row, column=1, pady=5)
+    w = Button(wframe, width=10, text='Continue', command=self.ok)
+    w.grid(row=0, column=1, pady=5)
     w['anchor']  = CENTER
-    self.m_bttnOk = w
+    self.m_bttnContinue = w
 
   #
   ## \brief Destroy window callback.
@@ -1140,7 +1140,11 @@ class window(Frame):
     # not calibrating - so start calibration
     if not self.m_calibState['calibrating']:
       if self.m_config['warn_on_calib']:
-        dlg = warnDlg(master=self, msg="You are going to die!")
+        dlg = warnDlg(master=self,
+                      image="HekaterosZeroPt128.png",
+                      msg="""\
+For best calibration, place the Hekateros near the zero point.
+Make sure the workspace is clear of obstructions.""")
         if not dlg.m_result:
           return
       self.m_calibState['calibrating'] = True
@@ -1368,6 +1372,14 @@ class window(Frame):
   ## \brief Release arm callback.
   #
   def releaseArm(self):
+    if self.m_config['warn_on_release']:
+      dlg = warnDlg(master=self,
+                    image="HekFalling.png",
+                    msg="""\
+The Hekateros motros will become unpowered.
+The arm may fall if not in a stable position.""")
+      if not dlg.m_result:
+        return
     try:
       rospy.wait_for_service("hekateros_control/release", timeout=1)
     except rospy.ROSException, e:
@@ -1398,10 +1410,10 @@ class window(Frame):
       self.showError('Get product info: ' + e.message + '.')
     else:
       try:
-        get_product_id = rospy.ServiceProxy(
+        get_product_info = rospy.ServiceProxy(
                                           'hekateros_control/get_product_info',
-                                          GetProductId)
-        rsp = get_product_id()
+                                          GetProductInfo)
+        rsp = get_product_info()
         prodInfo = rsp.i
       except rospy.ServiceException, e:
         self.showError("Get product info request failed: %s." % (e.message))
@@ -1549,7 +1561,7 @@ class window(Frame):
   #
   def showServoHealth(self, health):
     for i in range(0, len(health)):
-      servo_id = ord(health[i].servo_id)
+      servo_id = health[i].servo_id
       if not self.m_robotServo.has_key(servo_id):
         continue
 
