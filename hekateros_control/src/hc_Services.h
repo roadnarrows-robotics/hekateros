@@ -17,6 +17,7 @@
 #include "hekateros_control/IsDescLoaded.h"
 #include "hekateros_control/OpenGripper.h"
 #include "hekateros_control/Release.h"
+#include "hekateros_control/ReleaseEStop.h"
 #include "hekateros_control/SetRobotMode.h"
 #include "hekateros_control/Stop.h"
 
@@ -218,6 +219,17 @@ bool Release(hekateros_control::Release::Request  &req,
 {
   ROS_INFO("Releasing Hekateros servos");
   pRobot->release();
+  return true;
+}
+
+/*!
+ *  \brief Request release estop
+ */
+bool ReleaseEStop(hekateros_control::ReleaseEStop::Request  &req,
+                  hekateros_control::ReleaseEStop::Response &res)
+{
+  ROS_INFO("Clearing ESTOP condition");
+  pRobot->resetEStop();
   return true;
 }
 
