@@ -46,6 +46,8 @@ int updateRobotStatus(
   robot_status_ex.error_code          = status.m_nErrorCode;
   robot_status_ex.is_calibrated.val   = status.m_eIsCalibrated;
 
+  robot_status_ex.servo_health.clear();
+
   for (int i=0; i<status.m_vecServoHealth.size(); ++i)
   {
     hekateros_control::ServoHealth sh;
@@ -55,6 +57,8 @@ int updateRobotStatus(
     sh.alarm    = status.m_vecServoHealth[i].m_uAlarms;
     robot_status_ex.servo_health.push_back(sh);
   }
+
+  return 0;
 
 }
 
