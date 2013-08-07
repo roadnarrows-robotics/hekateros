@@ -55,6 +55,7 @@ add_service_files(
     IsDescLoaded.srv
     OpenGripper.srv
     Release.srv
+    ReleaseEStop.srv 
     SetRobotMode.srv
     Stop.srv
 )

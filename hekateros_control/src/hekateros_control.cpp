@@ -102,6 +102,9 @@ ROS_WARN("dhp - here 1");
   ros::ServiceServer release_srv        = n.advertiseService("release", 
                                                              Release);
  
+  ros::ServiceServer release_estop_srv    = n.advertiseService("release_estop", 
+                                                             ReleaseEStop);
+ 
   ros::ServiceServer set_robot_mode_srv = n.advertiseService("set_robot_mode", 
                                                              SetRobotMode);
  
