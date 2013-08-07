@@ -119,7 +119,6 @@ int updateJointStates(
   return n;
 }
 
-#if 0
 /*!
  * \brief Update the current joint states 
  */
@@ -131,17 +130,39 @@ int updateOpState(
   HekJointStatePoint states;
   pRobot->getJointState(states);
 
-  fb.name.clear();
-  fb.op_state.clear();
-  
+  hekateros_control::HekJointStateExtended joint_states_ex;
+
+  // clear previous joint_states_ex data
+  joint_states_ex.name.clear();
+  joint_states_ex.position.clear();
+  joint_states_ex.velocity.clear();
+  joint_states_ex.effort.clear();
+  joint_states_ex.master_servo_id.clear();
+  joint_states_ex.slave_servo_id.clear();
+  joint_states_ex.odometer_pos.clear();
+  joint_states_ex.encoder_pos.clear();
+  joint_states_ex.raw_speed.clear();
+  joint_states_ex.op_state.clear();
+
   for (int n=0; n<states.getNumPoints(); ++n)
-  {note:
-    hekateros_control::HekOpState op;
-    op.calib_state = states[n].m_eOpState;
-    fb.name.push_back(states[n].m_strName);
-    fb.op_state.push_back(op);
+  {
+    joint_states_ex.name.push_back(states[n].m_strName);
+    joint_states_ex.position.push_back(states[n].m_fPosition);
+    joint_states_ex.velocity.push_back(states[n].m_fVelocity);
+    joint_states_ex.effort.push_back(states[n].m_fEffort);
+    joint_states_ex.master_servo_id.push_back(states[n].m_nMasterServoId);
+    joint_states_ex.slave_servo_id.push_back(states[n].m_nSlaveServoId);
+    joint_states_ex.odometer_pos.push_back(states[n].m_nOdPos);
+    joint_states_ex.encoder_pos.push_back(states[n].m_nEncPos);
+    joint_states_ex.raw_speed.push_back(states[n].m_nSpeed);
+
+    hekateros_control::HekOpState opstate;
+    opstate.calib_state = (int)states[n].m_eOpState;
+    joint_states_ex.op_state.push_back(opstate);
   }
+
+  fb.joint = joint_states_ex;
   
 }
-#endif
+
 #endif // _HC_STATE_PUB
