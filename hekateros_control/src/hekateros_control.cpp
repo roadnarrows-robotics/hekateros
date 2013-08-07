@@ -33,7 +33,7 @@ using namespace ::hekateros;
 int main(int argc, char **argv)
 {
   // set loglevel for RN libs
-  LOG_SET_THRESHOLD(LOG_LEVEL_DIAG1);
+  LOG_SET_THRESHOLD(LOG_LEVEL_DIAG3);
 
   ros::init(argc, argv, "hekateros_control");
   ros::NodeHandle n("hekateros_control");
@@ -42,6 +42,7 @@ int main(int argc, char **argv)
 
   // TODO DHP -accept config filename as param
   string config_fn = "/etc/hekateros.conf";
+ROS_WARN("dhp - here 1");
   if( loadHekXml(config_fn) != 0)
   {
     ROS_FATAL("Unable to load Hekateros cfg file. Aborting node: %s", argv[0]);
