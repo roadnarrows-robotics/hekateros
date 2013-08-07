@@ -50,6 +50,8 @@ public:
     ROS_INFO("Calibration complete.");
     as_.setSucceeded();
 
+    as_.publishFeedback(feedback_);
+
     return;
   }
 
