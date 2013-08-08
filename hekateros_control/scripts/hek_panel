@@ -888,8 +888,8 @@ class window(Frame):
     self.m_config         = configDft
     self.m_icons          = {}    # must keep loaded icons referenced
     self.m_wBttn          = {}    # button widgets
-    self.m_keysCalibDeps  = []    # gui button keys depending on calibration
-    self.m_keysModeDeps   = []    # gui button keys depending on robot mode
+    self.m_keysFewMoves  = []    # gui button keys depending on calibration
+    self.m_keysNoMoves   = []    # gui button keys depending on robot mode
     self.m_robotStatus    = {}    # robot status widgets, variables, and values
     self.m_robotJoint     = {}    # robot joint state widgets, variables, etc.
     self.m_robotServo     = {}    # master servo to joint name map
@@ -916,6 +916,7 @@ class window(Frame):
     self.createCenterPanel()
     self.createRightButtons()
     self.createStatusBar()
+    self.updateButtonState(self.m_keysFewMoves, 'disabled')
 
   #
   ## \brief Create top gui heading.
@@ -965,44 +966,44 @@ class window(Frame):
                             self.calibrate)
     w.grid(row=0, column=0, sticky=N+E+W)
     self.m_icons['calibrate_cancel'] = loadIcon("icons/icon_calib_cancel.png")
-    self.m_keysModeDeps.append('calibrate')
+    self.m_keysNoMoves.append('calibrate')
 
     # park
     w = self.createButton(wframe, "Park", "icons/icon_hek_park.png",
                             self.gotoParkedPos)
     w.grid(row=1, column=0, sticky=N+E+W)
-    self.m_keysCalibDeps.append('park')
-    self.m_keysModeDeps.append('park')
+    self.m_keysFewMoves.append('park')
+    self.m_keysNoMoves.append('park')
 
     # balance
     w = self.createButton(wframe, "Balance", "icons/icon_hek_balance.png",
                             self.gotoBalancedPos)
     w.grid(row=2, column=0, sticky=N+E+W)
-    self.m_keysCalibDeps.append('balance')
-    self.m_keysModeDeps.append('balance')
+    self.m_keysFewMoves.append('balance')
+    self.m_keysNoMoves.append('balance')
 
     # zero point
     w = self.createButton(wframe, "Zero\nPoint", "icons/icon_hek_zeropt.png",
                             self.gotoZeroPt)
     w.grid(row=3, column=0, sticky=N+E+W)
-    self.m_keysCalibDeps.append('zero_point')
-    self.m_keysModeDeps.append('zero_point')
+    self.m_keysFewMoves.append('zero_point')
+    self.m_keysNoMoves.append('zero_point')
 
     # open gripper
     w = self.createButton(wframe, "Open\nGripper",
                                   "icons/icon_gripper_open.png",
                                   self.openGripper)
     w.grid(row=4, column=0, sticky=N+E+W)
-    self.m_keysCalibDeps.append('open_gripper')
-    self.m_keysModeDeps.append('open_gripper')
+    self.m_keysFewMoves.append('open_gripper')
+    self.m_keysNoMoves.append('open_gripper')
 
     # close gripper
     w = self.createButton(wframe, "Close\nGripper",
                                   "icons/icon_gripper_close.png",
                                   self.closeGripper)
     w.grid(row=5, column=0, sticky=N+E+W)
-    self.m_keysCalibDeps.append('close_gripper')
-    self.m_keysModeDeps.append('close_gripper')
+    self.m_keysFewMoves.append('close_gripper')
+    self.m_keysNoMoves.append('close_gripper')
 
   #
   ## \brief Create robot status and joint state center panel.
@@ -1365,13 +1366,13 @@ class window(Frame):
     w = self.createButton(wframe, "Freeze",
                                   "icons/icon_pause.png", self.freezeArm)
     w.grid(row=1, column=0, sticky=N+E+W)
-    self.m_keysModeDeps.append('freeze')
+    self.m_keysNoMoves.append('freeze')
 
     # release
     w = self.createButton(wframe, "Release",
                                   "icons/icon_stop.png", self.releaseArm)
     w.grid(row=2, column=0, sticky=N+E+W)
-    self.m_keysModeDeps.append('release')
+    self.m_keysNoMoves.append('release')
 
     # settings
     w = self.createButton(wframe, "Settings",
@@ -1406,6 +1407,13 @@ class window(Frame):
     self.m_wStatusBar['fg']       = fgColors['normal']
     self.m_wStatusBar['state']    = 'readonly'
     self.m_wStatusBar.grid(row=0, column=0, padx=3, pady=3, sticky=N+E+W+S)
+
+  #
+  ## \brief Update button activation states.
+  #
+  def updateButtonState(self, keys, state):
+    for key in keys:
+      self.m_wBttn[key]['state'] = state
 
   #
   ## \brief Create button.
@@ -1766,12 +1774,23 @@ The arm may fall if not in a stable position.""")
   ## \param status  Robot status extended message.
   #
   def showRobotStatus(self, status):
+    if status.mode.val == RobotMode.MANUAL or \
+      status.e_stopped.val == TriState.TRUE:
+      bNoMoves = True
+    else:
+      bNoMoves = False
+
     key = 'mode'
     if self.m_robotStatus[key]['val'] != status.mode.val:
       text, fg = self.toRobotMode(status.mode.val)
       self.m_robotStatus[key]['val'] = status.mode.val
       self.showEntry(self.m_robotStatus[key]['w'],
                      self.m_robotStatus[key]['var'], text, fg)
+      if bNoMoves:
+        state = 'disabled'
+      else:
+        state = 'normal'
+      self.updateButtonState(self.m_keysNoMoves, state)
 
     key = 'calibration'
     if self.m_robotStatus[key]['val'] != status.is_calibrated.val:
@@ -1779,6 +1798,12 @@ The arm may fall if not in a stable position.""")
       self.m_robotStatus[key]['val'] = status.is_calibrated.val
       self.showEntry(self.m_robotStatus[key]['w'],
                      self.m_robotStatus[key]['var'], text, fg)
+      if status.is_calibrated.val == TriState.TRUE:
+        state = 'normal'
+      else:
+        state = 'disabled'
+      if not bNoMoves:
+        self.updateButtonState(self.m_keysFewMoves, state)
 
     key = 'motors'
     if self.m_robotStatus[key]['val'] != status.drives_powered.val:
@@ -1810,6 +1835,11 @@ The arm may fall if not in a stable position.""")
         self.m_robotStatus[key]['w']['image'] = self.m_icons['led_red'] 
       else:
         self.m_robotStatus[key]['w']['image'] = self.m_icons['led_dark'] 
+      if bNoMoves:
+        state = 'disabled'
+      else:
+        state = 'normal'
+      self.updateButtonState(self.m_keysNoMoves, state)
 
   #
   ## \brief Show joint state.
