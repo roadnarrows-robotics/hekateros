@@ -40,6 +40,7 @@ import tkFont
 from PIL import Image, ImageTk
 
 import webbrowser
+import xml.parsers.expat as expat
 
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
@@ -58,11 +59,23 @@ from hekateros_control.srv import GotoBalancedPos
 from hekateros_control.srv import GotoZeroPt
 from hekateros_control.srv import OpenGripper
 from hekateros_control.srv import CloseGripper
+from hekateros_control.srv import EStop
+from hekateros_control.srv import ResetEStop
+from hekateros_control.srv import Freeze
+from hekateros_control.srv import Release
 from hekateros_control.srv import GetProductInfo
 
 import actionlib
 import hekateros_control.msg
 import trajectory_msgs.msg
+
+
+# ------------------------------------------------------------------------------
+# Globals
+# ------------------------------------------------------------------------------
+
+## \brief Application version. Update as needed. 
+appVersion = '1.0.0'
 
 ## \brief Image search paths.
 imagePath = [
@@ -71,6 +84,22 @@ imagePath = [
   "/prj/pkg/appkit/share/images",
   "/usr/local/share/appkit/images"
 ]
+
+## \brief User's home directory.
+home = os.path.expanduser("~")
+
+## \brief Hekateros user-specific configuration directory (in home directory).
+hekUserDirName = ".hekateros"
+
+## \brief hek_panel application configuration file name.
+configFileName = "hek_panel.xml"
+
+## \brief Configuration default.
+configDft = \
+{
+  'warn_on_calib':    True, # do [not] warn user at calibration start
+  'warn_on_release':  True, # do [not] warn user on release
+}
 
 ## \brief Alarm strings.
 alarmStrings = {
@@ -123,6 +152,281 @@ def loadIcon(filename):
     except IOError:
       continue
   return None
+
+#
+## Round to nearest 100th.
+#
+def round100th(x):
+  return math.floor((x + 0.005) * 100.0) / 100.0
+
+#
+## Round to nearest 10th.
+#
+def round10th(x):
+  return math.floor((x + 0.05) * 10.0) / 10.0
+
+
+# ------------------------------------------------------------------------------
+# Class configXml
+# ------------------------------------------------------------------------------
+
+##
+## \brief Application hek_panel configuration xml class.
+##
+class configXml():
+  def __init__(self):
+    self.m_inRootElem   = False
+    self.m_inMainElem   = False
+    self.m_curCfgElem   = None
+    self.m_curData      = ""
+    self.m_cfgElems     = ['warn_on_calib', 'warn_on_release']
+    self.m_config       = None
+
+  def parse(self, pathname):
+    self.m_config = configDft
+    try:
+      fp = open(pathname, 'r')
+    except IOError, err:
+      return self.m_config
+    parser = expat.ParserCreate()
+    parser.returns_unicode      = False
+    parser.StartElementHandler  = self.onElemStart
+    parser.CharacterDataHandler = self.onElemData
+    parser.EndElementHandler    = self.onElemEnd
+    try:
+      parser.ParseFile(fp)
+    except expat.ExpatError as e:
+      print "%s: %s" % (pathname, expat.ErrorString(e.code))
+    fp.close()
+    return self.m_config
+
+  def save(self, pathname, config):
+    try:
+      fp = open(pathname, 'w')
+    except IOError, err:
+      print "%s: %s." % (pathname, err)
+      return
+    fp.write("""\
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="http://roadnarrows.com/xml/Hekateros/1.0/hekateros.xsl"?>
+
+<!-- RoadNarrows Hekateros Top-Level Configuration -->
+<hekateros xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="http://roadnarrows.com/xml/Hekateros/1.0/hekateros.xsd">
+
+  <!-- hek_panel configuration -->
+  <hek_panel>
+""")
+
+    for key in self.m_cfgElems:
+      fp.write("    <%s>%d</%s>\n" % (key, config[key], key))
+
+    fp.write("""\
+  </hek_panel>
+
+</hekateros>
+""")
+
+    fp.close()
+
+  def onElemStart(self, elem, attrs):
+    #print "start-of-element", "<%s> attrs=%s" % (elem, repr(attrs))
+    if elem == 'hekateros':
+      self.m_inRootElem = True
+    elif elem == 'hek_panel':
+      if self.m_inRootElem:
+        self.m_inMainElem = True
+      else:
+        self.m_inMainElem = False
+    elif elem in self.m_cfgElems:
+      if self.m_inMainElem:
+        self.m_curCfgElem = elem
+      else:
+        self.m_inMainElem = None
+    self.m_curData  = ""
+
+  def onElemData(self, data):
+    #print "char-data", repr(data)
+    self.m_curData += data
+
+  def onElemEnd(self, elem):
+    #print "end-of-element", "<\%s>" % (elem)
+    if self.m_curCfgElem:
+      self.cvtToBool(self.m_curCfgElem, self.m_curData.strip())
+    if elem == 'hek_panel':
+      self.m_inMainElem = False
+    elif elem == 'hekateros':
+      self.m_inRootElem = False
+      self.m_inMainElem = False
+    m_curCfgElem = None
+    self.m_curData  = ""
+
+  def cvtToBool(self, elem, data):
+    if data.lower() == 'true':
+      self.m_config[elem] = True
+    elif data.lower() == 'false':
+      self.m_config[elem] = False
+    else:
+      try:
+        i = int(data)
+      except ValueError:
+        return
+      if i:
+        self.m_config[elem] = True
+      else:
+        self.m_config[elem] = False
+
+
+# ------------------------------------------------------------------------------
+# Class configDlg
+# ------------------------------------------------------------------------------
+
+class configDlg(Toplevel):
+  #
+  ## \brief Constructor.
+  ##
+  ## \param cnf     Configuration dictionary.
+  ## \param kw      Keyword options.
+  #
+  def __init__(self, master=None, cnf={}, **kw):
+    # initialize dialog data
+    kw = self.initData(kw)
+
+    Toplevel.__init__(self, master=master, cnf=cnf, **kw)
+    self.title("hek_panel configuration")
+
+    # create and show widgets
+    self.createWidgets()
+
+    # allows the enter button to fire either button's action
+    self.m_bttnCancel.bind('<KeyPress-Return>', func=self.close)
+
+    # center the dialog over parent panel
+    if master is not None:
+      self.update_idletasks()
+      x0 = master.winfo_rootx()
+      y0 = master.winfo_rooty()
+      xp = x0 + (master.winfo_width() - self.winfo_width()) / 2 - 8
+      yp = y0 + (master.winfo_height() - self.winfo_height()) / 2 - 20
+      glist = [self.winfo_width(), self.winfo_height(), xp, yp]
+      #self.withdraw() # hide the dialog until position and size is set
+      self.geometry('{0}x{1}+{2}+{3}'.format(*glist))
+      #self.deiconify() # now show
+
+    # allows us to customize what happens when the close button is pressed
+    self.protocol("WM_DELETE_WINDOW", self.close)
+
+    #
+    # Modal diagle settings.
+    #
+    # set the focus on dialog window (needed on Windows)
+    self.focus_set()
+
+    # make sure events only go to our dialog
+    self.grab_set()
+
+    # make sure dialog stays on top of its parent window (if needed)
+    self.transient(master)
+
+    # isplay the window and wait for it to close
+    self.wait_window(self)
+
+  #
+  ## \brief Initialize class state data.
+  ##
+  ## \param kw      Keyword options.
+  ##
+  ## \return Modified keywords sans this specific class.
+  ##
+  def initData(self, kw):
+    if kw.has_key('config'):
+      self.m_config = kw['config']
+      del kw['config']
+    else:
+      self.m_config = configDft;
+    return kw
+
+  #
+  ## \brief Create gui widgets with supporting data and show.
+  #
+  def createWidgets(self):
+    frame = Frame(self)
+    frame.grid(row=0, column=0)
+
+    # top heading
+    w = Label(frame)
+    helv = tkFont.Font(family="Helvetica",size=24,weight="bold")
+    w['font']   = helv
+    w['text']   = 'Configuration'
+    w['anchor'] = CENTER
+    w.grid(row=0, column=0, sticky=E+W)
+
+    row = 1
+
+    # warn on calibrate check button
+    self.m_varWarnCalib = IntVar()
+    self.m_varWarnCalib.set(self.m_config['warn_on_calib'])
+    w = Checkbutton(frame, text="Show warning dialog before calibrating arm.",
+        variable=self.m_varWarnCalib)
+    w.grid(row=row, column=0, padx=5, sticky=W)
+
+    row += 1
+
+    # warn on release check button
+    self.m_varWarnRelease = IntVar()
+    self.m_varWarnRelease.set(self.m_config['warn_on_release'])
+    w = Checkbutton(frame, text="Show warning dialog before releasing arm.",
+        variable=self.m_varWarnRelease)
+    w.grid(row=row, column=0, padx=5, sticky=W)
+
+    row += 1
+
+    wframe = Frame(frame)
+    wframe.grid(row=row, column=0)
+
+    # cancel button
+    w = Button(wframe, width=10, text='Cancel', command=self.close)
+    w.grid(row=0, column=0, padx=2, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnCancel = w
+
+    # save button
+    w = Button(wframe, width=10, text='Save', command=self.ok)
+    w.grid(row=0, column=1, padx=2, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnOk = w
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def ok(self):
+    if self.m_varWarnCalib.get():
+      self.m_config['warn_on_calib'] = True
+    else:
+      self.m_config['warn_on_calib'] = False
+    if self.m_varWarnRelease.get():
+      self.m_config['warn_on_release'] = True
+    else:
+      self.m_config['warn_on_release'] = False
+
+    dirname = home + os.path.sep + hekUserDirName
+    if not os.path.isdir(dirname):
+      try:
+        os.mkdir(dirname, 0755)
+      except OSError, err:
+        print "%s: %s" % (dirname, err)
+        return
+    filename = dirname + os.path.sep + configFileName
+    xml = configXml()
+    xml.save(filename, self.m_config)
+    self.close()
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def close(self):
+    self.destroy()
+
 
 
 # ------------------------------------------------------------------------------
@@ -245,13 +549,13 @@ class warnDlg(Toplevel):
 
     # cancel button
     w = Button(wframe, width=10, text='Cancel', command=self.close)
-    w.grid(row=0, column=0, pady=5)
+    w.grid(row=0, column=0, padx=2, pady=5)
     w['anchor']  = CENTER
     self.m_bttnCancel = w
 
     # ok button
     w = Button(wframe, width=10, text='Continue', command=self.ok)
-    w.grid(row=0, column=1, pady=5)
+    w.grid(row=0, column=1, padx=2, pady=5)
     w['anchor']  = CENTER
     self.m_bttnContinue = w
 
@@ -428,6 +732,21 @@ class aboutDlg(Toplevel):
 
     row += 1
 
+    # app version
+    w = Label(frame)
+    w['text']   = 'App Version:'
+    w['anchor'] = W
+    w['width'] = lwidth
+    w.grid(row=row, column=1, padx=2, sticky=W)
+
+    w = Label(frame)
+    w['text']   = appVersion
+    w['anchor'] = W
+    w['width']  = rwidth
+    w.grid(row=row, column=2, padx=2, sticky=W)
+
+    row += 1
+
     # url
     w = Label(frame)
     w['text']   = 'URL:'
@@ -544,7 +863,7 @@ class window(Frame):
   #
   def __init__(self, master=None, cnf={}, **kw):
     # intialize window data
-    kw = self.initData(**kw)
+    kw = self.initData(kw)
 
     Frame.__init__(self, master=master, cnf=cnf, **kw)
     self.master.title("Hekateros Control Panel")
@@ -563,13 +882,10 @@ class window(Frame):
   ##
   ## \return Modified keywords sans this specific class.
   #
-  def initData(self, **kw):
+  def initData(self, kw):
+    self.m_bHasJointPanel = False # joint state panel [not] created 
                                   # application configuration
-    self.m_config         = \
-      {
-        'warn_on_calib':    True, # do [not] warn user at calibration start
-        'warn_on_release':  True, # do [not] warn user on release
-      }
+    self.m_config         = configDft
     self.m_icons          = {}    # must keep loaded icons referenced
     self.m_wBttn          = {}    # button widgets
     self.m_keysCalibDeps  = []    # gui button keys depending on calibration
@@ -584,7 +900,11 @@ class window(Frame):
         'ac':           None,     # calibration action client
         'id':           0         # after id
       }
-    self.m_results        = None
+
+    if kw.has_key('config'):
+      self.m_config = kw['config']
+      del kw['config']
+
     return kw
 
   #
@@ -872,32 +1192,19 @@ class window(Frame):
 
     width = 12
     padx  = 10
+    pady  = 2
+    row   = 1
 
     # left column of labels
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Joint:')
-    w.grid(row=1, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Servo Id:')
-    w.grid(row=2, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='State:')
-    w.grid(row=3, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Position(deg):')
-    w.grid(row=4, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Odometer(ticks):')
-    w.grid(row=5, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Encoder(ticks):')
-    w.grid(row=6, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Velocity(%max):')
-    w.grid(row=7, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Speed(raw):')
-    w.grid(row=8, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Effort(raw):')
-    w.grid(row=9, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Temperature(C):')
-    w.grid(row=10, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Voltage(volts):')
-    w.grid(row=11, column=0, sticky=W)
-    w = Label(wframe, width=width, padx=padx, anchor=E, text='Alarms:')
-    w.grid(row=12, column=0, sticky=W)
+    for text in ['Joint', 'Servo Id', 'State',
+        'Position(deg)', 'Odometer(ticks)', 'Encoder(ticks)',
+        'Velocity(%max)', 'Speed(raw)',
+        'Effort(raw)', 'Temperature(C)', 'Voltage(volts)',
+        'Alarms']:
+      w = Label(wframe, width=width, padx=padx, pady=pady, anchor=E,
+                text=text+':')
+      w.grid(row=row, column=0, sticky=W)
+      row += 1
 
   #
   ## \brief Create joint state lower center panel state.
@@ -1030,10 +1337,14 @@ class window(Frame):
       d = {'var': var, 'w': w}
       self.m_robotJoint[name]['alarms'] = d
 
+      self.update_idletasks()
+
     # left labels column width + pading + number of joints * column width
     totWidth = 12 + 10 + len(joint.name) * width
 
     self.adjustWidthRobotStatusPanel(totWidth)
+
+    self.m_bHasJointPanel = True
     
   #
   ## \brief Create gui right hand side buttons.
@@ -1084,7 +1395,7 @@ class window(Frame):
     wframe = Frame(self)
     wframe['borderwidth'] = 2
     wframe['relief'] = 'ridge'
-    wframe.grid(row=2, column=0, columnspan=3, padx=1, pady=3, sticky=N+W+E)
+    wframe.grid(row=2, column=0, columnspan=3, padx=1, pady=3, sticky=N+E+W+S)
 
     self.m_varStatus = StringVar()
     self.m_varStatus.set("Calibration required.")
@@ -1094,7 +1405,7 @@ class window(Frame):
     self.m_wStatusBar['textvar']  = self.m_varStatus
     self.m_wStatusBar['fg']       = fgColors['normal']
     self.m_wStatusBar['state']    = 'readonly'
-    self.m_wStatusBar.grid(row=0, column=0, padx=3, pady=3, sticky=W+E)
+    self.m_wStatusBar.grid(row=0, column=0, padx=3, pady=3, sticky=N+E+W+S)
 
   #
   ## \brief Create button.
@@ -1200,7 +1511,8 @@ Make sure the workspace is clear of obstructions.""")
   ## @brief monitor the calibration feedback
   #
   def calibrate_monitor(self, fb):
-    self.showJointStates(fb.joint)
+    if self.m_bHasJointPanel:
+      self.showJointStates(fb.joint)
   
   #
   ## \brief Go to parked position callback.
@@ -1225,7 +1537,7 @@ Make sure the workspace is clear of obstructions.""")
   #
   def gotoBalancedPos(self):
     try:
-      rospy.wait_for_service("hekateros_control/goto_balanceded", timeout=1)
+      rospy.wait_for_service("hekateros_control/goto_balanced", timeout=1)
     except rospy.ROSException, e:
       self.showError('Goto balanced position: ' + e.message + '.')
       return
@@ -1331,7 +1643,7 @@ Make sure the workspace is clear of obstructions.""")
         self.showError("Reset emergency stop request failed: %s." % (e.message))
         self.showResetEStop()
         return
-      self.showError("Hekateros emergency stop has been reset.")
+      self.showInfo("Hekateros emergency stop has been reset.")
   
   #
   ## \brief Show estop button.
@@ -1386,18 +1698,19 @@ The arm may fall if not in a stable position.""")
       self.showError('Release arm: ' + e.message + '.')
       return
     try:
-      freeze = rospy.ServiceProxy('hekateros_control/release', Freeze)
-      freeze()
+      release = rospy.ServiceProxy('hekateros_control/release', Release)
+      release()
     except rospy.ServiceException, e:
       self.showError("Release arm request failed: %s." % (e.message))
       return
-    self.showInfo("Hekateros has been release, motors are unpowered.")
+    self.showInfo("Hekateros has been release, all motors are unpowered.")
   
   #
   ## \brief Open settings dialog callback.
   #
   def settings(self):
-    pass
+    dlg = configDlg(master=self, config=self.m_config)
+    self.m_config = dlg.m_config
   
   #
   ## \brief Show about dialog callback.
@@ -1428,7 +1741,7 @@ The arm may fall if not in a stable position.""")
     self.showRobotStatus(status)
 
     # first update of joint state required first
-    if len(self.m_robotJoint) > 0:
+    if self.m_bHasJointPanel:
       self.showServoHealth(status.servo_health)
 
   #
@@ -1442,7 +1755,7 @@ The arm may fall if not in a stable position.""")
       return
 
     # first state message, 
-    if len(self.m_robotJoint) == 0:
+    if not self.m_bHasJointPanel:
       self.createJointStatePanel(joint)
 
     self.showJointStates(joint)
@@ -1454,46 +1767,46 @@ The arm may fall if not in a stable position.""")
   #
   def showRobotStatus(self, status):
     key = 'mode'
-    if self.m_robotStatus[key]['val'] != status.mode:
-      text, fg = self.toRobotMode(status.mode)
-      self.m_robotStatus[key]['val'] = status.mode
+    if self.m_robotStatus[key]['val'] != status.mode.val:
+      text, fg = self.toRobotMode(status.mode.val)
+      self.m_robotStatus[key]['val'] = status.mode.val
       self.showEntry(self.m_robotStatus[key]['w'],
                      self.m_robotStatus[key]['var'], text, fg)
 
     key = 'calibration'
-    if self.m_robotStatus[key]['val'] != status.is_calibrated:
-      text, fg = self.toCalib(status.is_calibrated)
-      self.m_robotStatus[key]['val'] = status.is_calibrated
+    if self.m_robotStatus[key]['val'] != status.is_calibrated.val:
+      text, fg = self.toCalib(status.is_calibrated.val)
+      self.m_robotStatus[key]['val'] = status.is_calibrated.val
       self.showEntry(self.m_robotStatus[key]['w'],
                      self.m_robotStatus[key]['var'], text, fg)
 
     key = 'motors'
-    if self.m_robotStatus[key]['val'] != status.drives_powered:
-      text, fg = self.toMotorsPowered(status.drives_powered)
-      self.m_robotStatus[key]['val'] = status.drives_powered
+    if self.m_robotStatus[key]['val'] != status.drives_powered.val:
+      text, fg = self.toMotorsPowered(status.drives_powered.val)
+      self.m_robotStatus[key]['val'] = status.drives_powered.val
       self.showEntry(self.m_robotStatus[key]['w'],
                      self.m_robotStatus[key]['var'], text, fg)
 
     key = 'moving_led'
-    if self.m_robotStatus[key]['val'] != status.in_motion:
-      self.m_robotStatus[key]['val'] = status.in_motion
-      if status.in_motion == TriState.ON:
+    if self.m_robotStatus[key]['val'] != status.in_motion.val:
+      self.m_robotStatus[key]['val'] = status.in_motion.val
+      if status.in_motion.val == TriState.ON:
         self.m_robotStatus[key]['w']['image'] = self.m_icons['led_green'] 
       else:
         self.m_robotStatus[key]['w']['image'] = self.m_icons['led_dark'] 
 
     key = 'alarms_led'
-    if self.m_robotStatus[key]['val'] != status.in_error:
-      self.m_robotStatus[key]['val'] = status.in_error
-      if status.in_error == TriState.TRUE:
+    if self.m_robotStatus[key]['val'] != status.in_error.val:
+      self.m_robotStatus[key]['val'] = status.in_error.val
+      if status.in_error.val == TriState.TRUE:
         self.m_robotStatus[key]['w']['image'] = self.m_icons['led_red'] 
       else:
         self.m_robotStatus[key]['w']['image'] = self.m_icons['led_dark'] 
 
     key = 'estop_led'
-    if self.m_robotStatus[key]['val'] != status.e_stopped:
-      self.m_robotStatus[key]['val'] = status.e_stopped
-      if status.e_stopped == TriState.TRUE:
+    if self.m_robotStatus[key]['val'] != status.e_stopped.val:
+      self.m_robotStatus[key]['val'] = status.e_stopped.val
+      if status.e_stopped.val == TriState.TRUE:
         self.m_robotStatus[key]['w']['image'] = self.m_icons['led_red'] 
       else:
         self.m_robotStatus[key]['w']['image'] = self.m_icons['led_dark'] 
@@ -1577,9 +1890,9 @@ The arm may fall if not in a stable position.""")
       key = 'voltage'
       val = health[i].voltage
       if self.m_robotJoint[name][key]['var'].get() != val:
-        fg = self.toVoltageColor(val)
+        volts, fg = self.toVoltage(val)
         self.showEntry(self.m_robotJoint[name][key]['w'],
-                       self.m_robotJoint[name][key]['var'], val, fg)
+                       self.m_robotJoint[name][key]['var'], volts, fg)
 
       key = 'alarms'
       val, fg = self.toAlarms(health[i].alarm)
@@ -1659,10 +1972,10 @@ The arm may fall if not in a stable position.""")
 
   def toDeg(self, rad):
     deg = math.degrees(rad)
-    return math.floor(deg * 100.0) / 100.0, fgColors['normal']
+    return round100th(deg), fgColors['normal']
 
   def toVelocity(self, percent):
-    return math.floor(percent * 10.0) / 10.0, fgColors['normal']
+    return round10th(percent), fgColors['normal']
 
   def toEffort(self, effort):
     absraw = math.fabs(effort)
@@ -1682,13 +1995,14 @@ The arm may fall if not in a stable position.""")
     else:
       return fgColors['normal']
 
-  def toVoltageColor(self, volts):
-    if volts >= 10.5 and volts <= 12.5:
-      return fgColors['normal']
+  def toVoltage(self, volts):
+    volts = round10th(volts)
+    if volts >= 10.5 and volts <= 13.0:
+      return (volts, fgColors['normal'])
     elif volts >= 9.5 and volts <= 13.5:
-      return fgColors['warning']
+      return (volts, fgColors['warning'])
     else:
-      return fgColors['error']
+      return (volts, fgColors['error'])
 
   def toAlarms(self, alarms):
     if alarms == ServoHealth.ALARM_NONE:
@@ -1701,6 +2015,7 @@ The arm may fall if not in a stable position.""")
           text += sep + alarmStrings[bit]
           sep = ','
     return (text, fgColors['error'])
+
 
 # ------------------------------------------------------------------------------
 # Exception Class usage
@@ -1850,13 +2165,23 @@ Options and arguments:
     # parse command-line options and arguments
     kwargs = self.getOptions(argv, **kwargs)
 
+    # parse application configuration xml file
+    filename = home + os.path.sep + hekUserDirName + os.path.sep + \
+        configFileName
+    xml = configXml()
+    config = xml.parse(filename)
+    del xml
+
     # create root 
     root = Tk()
 
     # create application window
-    self.m_win = window(master=root)
+    self.m_win = window(master=root, config=config)
 
     root.protocol('WM_DELETE_WINDOW', root.destroy)
+
+    root.columnconfigure(0, weight=1)
+    root.rowconfigure(0, weight=1)
 
     # initialize robot interface
     self.initRobot()
