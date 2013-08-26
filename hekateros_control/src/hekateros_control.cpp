@@ -42,7 +42,6 @@ int main(int argc, char **argv)
 
   // TODO DHP -accept config filename as param
   string config_fn = "/etc/hekateros.conf";
-ROS_WARN("dhp - here 1");
   if( loadHekXml(config_fn) != 0)
   {
     ROS_FATAL("Unable to load Hekateros cfg file. Aborting node: %s", argv[0]);
@@ -59,9 +58,8 @@ ROS_WARN("dhp - here 1");
 
   //
   // services 
-  ros::ServiceServer calibrate_ser     = n.advertiseService("calibrate", 
-                                                            Calibrate);
-  // TODO DHP - reimplement calibrate as an action server / non-blocking
+  // deprecated ros::ServiceServer calibrate_ser=n.advertiseService("calibrate",
+  // deprecated 						    Calibrate);
 
   ros::ServiceServer clear_alarms_ser   = n.advertiseService("clear_alarms", 
                                                              ClearAlarms);
