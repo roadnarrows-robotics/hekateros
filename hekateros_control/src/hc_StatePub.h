@@ -9,6 +9,7 @@
 #include "hekateros_control/HekJointStateExtended.h"
 
 #include "industrial_msgs/RobotStatus.h"
+#include "industrial_msgs/TriState.h"
 #include "hekateros_control/HekRobotStatusExtended.h"
 
 using namespace hekateros;
@@ -97,6 +98,8 @@ int updateJointStates(
   joint_states_ex.encoder_pos.clear();
   joint_states_ex.raw_speed.clear();
   joint_states_ex.op_state.clear();
+  joint_states_ex.opt_switch1.clear();
+  joint_states_ex.opt_switch2.clear();
 
   for (n=0; n<states.getNumPoints(); ++n)
   {
@@ -118,6 +121,14 @@ int updateJointStates(
     hekateros_control::HekOpState opstate;
     opstate.calib_state = (int)states[n].m_eOpState;
     joint_states_ex.op_state.push_back(opstate);
+
+    industrial_msgs::TriState ts;
+    ts.val = int(states[n].m_eOptSwitch[0]);
+    joint_states_ex.opt_switch1.push_back(ts);
+    
+    ts.val = int(states[n].m_eOptSwitch[1]);
+    joint_states_ex.opt_switch2.push_back(ts);
+
   }
 
   return n;
@@ -147,6 +158,8 @@ int updateOpState(
   joint_states_ex.encoder_pos.clear();
   joint_states_ex.raw_speed.clear();
   joint_states_ex.op_state.clear();
+  joint_states_ex.opt_switch1.clear();
+  joint_states_ex.opt_switch2.clear();
 
   for (int n=0; n<states.getNumPoints(); ++n)
   {
@@ -163,6 +176,14 @@ int updateOpState(
     hekateros_control::HekOpState opstate;
     opstate.calib_state = (int)states[n].m_eOpState;
     joint_states_ex.op_state.push_back(opstate);
+
+    industrial_msgs::TriState ts;
+    ts.val = int(states[n].m_eOptSwitch[0]);
+    joint_states_ex.opt_switch1.push_back(ts);
+    
+    ts.val = int(states[n].m_eOptSwitch[1]);
+    joint_states_ex.opt_switch2.push_back(ts);
+
   }
 
   fb.joint = joint_states_ex;
