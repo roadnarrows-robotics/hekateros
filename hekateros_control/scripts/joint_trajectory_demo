@@ -21,7 +21,6 @@ def hek_demo():
 
     joint_traj = trajectory_msgs.msg.JointTrajectory()
 
-    joint_traj.joint_names.insert(0,'base_rot')
     joint_traj.joint_names.insert(1,'shoulder')
     joint_traj.joint_names.insert(2,'elbow')
     joint_traj.joint_names.insert(3,'wrist_pitch')
@@ -29,28 +28,25 @@ def hek_demo():
     joint_traj.joint_names.insert(5,'grip')
 
     jtp1 = trajectory_msgs.msg.JointTrajectoryPoint()
-    jtp1.positions.insert(0, 0.1); jtp1.velocities.insert(2, 10)
     jtp1.positions.insert(1,-0.1); jtp1.velocities.insert(2, 2)
     jtp1.positions.insert(2, 0.2); jtp1.velocities.insert(2, 2)
     jtp1.positions.insert(3,-0.2); jtp1.velocities.insert(2, 50)
     jtp1.positions.insert(4, 1.6); jtp1.velocities.insert(1, 50)
-    jtp1.positions.insert(5, 0.4); jtp1.velocities.insert(0, 100)
+    jtp1.positions.insert(5, 0.4); jtp1.velocities.insert(0, 10)
 
     jtp2 = trajectory_msgs.msg.JointTrajectoryPoint()
-    jtp2.positions.insert(0,-0.1); jtp2.velocities.insert(2, 10)
     jtp2.positions.insert(1, 0.1); jtp2.velocities.insert(2, 2)
     jtp2.positions.insert(2,-0.2); jtp2.velocities.insert(2, 2)
     jtp2.positions.insert(3, 0.2); jtp2.velocities.insert(2, 50)
     jtp2.positions.insert(4,-1.6); jtp2.velocities.insert(1, 50)
-    jtp2.positions.insert(5, 0.4); jtp2.velocities.insert(0, 100)
+    jtp2.positions.insert(5, 0.4); jtp2.velocities.insert(0, 10)
     
     jtp3 = trajectory_msgs.msg.JointTrajectoryPoint()
-    jtp3.positions.insert(0, 0.0); jtp3.velocities.insert(2, 10)
     jtp3.positions.insert(1, 0.0); jtp3.velocities.insert(2, 2)
     jtp3.positions.insert(2, 0.0); jtp3.velocities.insert(2, 2)
     jtp3.positions.insert(3, 0.0); jtp3.velocities.insert(2, 50)
     jtp3.positions.insert(4, 0.0); jtp3.velocities.insert(1, 50)
-    jtp3.positions.insert(5, 0.0); jtp3.velocities.insert(0, 100)
+    jtp3.positions.insert(5, 0.0); jtp3.velocities.insert(0, 10)
 
     joint_traj.points.insert(0,jtp1)
     joint_traj.points.insert(1,jtp2)
