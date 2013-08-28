@@ -57,7 +57,7 @@ public:
 
       // set tolerance
       int tolerance;
-      if(i == (jt.pints.size()-1))
+      if(i == (jt.points.size()-1))
       {
         tolerance = 10;
       }
@@ -76,9 +76,9 @@ public:
         for(int i=0; i<pt.getNumPoints(); ++i)
         {
           string joint_name, joint_name_goal;
-          float fPos, fVel, fAcc;
-          float fGoalPos, fGoalVel, fGoalAcc;
-          curPos[i].get(joint_name, fPos, fVel, fAcc);
+          double fPos;
+          double fGoalPos, fGoalVel, fGoalAcc;
+          fPos = curPos[i].m_fPosition;
           pt[i].get(joint_name_goal, fGoalPos, fGoalVel, fGoalAcc);
 
           if(joint_name == joint_name_goal)
@@ -88,12 +88,13 @@ public:
           else
           {
             LOGERROR("Joint name mismatch. Unable to calculate deltas.\n");
+          }
         }
 
-        fprintf("dhp - delta = %d\n");
+fprintf(stderr, "dhp - delta = %f\n", delta);
 
       } 
-      while (delta > tolerance)
+      while (delta > tolerance);
 
     }
 
