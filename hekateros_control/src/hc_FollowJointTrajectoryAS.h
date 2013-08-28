@@ -41,7 +41,6 @@ public:
     for(int i=0; i<jt.points.size(); ++i)
     {
       HekJointTrajectoryPoint pt;
-
       // load trajectory point
       for(int j=0; j<jt.joint_names.size(); ++j)
       {
@@ -56,16 +55,45 @@ public:
       ROS_INFO("moving to trajectory point %d", i);
       pRobot->moveArm(pt);
 
-      // temp fix - wait 2 seconds to reach each trajectory waypoint
-      sleep(4);
+      // set tolerance
+      int tolerance;
+      if(i == (jt.pints.size()-1))
+      {
+        tolerance = 10;
+      }
+      else
+      {
+        tolerance = 100;
+      }
 
-      // real fix - check delta from goal, send next goal when near waypoint)
-      //  while (delta > tol)
-      //  { 
-      //    sleep 0.1
-      //    update delta
-      //  }
-      // piece of cake, right?
+      // wait until achieving goal point
+      float delta;
+      do 
+      { 
+        HekJointStatePoint curPos;
+        pRobot->getJointState(curPos);
+        delta = 0;
+        for(int i=0; i<pt.getNumPoints(); ++i)
+        {
+          string joint_name, joint_name_goal;
+          float fPos, fVel, fAcc;
+          float fGoalPos, fGoalVel, fGoalAcc;
+          curPos[i].get(joint_name, fPos, fVel, fAcc);
+          pt[i].get(joint_name_goal, fGoalPos, fGoalVel, fGoalAcc);
+
+          if(joint_name == joint_name_goal)
+          {
+            delta += fabs(fGoalPos - fPos);
+          }
+          else
+          {
+            LOGERROR("Joint name mismatch. Unable to calculate deltas.\n");
+        }
+
+        fprintf("dhp - delta = %d\n");
+
+      } 
+      while (delta > tolerance)
 
     }
 
