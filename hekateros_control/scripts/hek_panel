@@ -1512,6 +1512,8 @@ Make sure the workspace is clear of obstructions.""")
     else:
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate']
       self.showInfo("Hekateros calibration complete.")
+      self.m_wBttn['calibrate']['text'] = "Calibrate"
+      self.m_calibState['calibrating'] = False
       self.m_calibState['id'] = 0
       self.update_idletasks()
 
