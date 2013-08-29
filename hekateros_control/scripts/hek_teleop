@@ -1,0 +1,727 @@
+#! /usr/bin/env python
+
+###############################################################################
+#
+# Package:  hekateros
+#
+# File: hek_teleop
+#
+## \file 
+##
+## $LastChangedDate: 2012-12-06 16:33:18 -0700 (Thu, 06 Dec 2012) $
+## $Rev: 330 $
+##
+## \brief Hekatoros teleoporated control.
+##
+## \author Daniel Packard (daniel@roadnarrows.com)
+## \author Robin Knight (robin.knight@roadnarrows.com)
+##  
+## \par Copyright:
+##   (C) 2013.  RoadNarrows LLC.\n
+##   (http://www.roadnarrows.com)\n
+##   All Rights Reserved
+##
+# @EulaBegin@
+# @EulaEnd@
+#
+###############################################################################
+
+import sys
+import os
+import time
+import math
+import getopt
+
+#from Tkinter import *
+#from Tkconstants import *
+#from tkFileDialog import *
+#import tkFont
+
+#from PIL import Image, ImageTk
+
+#import webbrowser
+#import xml.parsers.expat as expat
+
+import roslib; roslib.load_manifest('hekateros_control')
+import rospy
+
+from industrial_msgs.msg import RobotMode
+from industrial_msgs.msg import TriState
+
+from hekateros_control.calibrate_ac import *
+from hekateros_control.msg import HekRobotStatusExtended
+from hekateros_control.msg import HekJointStateExtended
+from hekateros_control.msg import ServoHealth
+from hekateros_control.msg import HekOpState
+from hekateros_control.msg import ProductInfo
+from hekateros_control.srv import GotoParkedPos
+from hekateros_control.srv import GotoBalancedPos
+from hekateros_control.srv import GotoZeroPt
+from hekateros_control.srv import OpenGripper
+from hekateros_control.srv import CloseGripper
+from hekateros_control.srv import EStop
+from hekateros_control.srv import ResetEStop
+from hekateros_control.srv import Freeze
+from hekateros_control.srv import Release
+from hekateros_control.srv import GetProductInfo
+
+from hid.msg import Controller360State
+from hid.msg import LEDPattern
+from hid.srv import SetLED
+from hid.srv import SetRumble
+
+import actionlib
+import hekateros_control.msg
+import trajectory_msgs.msg
+
+
+# ------------------------------------------------------------------------------
+# Globals
+# ------------------------------------------------------------------------------
+
+## \brief Application version. Update as needed. 
+appVersion = '1.0.0'
+
+## \brief Image search paths.
+imagePath = [
+  "/prj/pkg/Hekateros/share/images",
+  "/usr/local/share/Hekateros/images",
+  "/prj/pkg/appkit/share/images",
+  "/usr/local/share/appkit/images"
+]
+
+## \brief User's home directory.
+home = os.path.expanduser("~")
+
+## \brief Hekateros user-specific configuration directory (in home directory).
+hekUserDirName = ".hekateros"
+
+## \brief hek_panel application configuration file name.
+configFileName = "hek_teleop.xml"
+
+## \brief Configuration default.
+configDft = \
+{
+}
+
+## \brief Common foreground colors.
+fgColors = {
+  'normal':   'black',
+  'ok':       '#008800',
+  'focus':    '#0000aa',
+  'warning':  '#aa6600',
+  'error':    '#cc0000'
+}
+
+COLOR_PRE           = '\033['     ##< color escape sequence prefix
+COLOR_POST          = '\033[0m'   ##< color escape sequence postfix
+COLOR_RED           = '0;31m'     ##< normal red
+COLOR_GREEN         = '0;32m'     ##< normal green
+
+
+# ------------------------------------------------------------------------------
+# Utilities
+# ------------------------------------------------------------------------------
+
+#
+## Round to nearest 100th.
+#
+def round100th(x):
+  return math.floor((x + 0.005) * 100.0) / 100.0
+
+#
+## Round to nearest 10th.
+#
+def round10th(x):
+  return math.floor((x + 0.05) * 10.0) / 10.0
+
+
+
+# ------------------------------------------------------------------------------
+# Exception Class usage
+# ------------------------------------------------------------------------------
+
+##
+## \brief Unit test command-line exception class.
+##
+## Raise usage excpetion.
+##
+class usage(Exception):
+
+  ##
+  ## \brief Constructor.
+  ##
+  ## \param msg   Error message string.
+  ##
+  def __init__(self, msg):
+    ## error message attribute
+    self.msg = msg
+
+
+# ------------------------------------------------------------------------------
+# Class application
+# ------------------------------------------------------------------------------
+
+##
+## \brief Hekateros control panel.
+##
+class application():
+
+  #
+  ## \brief Constructor.
+  #
+  def __init__(self):
+    self._Argv0 = __file__
+    self.initData()
+
+  #
+  ## \brief Print usage error.
+  ##
+  ## \param emsg  Error message string.
+  #
+  def printUsageErr(self, emsg):
+    if emsg:
+      print "%s: %s" % (self._Argv0, emsg)
+    else:
+      print "%s: error" % (self._Argv0)
+    print "Try '%s --help' for more information." % (self._Argv0)
+
+  ## \brief Print Command-Line Usage Message.
+  def printUsage(self):
+    print \
+"""
+usage: %s [OPTIONS] <image_dir>
+
+     %s --help
+
+Options and arguments:
+
+-h, --help                : Display this help and exit.
+"""  % (self._Argv0, self._Argv0)
+ 
+  #
+  ## \brief Get command-line options
+  ##  
+  ## \param argv          Argument list. If not None, then overrides
+  ##                      command-line arguments.
+  ## \param [out] kwargs  Keyword argument list.  
+  ##
+  ## \return Parsed keyword arguments.
+  #
+  def getOptions(self, argv=None, **kwargs):
+    if argv is None:
+      argv = sys.argv
+
+    self._Argv0 = kwargs.get('argv0', __file__)
+
+    # defaults
+    kwargs['debug'] = 0
+
+    # parse command-line options
+    try:
+      opts, args = getopt.getopt(argv[1:], "?h",
+          ['help', ''])
+    except getopt.error, msg:
+      raise usage(msg)
+    for opt, optarg in opts:
+      if opt in ('-h', '--help', '-?'):
+        self.printUsage()
+        sys.exit(0)
+
+    #if len(args) < 1:
+    #  self.printUsageErr("No input xml file specified")
+    #  sys.exit(2)
+    #else:
+    #  kwargs['filename'] = args[0]
+
+    return kwargs
+
+  #
+  ## \brief Initialize data
+  #
+  def initData(self):
+    ## \brief XBox button function map in First Person mode.
+    self.m_xboxMapFPMode = { \
+      'a_button':         self.gotoBalancedPos,
+      'b_button':         self.estop,
+      'x_button':         self.gotoParkedPos,
+      'y_button':         self.gotoZeroPt,
+
+      'dpad_left':        self.noop,
+      'dpad_right':       self.noop,
+      'dpad_up':          self.noop,
+      'dpad_down':        self.noop,
+
+      'back_button':      self.pause,
+      'start_button':     self.startResume,
+      'center_button':    self.toggleMode,
+
+      'left_joy_click':   self.noop,
+      'left_joy_x':       self.noop,
+      'left_joy_y':       self.moveFPShoulder,
+
+      'right_joy_click':  self.noop,
+      'right_joy_x':      self.rotateBase,
+      'right_joy_y':      self.pitchWrist,
+
+      'left_bump':        self.rotateWristCw,
+      'right_bump':       self.rotateWristCcw,
+      'left_trig':        self.openGripper,
+      'right_trig':       self.closeGripper,
+    }
+
+    ## \brief XBox button function map in Joint mode.
+    self.m_xboxMapJointMode = { \
+      'a_button':         self.gotoBalancedPos,
+      'b_button':         self.estop,
+      'x_button':         self.gotoParkedPos,
+      'y_button':         self.gotoZeroPt,
+
+      'dpad_left':        self.prevJoint,
+      'dpad_right':       self.nextJoint,
+      'dpad_up':          self.noop,
+      'dpad_down':        self.noop,
+
+      'back_button':      self.pause,
+      'start_button':     self.startResume,
+      'center_button':    self.toggleMode,
+
+      'left_joy_click':   self.noop,
+      'left_joy_x':       self.noop,
+      'left_joy_y':       self.moveJoint,
+
+      'right_joy_click':  self.noop,
+      'right_joy_x':      self.rotateBase,
+      'right_joy_y':      self.pitchWrist,
+
+      'left_bump':        self.rotateWristCw,
+      'right_bump':       self.rotateWristCcw,
+      'left_trig':        self.openGripper,
+      'right_trig':       self.closeGripper,
+    }
+
+    # XBox LED patterns
+    self.m_xboxLEDOff     = LEDPattern.XBOX_LED_ALL_OFF
+    self.m_xboxLEDPaused  = LEDPattern.XBOX_LED_ALL_BLINK
+    self.m_xboxLEDFPMode  = LEDPattern.XBOX_LED_ALL_SPIN
+    self.m_xboxLEDJoint   = [ LEDPattern.XBOX_LED_1_ON,
+                              LEDPattern.XBOX_LED_2_ON,
+                              LEDPattern.XBOX_LED_3_ON,
+                              LEDPattern.XBOX_LED_4_ON ]
+    self.m_xboxLEDEstop   = LEDPattern.XBOX_LED_ALL_SPIN_2
+
+    ## \brief Teleoperation state.
+    self.m_teleop = { \
+      'op_state': 'uninit',
+      'mode':     'fp',
+      'joint':    0,
+      'map':      self.m_xboxMapFPMode,
+      'xbox':     None
+    }
+
+    self.m_robotStatus  = None
+    self.m_jointState   = { }
+
+  #
+  ## \brief Initialize ROS interface
+  #
+  def initROSInterface(self):
+    rospy.init_node("hek_teleop")
+
+    # subscribe to extended robot status data
+    rospy.Subscriber("hekateros_control/robot_status_ex", 
+                     HekRobotStatusExtended, 
+                     self.updateRobotStatus) 
+
+    # subscribe to extended joint state data
+    rospy.Subscriber("hekateros_control/joint_states_ex", 
+                     HekJointStateExtended, 
+                     self.updateJointStates) 
+
+    # subscribe to XBox 360 controller state
+    rospy.Subscriber("xbox_360/controller_360_state",
+                     Controller360State,
+                     self.updateXbox)
+                     #pub)
+
+  #
+  ## \brief Show information message.
+  ##
+  ## \param msg   Info message string.
+  #
+  def showInfo(self, msg):
+    print "%s%s%s%s" % (COLOR_PRE, COLOR_GREEN, msg, COLOR_POST)
+
+  #
+  ## \brief Show error message.
+  ##
+  ## \param msg   Error message string.
+  #
+  def showError(self, msg):
+    print "%s%s%s%s" % (COLOR_PRE, COLOR_RED, msg, COLOR_POST)
+
+  #
+  ## \brief Run application.
+  ##    
+  ## \param argv    Optional argument list to override command-line arguments.
+  ## \param kwargs  Optional keyword argument list.
+  ##
+  ## \return Exit code.
+  #
+  def run(self, argv=None, **kwargs):
+  
+    # parse command-line options and arguments
+    kwargs = self.getOptions(argv, **kwargs)
+
+    # initialize interface
+    self.initROSInterface()
+
+    self.showInfo("--- Begin teleoperation, manual operation is paused.")
+
+    rospy.on_shutdown(self.handler)
+
+    rospy.spin()
+
+    return 0
+
+  def handler(self):
+    if self.m_robotStatus is not None:
+      self.setRobotMode(RobotMode.AUTO)
+    self.setLED(self.m_xboxLEDOff)
+    self.showInfo("--- End teleoperation.")
+
+  #.............................................................................
+  # Subscribed Topics
+  #.............................................................................
+
+  #
+  ## \brief Received robot extended status message callback.
+  ##
+  ## \param status  Robot status extended message.
+  #
+  def updateRobotStatus(self, status):
+    if self.m_robotStatus is None:
+      self.setRobotMode(RobotMode.AUTO)
+      oldEStop = TriState.UNKNOWN
+    else:
+      oldEStop = self.m_robotStatus.e_stopped.val;
+    self.m_robotStatus = status;
+    if self.m_robotStatus.e_stopped.val != oldEStop:
+      self.setTeleopLED()
+
+  #
+  ## \brief Received joint extended state message callback.
+  ##
+  ## \param joint   Received extended joint state message.
+  #
+  def updateJointStates(self, joint):
+    for i in range(0, len(joint.name)):
+      self.m_jointState[joint.name[i]] = joint.position[1]
+
+  #
+  ## \brief Received joint extended state message callback.
+  ##
+  ## \param xbox   Received xbox state message.
+  #
+  def updateXbox(self, xbox):
+    if self.m_teleop['op_state'] == 'ready':
+      self.execButton(xbox)
+    elif self.m_teleop['op_state'] == 'paused':
+      if xbox.start_button != self.m_teleop['xbox'].start_button:
+        self.startResume('start_button', xbox)
+    elif self.m_teleop['op_state'] == 'uninit':
+      self.m_teleop['op_state'] = 'paused'
+      self.setTeleopLED()
+    self.m_teleop['xbox'] = xbox
+
+  #.............................................................................
+  # Execution and Support
+  #.............................................................................
+
+  def execButton(self, xbox):
+    for bttn, func in self.m_teleop['map'].items():
+      newState = self.getButton(bttn, xbox)
+      oldState = self.getButton(bttn, self.m_teleop['xbox'])
+      if newState != oldState:
+        func(bttn, xbox)
+
+  def getButton(self, bttn, xbox):
+    return xbox.__getattribute__(bttn)
+
+  def ready(self):
+    if self.m_teleop['op_state'] != 'ready':
+      return False
+    elif self.m_robotStatus is None:
+      return False
+    else:
+      return True
+
+  def canMove(self):
+    if not self.ready():
+      return False
+    elif self.m_robotStatus is None:
+      return False
+    elif self.m_robotStatus.is_calibrated.val != TriState.TRUE:
+      return False
+    elif self.m_robotStatus.e_stopped.val == TriState.TRUE:
+      return False
+    else:
+      return True
+
+  def setLED(self, pattern):
+    try:
+      rospy.wait_for_service("xbox_360/set_led", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('SetLED: ' + e.message + '.')
+      return
+    try:
+      set_led = rospy.ServiceProxy('xbox_360/set_led', SetLED)
+      req = LEDPattern()
+      req.val = pattern
+      set_led(req)
+    except rospy.ServiceException, e:
+      self.showError("SetLED request failed: %s." % (e.message))
+      return
+
+  def setTeleopLED(self):
+    if self.m_teleop['op_state'] == 'paused':
+      self.setLED(self.m_xboxLEDPaused)
+    elif  self.m_robotStatus is not None and \
+          self.m_robotStatus.e_stopped.val == TriState.TRUE:
+      self.setLED(self.m_xboxLEDEStop)
+    elif self.m_teleop['mode'] == 'fp':
+      self.setLED(self.m_xboxLEDFPMode)
+    elif self.m_teleop['mode'] == 'joint':
+      self.setLED(self.m_xboxLEDJoint[self.m_teleop['joint']])
+    else:
+      self.setLED(self.m_xboxLEDOff)
+
+  def setRobotMode(self, robotMode):
+    pass
+
+  #.............................................................................
+  # XBox Button Associated Functions
+  #.............................................................................
+
+  def noop(self, bttn, xbox):
+    pass
+
+  def pause(self, bttn, xbox):
+    if self.getButton(bttn, xbox) != 0:
+      self.m_teleop['op_state'] = 'paused'
+      self.setTeleopLED()
+      self.setRobotMode(RobotMode.AUTO)
+      self.showInfo("Manual operation paused, auto mode enabled.")
+
+  def startResume(self, bttn, xbox):
+    if self.m_robotStatus is None:
+      return
+    elif self.getButton(bttn, xbox) != 0:
+      if self.m_teleop['mode'] == 'fp':
+        mode = "first person mode."
+      else:
+        mode = "joint mode."
+      self.m_teleop['op_state'] = 'ready'
+      self.setTeleopLED()
+      self.setRobotMode(RobotMode.MANUAL)
+      self.showInfo("Manual operation active, auto mode disabled, " + mode)
+
+  def toggleMode(self, bttn, xbox):
+    if not self.ready():
+      return
+    elif self.getButton(bttn, xbox) != 0:
+      if self.m_teleop['mode'] == 'fp':
+        self.m_teleop['mode'] = 'joint'
+        self.m_teleop['map'] = self.m_xboxMapJointMode 
+        self.showInfo("Joint mode.")
+      else:
+        self.m_teleop['mode'] = 'fp'
+        self.m_teleop['map'] = self.m_xboxMapFPMode 
+        self.showInfo("First person mode.")
+      self.setTeleopLED()
+
+  #
+  ## \brief Go to parked position callback.
+  #
+  def gotoParkedPos(self, bttn, xbox):
+    if self.getButton(bttn, xbox) == 0:
+      return
+    elif not self.canMove():
+      return
+    try:
+      rospy.wait_for_service("hekateros_control/goto_parked", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Goto parked position: ' + e.message + '.')
+      return
+    try:
+      goto_parked_pos = rospy.ServiceProxy('hekateros_control/goto_parked', 
+                                        GotoParkedPos)
+      goto_parked_pos()
+    except rospy.ServiceException, e:
+      self.showError("Goto parked position request failed: %s." % (e.message))
+      return
+    self.showInfo("Parked.")
+  
+  #
+  ## \brief Go to balanced position callback.
+  #
+  def gotoBalancedPos(self, bttn, xbox):
+    if xbox.a_button == 0:
+      return
+    elif not self.canMove():
+      return
+    try:
+      rospy.wait_for_service("hekateros_control/goto_balanced", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Goto balanced position: ' + e.message + '.')
+      return
+    try:
+      goto_balanced_pos = rospy.ServiceProxy(
+                                        'hekateros_control/goto_balanced', 
+                                        GotoBalancedPos)
+      goto_balanced_pos()
+    except rospy.ServiceException, e:
+      self.showError("Goto balanced position request failed: %s." % (e.message))
+      return
+    self.showInfo("Balanced.")
+  
+  #
+  ## \brief Go to zero point position callback.
+  #
+  def gotoZeroPt(self, bttn, xbox):
+    if self.getButton(bttn, xbox) == 0:
+      return
+    if not self.canMove():
+      return
+    try:
+      rospy.wait_for_service("hekateros_control/goto_zero", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Goto zero point: ' + e.message + '.')
+      return
+    try:
+      goto_zero_pt = rospy.ServiceProxy('hekateros_control/goto_zero', 
+                                        GotoZeroPt)
+      goto_zero_pt()
+    except rospy.ServiceException, e:
+      self.showError("Goto zero point failed: %s." % (e.message))
+      return
+    self.showInfo("Zero point.")
+  
+  #
+  ## \brief (Reset) emergency stop callback.
+  #
+  def estop(self, bttn, xbox):
+    if self.getButton(bttn, xbox) == 0:
+      return
+    elif not self.ready():
+      return
+    if self.m_robotStatus.e_stopped.val != TriState.TRUE:
+      try:
+        rospy.wait_for_service("hekateros_control/estop", timeout=1)
+      except rospy.ROSException, e:
+        self.showError('Emergency stop: ' + e.message + '.')
+        return
+      try:
+        estop = rospy.ServiceProxy('hekateros_control/estop',
+                                          EStop)
+        estop()
+      except rospy.ServiceException, e:
+        self.showError("Emergency stop request failed: %s." % (e.message))
+        return
+      self.setLED(self.m_xboxLEDEStop)
+      self.showError("Hekateros emergency stopped.")
+    else:
+      try:
+        rospy.wait_for_service("hekateros_control/reset_estop", timeout=1)
+      except rospy.ROSException, e:
+        self.showError('Reset emergency stop: ' + e.message + '.')
+        return
+      try:
+        reset_estop = rospy.ServiceProxy('hekateros_control/reset_estop',
+                                          ResetEStop)
+        reset_estop()
+      except rospy.ServiceException, e:
+        self.showError("Reset emergency stop request failed: %s." % (e.message))
+        return
+      self.showInfo("Hekateros emergency stop has been reset.")
+      self.setTeleopLED()
+  
+  def moveFPShoulder(self, bttn, xbox):
+    pass
+
+  def moveJoint(self, bttn, xbox):
+    pass
+
+  def rotateBase(self, bttn, xbox):
+    pass
+
+  def pitchWrist(self, bttn, xbox):
+    pass
+
+  def rotateWristCw(self, bttn, xbox):
+    pass
+
+  def rotateWristCcw(self, bttn, xbox):
+    pass
+
+  #
+  ## \brief Open gripper callback.
+  #
+  def openGripper(self, bttn, xbox):
+    try:
+      rospy.wait_for_service("hekateros_control/open_gripper", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Open gripper: ' + e.message + '.')
+      return
+    try:
+      open_gripper = rospy.ServiceProxy('hekateros_control/open_gripper', 
+                                        OpenGripper)
+      open_gripper()
+    except rospy.ServiceException, e:
+      self.showError("Open grippper request failed: %s." % (e.message))
+      return
+    self.showInfo("Gripper opened.")
+  
+  #
+  ## \brief Close gripper callback.
+  #
+  def closeGripper(self, bttn, xbox):
+    try:
+      rospy.wait_for_service("hekateros_control/close_gripper", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Close gripper: ' + e.message + '.')
+      return
+    try:
+      close_gripper = rospy.ServiceProxy('hekateros_control/close_gripper',
+                                          CloseGripper)
+      close_gripper()
+    except rospy.ServiceException, e:
+      self.showError("Close grippper request failed: %s." % (e.message))
+      return
+    self.showInfo("Gripper closed.")
+
+  def prevJoint(self, bttn, xbox):
+    if self.getButton(bttn, xbox) == 0:
+      return
+    self.m_teleop['joint'] -= 1
+    if self.m_teleop['joint'] < 0:
+      self.m_teleop['joint'] = 1
+    self.setTeleopLED()
+    self.showInfo("Joint %d control." % (self.m_teleop['joint']))
+
+  def nextJoint(self, bttn, xbox):
+    if self.getButton(bttn, xbox) == 0:
+      return
+    self.m_teleop['joint'] += 1
+    if self.m_teleop['joint'] > 1:
+      self.m_teleop['joint'] = 0
+    self.setTeleopLED()
+    self.showInfo("Joint %d control." % (self.m_teleop['joint']))
+
+
+# ------------------------------------------------------------------------------
+# main
+# ------------------------------------------------------------------------------
+if __name__ == '__main__':
+  app = application();
+  sys.exit( app.run() );
