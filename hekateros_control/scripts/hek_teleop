@@ -72,6 +72,7 @@ from hid.srv import SetRumble
 
 import actionlib
 import hekateros_control.msg
+import control_msgs.msg
 import trajectory_msgs.msg
 
 
@@ -312,15 +313,18 @@ Options and arguments:
 
     ## \brief Teleoperation state.
     self.m_teleop = { \
-      'op_state': 'uninit',
-      'mode':     'fp',
-      'joint':    0,
-      'map':      self.m_xboxMapFPMode,
-      'xbox':     None
+      'op_state': 'uninit',             # operational state
+      'mode':     'fp',                 # teleop mode
+      'joint':    0,                    # active joint (joint mode only)
+      'map':      self.m_xboxMapFPMode, # xbox button-function map
+      'xbox':     None                  # previous xbox state
     }
 
     self.m_robotStatus  = None
     self.m_jointState   = { }
+
+    self.m_trajPoint    = trajectory_msgs.msg.JointTrajectoryPoint()
+    self.m_bTrajChanged = False
 
   #
   ## \brief Initialize ROS interface
@@ -464,6 +468,8 @@ Options and arguments:
     elif self.m_robotStatus.is_calibrated.val != TriState.TRUE:
       return False
     elif self.m_robotStatus.e_stopped.val == TriState.TRUE:
+      return False
+    elif len(self.m_jointState) == 0:
       return False
     else:
       return True
