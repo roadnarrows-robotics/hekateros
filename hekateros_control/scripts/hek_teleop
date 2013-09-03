@@ -11,7 +11,7 @@
 ## $LastChangedDate: 2012-12-06 16:33:18 -0700 (Thu, 06 Dec 2012) $
 ## $Rev: 330 $
 ##
-## \brief Hekatoros teleoporated control.
+## \brief Hekatoros teleoporated node.
 ##
 ## \author Daniel Packard (daniel@roadnarrows.com)
 ## \author Robin Knight (robin.knight@roadnarrows.com)
@@ -83,7 +83,7 @@ import trajectory_msgs.msg
 ## \brief Application version. Update as needed. 
 appVersion = '1.0.0'
 
-## \brief Image search paths.
+## \brief Image search paths. (future)
 imagePath = [
   "/prj/pkg/Hekateros/share/images",
   "/usr/local/share/Hekateros/images",
@@ -97,7 +97,7 @@ home = os.path.expanduser("~")
 ## \brief Hekateros user-specific configuration directory (in home directory).
 hekUserDirName = ".hekateros"
 
-## \brief hek_panel application configuration file name.
+## \brief hek_panel application configuration file name (future).
 configFileName = "hek_teleop.xml"
 
 ## \brief Configuration default.
@@ -323,9 +323,6 @@ Options and arguments:
     self.m_robotStatus  = None
     self.m_jointState   = { }
 
-    self.m_trajPoint    = trajectory_msgs.msg.JointTrajectoryPoint()
-    self.m_bTrajChanged = False
-
   #
   ## \brief Initialize ROS interface
   #
@@ -443,11 +440,17 @@ Options and arguments:
   #.............................................................................
 
   def execButton(self, xbox):
+    trajectory    = trajectory_msgs.msg.JointTrajectory()
+    self.initTrajectory(trajectory)
     for bttn, func in self.m_teleop['map'].items():
       newState = self.getButton(bttn, xbox)
       oldState = self.getButton(bttn, self.m_teleop['xbox'])
       if newState != oldState:
-        func(bttn, xbox)
+        nJoints += func(bttn, xbox, trajectory)
+      if nJoints > 0:
+        moveRobot(trajectory)
+      elif ismoving:
+        stopRobot()
 
   def getButton(self, bttn, xbox):
     return xbox.__getattribute__(bttn)
