@@ -1,1 +1,3 @@
+industrial_msgs/RobotMode mode
 ---
+int8 rc
