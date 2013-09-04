@@ -240,8 +240,7 @@ bool SetRobotMode(hekateros_control::SetRobotMode::Request  &req,
                   hekateros_control::SetRobotMode::Response &res)
 {
   ROS_INFO("Setting robot mode.");
-  // TODO DHP - pRobot->setRobotMode();
-  ROS_WARN("SetRobotMode not yet implemented");
+  pRobot->setRobotMode((HekRobotMode)req.mode.val);
   return false;
 }
 
