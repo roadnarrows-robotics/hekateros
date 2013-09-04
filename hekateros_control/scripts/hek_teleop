@@ -138,10 +138,16 @@ def round10th(x):
   return math.floor((x + 0.05) * 10.0) / 10.0
 
 #
-## Degrees to radians
+## Degrees to radians.
 #
 def degToRad(deg):
   return deg / 180.0 * math.pi
+
+#
+## Radians to degrees.
+#
+def radToDeg(rad):
+  return rad / math.pi * 180.0
 
 
 # ------------------------------------------------------------------------------
@@ -295,7 +301,7 @@ Options and arguments:
 
       'left_joy_click':   self.noop,
       'left_joy_x':       self.noop,
-      'left_joy_y':       self.moveJoint,
+      'left_joy_y':       self.moveOneJoint,
 
       'right_joy_click':  self.noop,
       'right_joy_x':      self.rotateBase,
@@ -326,11 +332,14 @@ Options and arguments:
       'map':        self.m_xboxMapFPMode, # xbox button-function map
       'xbox':       None                  # previous xbox state
     }
-
+    
+    self.m_activeJointName  = ['shoulder', 'elbow']
     self.m_robotStatus      = None
     self.m_jointState       = {}
     self.m_jointTrajectory  = trajectory_msgs.msg.JointTrajectory()
     self.m_jointTrajPoint   = trajectory_msgs.msg.JointTrajectoryPoint()  
+
+    self.dbg = 0
 
   #
   ## \brief Initialize ROS interface
@@ -352,7 +361,10 @@ Options and arguments:
     rospy.Subscriber("xbox_360/controller_360_state",
                      Controller360State,
                      self.updateXbox)
-                     #pub)
+
+    # subscribe to XBox 360 controller state
+    self.m_joint_cmd_pub = rospy.Publisher("hekateros_control/joint_command",
+                                        trajectory_msgs.msg.JointTrajectory)
 
   #
   ## \brief Show information message.
@@ -427,7 +439,7 @@ Options and arguments:
   #
   def updateJointStates(self, joint):
     for i in range(0, len(joint.name)):
-      self.m_jointState[joint.name[i]] = joint.position[1]
+      self.m_jointState[joint.name[i]] = joint.position[i]
 
   #
   ## \brief Received joint extended state message callback.
@@ -525,10 +537,12 @@ Options and arguments:
       self.setLED(self.m_xboxLEDOff)
 
   def initTrajectory(self):
-    self.m_jointTrajectory.joint_names  = []
-    self.m_jointTrajectory.points       = []
-    self.m_jointTrajPoint.positions     = []
-    self.m_jointTrajPoint.velocities    = []
+    self.m_jointTrajectory  = trajectory_msgs.msg.JointTrajectory()
+    self.m_jointTrajPoint   = trajectory_msgs.msg.JointTrajectoryPoint()  
+    #self.m_jointTrajectory.joint_names  = []
+    #self.m_jointTrajectory.points       = []
+    #self.m_jointTrajPoint.positions     = []
+    #self.m_jointTrajPoint.velocities    = []
 
   def addTrajectoryJoint(self, jointName):
     if not self.m_jointState.has_key(jointName):
@@ -539,11 +553,11 @@ Options and arguments:
       self.m_jointTrajectory.joint_names.append(jointName)
       self.m_jointTrajPoint.positions.append(self.m_jointState[jointName])
       self.m_jointTrajPoint.velocities.append(0.0)
+      self.m_jointTrajPoint.accelerations.append(0.0)
       i = self.m_jointTrajectory.joint_names.index(jointName)
     return i
 
   def setRobotMode(self, robotMode):
-    return
     try:
       rospy.wait_for_service("hekateros_control/set_robot_mode", timeout=1)
     except rospy.ROSException, e:
@@ -561,20 +575,22 @@ Options and arguments:
     self.showInfo("Set robot mode to %d." % (robotMode))
 
   def moveRobot(self, trajectory):
-    pass
+    try:
+      self.m_joint_cmd_pub.publish(trajectory)
+    except rospy.ROSException, e:
+      self.showError('joint_command: ' + e.message + '.')
 
   def stopRobot(self):
     try:
-      rospy.wait_for_service("hekateros_control/stop", timeout=1)
+      rospy.wait_for_service("hekateros_control/freeze", timeout=1)
     except rospy.ROSException, e:
-      self.showError('Stop: ' + e.message + '.')
+      self.showError('Freeze arm: ' + e.message + '.')
       return
     try:
-      stop = rospy.ServiceProxy('hekateros_control/stop', 
-                                        Stop)
-      stop()
+      freeze = rospy.ServiceProxy('hekateros_control/freeze', Freeze)
+      freeze()
     except rospy.ServiceException, e:
-      self.showError("Stop failed: %s." % (e.message))
+      self.showError("Freeze arm request failed: %s." % (e.message))
       return
 
   #.............................................................................
@@ -730,14 +746,51 @@ Options and arguments:
   def moveFPShoulder(self, bttn, xbox):
     pass
 
-  def moveJoint(self, bttn, xbox):
-    pass
+  def moveOneJoint(self, bttn, xbox):
+    joy = self.getButton(bttn, xbox)
+    if joy == 0:
+      return
+    jointName = self.m_activeJointName[self.m_teleop['joint']]
+    i = self.addTrajectoryJoint(jointName)
+    if i < 0:   # no joint
+      return
+    velocity = joy/32767.0 * 10.0
+    position = 40.0
+    if velocity < 0.0:
+      position = -position
+      velocity = -velocity
+    self.m_jointTrajPoint.positions[i] += degToRad(position)
+    self.m_jointTrajPoint.velocities[i] = velocity
 
   def rotateBase(self, bttn, xbox):
-    pass
+    joy = self.getButton(bttn, xbox)
+    if joy == 0:
+      return
+    i = self.addTrajectoryJoint('base_rot')
+    if i < 0:   # no joint
+      return
+    velocity = joy/32767.0 * 20.0
+    position = 45.0
+    if velocity < 0.0:
+      position = -position
+      velocity = -velocity
+    self.m_jointTrajPoint.positions[i] += degToRad(position)
+    self.m_jointTrajPoint.velocities[i] = velocity
 
   def pitchWrist(self, bttn, xbox):
-    pass
+    joy = self.getButton(bttn, xbox)
+    if joy == 0:
+      return
+    i = self.addTrajectoryJoint('wrist_pitch')
+    if i < 0:   # no joint
+      return
+    velocity = joy/32767.0 * 20.0
+    position = 45.0
+    if velocity < 0.0:
+      position = -position
+      velocity = -velocity
+    self.m_jointTrajPoint.positions[i] += degToRad(position)
+    self.m_jointTrajPoint.velocities[i] = velocity
 
   def rotateWristCw(self, bttn, xbox):
     if self.getButton(bttn, xbox) == 0:
@@ -745,8 +798,12 @@ Options and arguments:
     i = self.addTrajectoryJoint('wrist_rot')
     if i < 0:   # no joint
       return
-    self.m_jointTrajPoint.positions[i] -= degToRad(10.0)
+    self.dbg += 1
+    if self.dbg % 3 != 0:
+      return
+    self.m_jointTrajPoint.positions[i] -= degToRad(50.0)
     self.m_jointTrajPoint.velocities[i] = 20.0
+    self.showInfo("cw wrist to %f at %f." % (radToDeg(self.m_jointTrajPoint.positions[i]), self.m_jointTrajPoint.velocities[i]))
 
   def rotateWristCcw(self, bttn, xbox):
     if self.getButton(bttn, xbox) == 0:
@@ -754,39 +811,42 @@ Options and arguments:
     i = self.addTrajectoryJoint('wrist_rot')
     if i < 0:   # no joint
       return
-    self.m_jointTrajPoint.positions[i] += degToRad(10.0)
+    self.m_jointTrajPoint.positions[i] += degToRad(50.0)
     self.m_jointTrajPoint.velocities[i] = 20.0
+    self.showInfo("ccw wrist to %f at %f." % (radToDeg(self.m_jointTrajPoint.positions[i]), self.m_jointTrajPoint.velocities[i]))
 
   #
   ## \brief Open gripper callback.
   #
   def openGripper(self, bttn, xbox):
+    deadzone = 10
     trigger = self.getButton(bttn, xbox)
-    if trigger < 10: # dead zone
+    if trigger < deadzone: # dead zone
       return
     i = self.addTrajectoryJoint('grip')
     if i < 0:   # no joint
       return
-    velocity = trigger/255.0 * 35.0
-    self.m_jointTrajPoint.positions[i] += degToRad(5.0)
+    velocity = (trigger-deadzone)/255.0 * 10.0
+    self.m_jointTrajPoint.positions[i] += degToRad(35.0)
     self.m_jointTrajPoint.velocities[i] = velocity
   
   #
   ## \brief Close gripper callback.
   #
   def closeGripper(self, bttn, xbox):
+    deadzone = 10
     trigger = self.getButton(bttn, xbox)
-    if trigger < 10: # dead zone
+    if trigger < deadzone: # dead zone
       return
     i = self.addTrajectoryJoint('grip')
     if i < 0:   # no joint
       return
-    velocity = trigger/255.0 * 35.0
-    self.m_jointTrajPoint.positions[i] -= degToRad(5.0)
+    velocity = (trigger-deadzone)/255.0 * 10.0
+    self.m_jointTrajPoint.positions[i] -= degToRad(35.0)
     self.m_jointTrajPoint.velocities[i] = velocity
 
   def prevJoint(self, bttn, xbox):
-    if self.getButton(bttn, xbox) == 0:
+    if not self.buttonOffToOn(bttn, xbox):
       return
     self.m_teleop['joint'] -= 1
     if self.m_teleop['joint'] < 0:
@@ -795,7 +855,7 @@ Options and arguments:
     self.showInfo("Joint %d control." % (self.m_teleop['joint']))
 
   def nextJoint(self, bttn, xbox):
-    if self.getButton(bttn, xbox) == 0:
+    if not self.buttonOffToOn(bttn, xbox):
       return
     self.m_teleop['joint'] += 1
     if self.m_teleop['joint'] > 1:
