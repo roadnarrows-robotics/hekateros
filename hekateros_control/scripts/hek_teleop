@@ -64,6 +64,7 @@ from hekateros_control.srv import ResetEStop
 from hekateros_control.srv import Freeze
 from hekateros_control.srv import Release
 from hekateros_control.srv import GetProductInfo
+from hekateros_control.srv import SetRobotMode
 
 from hid.msg import Controller360State
 from hid.msg import LEDPattern
@@ -136,6 +137,11 @@ def round100th(x):
 def round10th(x):
   return math.floor((x + 0.05) * 10.0) / 10.0
 
+#
+## Degrees to radians
+#
+def degToRad(deg):
+  return deg / 180.0 * math.pi
 
 
 # ------------------------------------------------------------------------------
@@ -316,12 +322,15 @@ Options and arguments:
       'op_state': 'uninit',             # operational state
       'mode':     'fp',                 # teleop mode
       'joint':    0,                    # active joint (joint mode only)
+      'canned':   False,                # canned move [not] active
       'map':      self.m_xboxMapFPMode, # xbox button-function map
       'xbox':     None                  # previous xbox state
     }
 
-    self.m_robotStatus  = None
-    self.m_jointState   = { }
+    self.m_robotStatus      = None
+    self.m_jointState       = {}
+    self.m_jointTrajectory  = trajectory_msgs.msg.JointTrajectory()
+    self.m_jointTrajPoint   = trajectory_msgs.msg.JointTrajectoryPoint()  
 
   #
   ## \brief Initialize ROS interface
@@ -401,6 +410,7 @@ Options and arguments:
   ## \param status  Robot status extended message.
   #
   def updateRobotStatus(self, status):
+    # first message
     if self.m_robotStatus is None:
       self.setRobotMode(RobotMode.AUTO)
       oldEStop = TriState.UNKNOWN
@@ -440,20 +450,31 @@ Options and arguments:
   #.............................................................................
 
   def execButton(self, xbox):
-    trajectory    = trajectory_msgs.msg.JointTrajectory()
-    self.initTrajectory(trajectory)
+    self.initTrajectory()
     for bttn, func in self.m_teleop['map'].items():
-      newState = self.getButton(bttn, xbox)
-      oldState = self.getButton(bttn, self.m_teleop['xbox'])
-      if newState != oldState:
-        nJoints += func(bttn, xbox, trajectory)
-      if nJoints > 0:
-        moveRobot(trajectory)
-      elif ismoving:
-        stopRobot()
+      func(bttn, xbox)
+    if self.canMove():
+      if len(self.m_jointTrajectory.joint_names) > 0:
+        self.m_teleop['canned'] = False
+        self.m_jointTrajectory.points.append(self.m_jointTrajPoint)
+        self.moveRobot(self.m_jointTrajectory)
+      elif self.m_robotStatus.in_motion.val == TriState.ON:
+        if not self.m_teleop['canned']:
+          self.stopRobot()
+      elif self.m_teleop['canned']:
+        self.showInfo('rdk: all stopped')
+        self.m_teleop['canned'] = False
 
   def getButton(self, bttn, xbox):
     return xbox.__getattribute__(bttn)
+
+  def buttonOffToOn(self, bttn, xbox):
+    newState = self.getButton(bttn, xbox)
+    oldState = self.getButton(bttn, self.m_teleop['xbox'])
+    if newState and newState != oldState:
+      return True
+    else:
+      return False
 
   def ready(self):
     if self.m_teleop['op_state'] != 'ready':
@@ -505,8 +526,58 @@ Options and arguments:
     else:
       self.setLED(self.m_xboxLEDOff)
 
+  def initTrajectory(self):
+    self.m_jointTrajectory.joint_names  = []
+    self.m_jointTrajectory.points       = []
+    self.m_jointTrajPoint.positions     = []
+    self.m_jointTrajPoint.velocities    = []
+
+  def addTrajectoryJoint(self, jointName):
+    if not self.m_jointState.has_key(jointName):
+      return -1
+    try:
+      i = self.m_jointTrajectory.joint_names.index(jointName)
+    except ValueError:
+      self.m_jointTrajectory.joint_names.append(jointName)
+      self.m_jointTrajPoint.positions.append(self.m_jointState[jointName])
+      self.m_jointTrajPoint.velocities.append(0.0)
+      i = self.m_jointTrajectory.joint_names.index(jointName)
+    return i
+
   def setRobotMode(self, robotMode):
+    return
+    try:
+      rospy.wait_for_service("hekateros_control/set_robot_mode", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Set robot mode: ' + e.message + '.')
+      return
+    try:
+      set_robot_mode = rospy.ServiceProxy('hekateros_control/set_robot_mode', 
+                                        SetRobotMode)
+      req = RobotMode()
+      req.val = robotMode
+      set_robot_mode(req)
+    except rospy.ServiceException, e:
+      self.showError("Set robot mode failed: %s." % (e.message))
+      return
+    self.showInfo("Set robot mode to %d." % (robotMode))
+
+  def moveRobot(self, trajectory):
     pass
+
+  def stopRobot(self):
+    try:
+      rospy.wait_for_service("hekateros_control/stop", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Stop: ' + e.message + '.')
+      return
+    try:
+      stop = rospy.ServiceProxy('hekateros_control/stop', 
+                                        Stop)
+      stop()
+    except rospy.ServiceException, e:
+      self.showError("Stop failed: %s." % (e.message))
+      return
 
   #.............................................................................
   # XBox Button Associated Functions
@@ -516,7 +587,7 @@ Options and arguments:
     pass
 
   def pause(self, bttn, xbox):
-    if self.getButton(bttn, xbox) != 0:
+    if self.buttonOffToOn(bttn, xbox):
       self.m_teleop['op_state'] = 'paused'
       self.setTeleopLED()
       self.setRobotMode(RobotMode.AUTO)
@@ -525,7 +596,7 @@ Options and arguments:
   def startResume(self, bttn, xbox):
     if self.m_robotStatus is None:
       return
-    elif self.getButton(bttn, xbox) != 0:
+    elif self.buttonOffToOn(bttn, xbox):
       if self.m_teleop['mode'] == 'fp':
         mode = "first person mode."
       else:
@@ -538,7 +609,7 @@ Options and arguments:
   def toggleMode(self, bttn, xbox):
     if not self.ready():
       return
-    elif self.getButton(bttn, xbox) != 0:
+    elif self.buttonOffToOn(bttn, xbox):
       if self.m_teleop['mode'] == 'fp':
         self.m_teleop['mode'] = 'joint'
         self.m_teleop['map'] = self.m_xboxMapJointMode 
@@ -553,7 +624,7 @@ Options and arguments:
   ## \brief Go to parked position callback.
   #
   def gotoParkedPos(self, bttn, xbox):
-    if self.getButton(bttn, xbox) == 0:
+    if not self.buttonOffToOn(bttn, xbox):
       return
     elif not self.canMove():
       return
@@ -565,17 +636,18 @@ Options and arguments:
     try:
       goto_parked_pos = rospy.ServiceProxy('hekateros_control/goto_parked', 
                                         GotoParkedPos)
+      self.m_teleop['canned'] = True
       goto_parked_pos()
     except rospy.ServiceException, e:
       self.showError("Goto parked position request failed: %s." % (e.message))
       return
-    self.showInfo("Parked.")
+    self.showInfo("Parking...")
   
   #
   ## \brief Go to balanced position callback.
   #
   def gotoBalancedPos(self, bttn, xbox):
-    if xbox.a_button == 0:
+    if not self.buttonOffToOn(bttn, xbox):
       return
     elif not self.canMove():
       return
@@ -588,17 +660,18 @@ Options and arguments:
       goto_balanced_pos = rospy.ServiceProxy(
                                         'hekateros_control/goto_balanced', 
                                         GotoBalancedPos)
+      self.m_teleop['canned'] = True
       goto_balanced_pos()
     except rospy.ServiceException, e:
       self.showError("Goto balanced position request failed: %s." % (e.message))
       return
-    self.showInfo("Balanced.")
+    self.showInfo("Balancing...")
   
   #
   ## \brief Go to zero point position callback.
   #
   def gotoZeroPt(self, bttn, xbox):
-    if self.getButton(bttn, xbox) == 0:
+    if not self.buttonOffToOn(bttn, xbox):
       return
     if not self.canMove():
       return
@@ -610,17 +683,18 @@ Options and arguments:
     try:
       goto_zero_pt = rospy.ServiceProxy('hekateros_control/goto_zero', 
                                         GotoZeroPt)
+      self.m_teleop['canned'] = True
       goto_zero_pt()
     except rospy.ServiceException, e:
       self.showError("Goto zero point failed: %s." % (e.message))
       return
-    self.showInfo("Zero point.")
+    self.showInfo("Going to Zero Point...")
   
   #
   ## \brief (Reset) emergency stop callback.
   #
   def estop(self, bttn, xbox):
-    if self.getButton(bttn, xbox) == 0:
+    if not self.buttonOffToOn(bttn, xbox):
       return
     elif not self.ready():
       return
@@ -668,15 +742,31 @@ Options and arguments:
     pass
 
   def rotateWristCw(self, bttn, xbox):
-    pass
+    if self.getButton(bttn, xbox) == 0:
+      return
+    jointName = 'wrist_rot'
+    i = self.addTrajectoryJoint(jointName)
+    if i < 0:
+      return
+    self.m_jointTrajPoint.positions[i] -= degToRad(10.0)
+    self.m_jointTrajPoint.velocities[i] = 20.0
 
   def rotateWristCcw(self, bttn, xbox):
-    pass
+    if self.getButton(bttn, xbox) == 0:
+      return
+    jointName = 'wrist_rot'
+    i = self.addTrajectoryJoint(jointName)
+    if i < 0:
+      return
+    self.m_jointTrajPoint.positions[i] += degToRad(10.0)
+    self.m_jointTrajPoint.velocities[i] = 20.0
 
   #
   ## \brief Open gripper callback.
   #
   def openGripper(self, bttn, xbox):
+    if self.getButton(bttn, xbox) < 10:
+      return
     try:
       rospy.wait_for_service("hekateros_control/open_gripper", timeout=1)
     except rospy.ROSException, e:
@@ -695,6 +785,8 @@ Options and arguments:
   ## \brief Close gripper callback.
   #
   def closeGripper(self, bttn, xbox):
+    if self.getButton(bttn, xbox) < 10:
+      return
     try:
       rospy.wait_for_service("hekateros_control/close_gripper", timeout=1)
     except rospy.ROSException, e:
