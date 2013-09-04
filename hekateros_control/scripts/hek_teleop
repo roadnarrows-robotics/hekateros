@@ -319,12 +319,12 @@ Options and arguments:
 
     ## \brief Teleoperation state.
     self.m_teleop = { \
-      'op_state': 'uninit',             # operational state
-      'mode':     'fp',                 # teleop mode
-      'joint':    0,                    # active joint (joint mode only)
-      'canned':   False,                # canned move [not] active
-      'map':      self.m_xboxMapFPMode, # xbox button-function map
-      'xbox':     None                  # previous xbox state
+      'op_state':   'uninit',             # operational state
+      'mode':       'fp',                 # teleop mode
+      'joint':      0,                    # active joint (joint mode only)
+      'user_move':  False,                # [not] user control move
+      'map':        self.m_xboxMapFPMode, # xbox button-function map
+      'xbox':       None                  # previous xbox state
     }
 
     self.m_robotStatus      = None
@@ -455,15 +455,13 @@ Options and arguments:
       func(bttn, xbox)
     if self.canMove():
       if len(self.m_jointTrajectory.joint_names) > 0:
-        self.m_teleop['canned'] = False
+        self.m_teleop['user_move'] = True
         self.m_jointTrajectory.points.append(self.m_jointTrajPoint)
         self.moveRobot(self.m_jointTrajectory)
-      elif self.m_robotStatus.in_motion.val == TriState.ON:
-        if not self.m_teleop['canned']:
-          self.stopRobot()
-      elif self.m_teleop['canned']:
-        self.showInfo('rdk: all stopped')
-        self.m_teleop['canned'] = False
+      elif self.m_robotStatus.in_motion.val == TriState.ON and \
+          self.m_teleop['user_move']:
+        self.stopRobot()
+        self.m_teleop['user_move'] = False
 
   def getButton(self, bttn, xbox):
     return xbox.__getattribute__(bttn)
@@ -636,12 +634,12 @@ Options and arguments:
     try:
       goto_parked_pos = rospy.ServiceProxy('hekateros_control/goto_parked', 
                                         GotoParkedPos)
-      self.m_teleop['canned'] = True
       goto_parked_pos()
     except rospy.ServiceException, e:
       self.showError("Goto parked position request failed: %s." % (e.message))
       return
-    self.showInfo("Parking...")
+    self.m_teleop['user_move'] = False
+    self.showInfo("Go to parked position.")
   
   #
   ## \brief Go to balanced position callback.
@@ -660,12 +658,12 @@ Options and arguments:
       goto_balanced_pos = rospy.ServiceProxy(
                                         'hekateros_control/goto_balanced', 
                                         GotoBalancedPos)
-      self.m_teleop['canned'] = True
       goto_balanced_pos()
     except rospy.ServiceException, e:
       self.showError("Goto balanced position request failed: %s." % (e.message))
       return
-    self.showInfo("Balancing...")
+    self.m_teleop['user_move'] = False
+    self.showInfo("Go to balanced position.")
   
   #
   ## \brief Go to zero point position callback.
@@ -683,12 +681,12 @@ Options and arguments:
     try:
       goto_zero_pt = rospy.ServiceProxy('hekateros_control/goto_zero', 
                                         GotoZeroPt)
-      self.m_teleop['canned'] = True
       goto_zero_pt()
     except rospy.ServiceException, e:
       self.showError("Goto zero point failed: %s." % (e.message))
       return
-    self.showInfo("Going to Zero Point...")
+    self.m_teleop['user_move'] = False
+    self.showInfo("Go to Zero Point.")
   
   #
   ## \brief (Reset) emergency stop callback.
@@ -744,9 +742,8 @@ Options and arguments:
   def rotateWristCw(self, bttn, xbox):
     if self.getButton(bttn, xbox) == 0:
       return
-    jointName = 'wrist_rot'
-    i = self.addTrajectoryJoint(jointName)
-    if i < 0:
+    i = self.addTrajectoryJoint('wrist_rot')
+    if i < 0:   # no joint
       return
     self.m_jointTrajPoint.positions[i] -= degToRad(10.0)
     self.m_jointTrajPoint.velocities[i] = 20.0
@@ -754,9 +751,8 @@ Options and arguments:
   def rotateWristCcw(self, bttn, xbox):
     if self.getButton(bttn, xbox) == 0:
       return
-    jointName = 'wrist_rot'
-    i = self.addTrajectoryJoint(jointName)
-    if i < 0:
+    i = self.addTrajectoryJoint('wrist_rot')
+    if i < 0:   # no joint
       return
     self.m_jointTrajPoint.positions[i] += degToRad(10.0)
     self.m_jointTrajPoint.velocities[i] = 20.0
@@ -765,41 +761,29 @@ Options and arguments:
   ## \brief Open gripper callback.
   #
   def openGripper(self, bttn, xbox):
-    if self.getButton(bttn, xbox) < 10:
+    trigger = self.getButton(bttn, xbox)
+    if trigger < 10: # dead zone
       return
-    try:
-      rospy.wait_for_service("hekateros_control/open_gripper", timeout=1)
-    except rospy.ROSException, e:
-      self.showError('Open gripper: ' + e.message + '.')
+    i = self.addTrajectoryJoint('grip')
+    if i < 0:   # no joint
       return
-    try:
-      open_gripper = rospy.ServiceProxy('hekateros_control/open_gripper', 
-                                        OpenGripper)
-      open_gripper()
-    except rospy.ServiceException, e:
-      self.showError("Open grippper request failed: %s." % (e.message))
-      return
-    self.showInfo("Gripper opened.")
+    velocity = trigger/255.0 * 35.0
+    self.m_jointTrajPoint.positions[i] += degToRad(5.0)
+    self.m_jointTrajPoint.velocities[i] = velocity
   
   #
   ## \brief Close gripper callback.
   #
   def closeGripper(self, bttn, xbox):
-    if self.getButton(bttn, xbox) < 10:
+    trigger = self.getButton(bttn, xbox)
+    if trigger < 10: # dead zone
       return
-    try:
-      rospy.wait_for_service("hekateros_control/close_gripper", timeout=1)
-    except rospy.ROSException, e:
-      self.showError('Close gripper: ' + e.message + '.')
+    i = self.addTrajectoryJoint('grip')
+    if i < 0:   # no joint
       return
-    try:
-      close_gripper = rospy.ServiceProxy('hekateros_control/close_gripper',
-                                          CloseGripper)
-      close_gripper()
-    except rospy.ServiceException, e:
-      self.showError("Close grippper request failed: %s." % (e.message))
-      return
-    self.showInfo("Gripper closed.")
+    velocity = trigger/255.0 * 35.0
+    self.m_jointTrajPoint.positions[i] -= degToRad(5.0)
+    self.m_jointTrajPoint.velocities[i] = velocity
 
   def prevJoint(self, bttn, xbox):
     if self.getButton(bttn, xbox) == 0:
