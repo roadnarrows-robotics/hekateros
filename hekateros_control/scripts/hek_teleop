@@ -339,7 +339,13 @@ Options and arguments:
     self.m_jointTrajectory  = trajectory_msgs.msg.JointTrajectory()
     self.m_jointTrajPoint   = trajectory_msgs.msg.JointTrajectoryPoint()  
 
-    self.dbg = 0
+    self.m_fpState = { \
+      'goal_sign':0,
+      'new_goal': True,
+      'target': {'alpha':0, 'beta':0, 'gamma':0},
+      'target_cart': {'x':0, 'y':0},
+    }
+
 
   #
   ## \brief Initialize ROS interface
@@ -655,6 +661,7 @@ Options and arguments:
       self.showError("Goto parked position request failed: %s." % (e.message))
       return
     self.m_teleop['user_move'] = False
+    self.m_fpState['new_goal'] = True
     self.showInfo("Go to parked position.")
   
   #
@@ -679,6 +686,7 @@ Options and arguments:
       self.showError("Goto balanced position request failed: %s." % (e.message))
       return
     self.m_teleop['user_move'] = False
+    self.m_fpState['new_goal'] = True
     self.showInfo("Go to balanced position.")
   
   #
@@ -702,6 +710,7 @@ Options and arguments:
       self.showError("Goto zero point failed: %s." % (e.message))
       return
     self.m_teleop['user_move'] = False
+    self.m_fpState['new_goal'] = True
     self.showInfo("Go to Zero Point.")
   
   #
@@ -736,6 +745,7 @@ Options and arguments:
       try:
         reset_estop = rospy.ServiceProxy('hekateros_control/reset_estop',
                                           ResetEStop)
+        self.m_fpState['new_goal'] = True
         reset_estop()
       except rospy.ServiceException, e:
         self.showError("Reset emergency stop request failed: %s." % (e.message))
@@ -744,7 +754,117 @@ Options and arguments:
       self.setTeleopLED()
   
   def moveFPShoulder(self, bttn, xbox):
-    pass
+    joy = self.getButton(bttn, xbox)
+    if joy == 0:
+      return
+    i = self.addTrajectoryJoint('shoulder')
+    if i < 0:   # no joint
+      return
+    j = self.addTrajectoryJoint('elbow')
+    if j < 0:   # no joint
+      return
+    k = self.addTrajectoryJoint('wrist_pitch')
+    if k < 0:   # no joint
+      return
+    goal_sign = joy / abs(joy)
+    if goal_sign != self.m_fpState['goal_sign']:
+      self.m_fpState['new_goal'] = True
+    if self.m_fpState['new_goal']:
+      # constants
+      self.m_fpState['goal_sign'] = goal_sign
+      D = goal_sign * 200; # distance to move in mm      
+      UPPER_ARM = 406.27; A = UPPER_ARM
+      FORE_ARM  = 401.6;  B = FORE_ARM
+      print "*** Generating new goal"
+      alpha = self.m_jointTrajPoint.positions[i]
+      beta  = self.m_jointTrajPoint.positions[j]
+      gamma = self.m_jointTrajPoint.positions[k]
+      direction = alpha + beta + gamma
+      x0 = A * math.sin(alpha) + B * math.sin(alpha + beta)
+      y0 = A * math.cos(alpha) + B * math.cos(alpha + beta)
+      xp = x0 + D * math.sin(direction)
+      yp = y0 + D * math.cos(direction)
+      self.m_fpState['target_cart']['x'] = xp
+      self.m_fpState['target_cart']['y'] = yp
+      print "moving from ({},{}) to ({},{}) in dir {}".format(x0, y0, xp, yp, direction)
+      C = math.sqrt(xp*xp + yp*yp)
+      if C > (A + B):
+        print "capping to length of arm"
+        C = A + B
+        
+      theta = math.atan(xp/yp)
+      b = math.acos((A*A+C*C-B*B)/(2*A*C))
+      c = math.acos((A*A+B*B-C*C)/(2*A*B))
+      print "theta = {}, b = {}, c = {}".format(theta, b, c)
+      self.m_fpState['target']['alpha'] = theta - b
+      self.m_fpState['target']['beta']  = math.pi - c
+      self.m_fpState['target']['gamma'] = direction - \
+                                          self.m_fpState['target']['alpha'] - \
+                                          self.m_fpState['target']['beta']
+
+      self.m_fpState['new_goal'] = False
+      self.m_jointTrajPoint.positions[i]  = self.m_fpState['target']['alpha']
+      self.m_jointTrajPoint.velocities[i] = 1
+      self.m_jointTrajPoint.positions[j]  = self.m_fpState['target']['beta']
+      self.m_jointTrajPoint.velocities[j] = 1
+      self.m_jointTrajPoint.positions[k]  = self.m_fpState['target']['gamma']
+      self.m_jointTrajPoint.velocities[k] = 1
+    else:
+      MAX_VEL = 1
+      UPPER_ARM = 406.27; A = UPPER_ARM
+      FORE_ARM  = 401.6;  B = FORE_ARM
+      EPSILON = 0.1 # tolerance in L1 angle space
+      D = 10 # distance used to calculate joint velocities [mm]
+      alpha = self.m_jointTrajPoint.positions[i]
+      beta = self.m_jointTrajPoint.positions[j]
+      gamma = self.m_jointTrajPoint.positions[k]
+      alpha_targetf = self.m_fpState['target']['alpha']
+      beta_targetf  = self.m_fpState['target']['beta']
+      gamma_targetf = self.m_fpState['target']['gamma']
+      delta = abs(alpha_targetf - alpha) + \
+              abs(beta_targetf - beta) + \
+              abs(gamma_targetf - gamma)
+      if delta < EPSILON:
+        self.m_fpState['new_goal'] = True
+      # cur pos
+      x0 = A * math.sin(alpha) + B * math.sin(alpha + beta)
+      y0 = A * math.cos(alpha) + B * math.cos(alpha + beta)
+      # calc direction towards target
+      xdelta = self.m_fpState['target_cart']['x'] - x0
+      ydelta = self.m_fpState['target_cart']['y'] - y0
+      if ydelta == 0:
+        direction = math.pi/2.0
+      else:
+        direction = math.atan(xdelta/ydelta)
+      # target for calculating joint velocities
+      xp = x0 + D * math.sin(direction)
+      yp = y0 + D * math.cos(direction)
+      C = math.sqrt(xp*xp + yp*yp)
+      if C > (A + B):
+        C = A + B
+      theta = math.atan(xp/yp)
+      b = math.acos((A*A+C*C-B*B)/(2*A*C))
+      c = math.acos((A*A+B*B-C*C)/(2*A*B))
+      alpha_target = theta - b
+      beta_target  = math.pi - c
+      # ok, calc velocities
+      alpha_delta = alpha_target - alpha
+      beta_delta  = beta_target - beta
+      if abs(alpha_delta) > abs(beta_delta):
+          beta_delta  = beta_delta/alpha_delta
+          alpha_delta = 1.0
+      else:
+          alpha_delta  = alpha_delta/beta_delta
+          beta_delta = 1.0
+      scale = joy/32767.0 * MAX_VEL
+      shoulder_vel = alpha_delta * scale
+      elbow_vel    = beta_delta * scale
+      self.m_jointTrajPoint.positions[i]  = alpha_targetf
+      self.m_jointTrajPoint.velocities[i] = abs(shoulder_vel)
+      self.m_jointTrajPoint.positions[j]  = beta_targetf
+      self.m_jointTrajPoint.velocities[j] = abs(elbow_vel)
+      self.m_jointTrajPoint.positions[k]  = gamma_targetf
+      self.m_jointTrajPoint.velocities[k] = abs(elbow_vel+shoulder_vel)
 
   def moveOneJoint(self, bttn, xbox):
     joy = self.getButton(bttn, xbox)
@@ -791,15 +911,13 @@ Options and arguments:
       velocity = -velocity
     self.m_jointTrajPoint.positions[i] += degToRad(position)
     self.m_jointTrajPoint.velocities[i] = velocity
+    self.m_fpState['new_goal'] = True;
 
   def rotateWristCw(self, bttn, xbox):
     if self.getButton(bttn, xbox) == 0:
       return
     i = self.addTrajectoryJoint('wrist_rot')
     if i < 0:   # no joint
-      return
-    self.dbg += 1
-    if self.dbg % 3 != 0:
       return
     self.m_jointTrajPoint.positions[i] -= degToRad(50.0)
     self.m_jointTrajPoint.velocities[i] = 20.0
