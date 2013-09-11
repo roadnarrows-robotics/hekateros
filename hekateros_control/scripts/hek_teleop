@@ -921,7 +921,6 @@ Options and arguments:
       return
     self.m_jointTrajPoint.positions[i] -= degToRad(50.0)
     self.m_jointTrajPoint.velocities[i] = 20.0
-    self.showInfo("cw wrist to %f at %f." % (radToDeg(self.m_jointTrajPoint.positions[i]), self.m_jointTrajPoint.velocities[i]))
 
   def rotateWristCcw(self, bttn, xbox):
     if self.getButton(bttn, xbox) == 0:
@@ -931,7 +930,6 @@ Options and arguments:
       return
     self.m_jointTrajPoint.positions[i] += degToRad(50.0)
     self.m_jointTrajPoint.velocities[i] = 20.0
-    self.showInfo("ccw wrist to %f at %f." % (radToDeg(self.m_jointTrajPoint.positions[i]), self.m_jointTrajPoint.velocities[i]))
 
   #
   ## \brief Open gripper callback.
