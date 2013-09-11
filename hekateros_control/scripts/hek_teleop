@@ -792,7 +792,8 @@ Options and arguments:
         print "capping to length of arm"
         C = A + B
         
-      theta = math.atan(xp/yp)
+      #theta = math.atan(xp/yp)
+      theta = math.atan2(xp,yp)
       b = math.acos((A*A+C*C-B*B)/(2*A*C))
       c = math.acos((A*A+B*B-C*C)/(2*A*B))
       print "theta = {}, b = {}, c = {}".format(theta, b, c)
@@ -810,7 +811,7 @@ Options and arguments:
       self.m_jointTrajPoint.positions[k]  = self.m_fpState['target']['gamma']
       self.m_jointTrajPoint.velocities[k] = 1
     else:
-      MAX_VEL = 1
+      MAX_VEL = 4
       UPPER_ARM = 406.27; A = UPPER_ARM
       FORE_ARM  = 401.6;  B = FORE_ARM
       EPSILON = 0.1 # tolerance in L1 angle space
@@ -835,14 +836,16 @@ Options and arguments:
       if ydelta == 0:
         direction = math.pi/2.0
       else:
-        direction = math.atan(xdelta/ydelta)
+        #direction = math.atan(xdelta/ydelta)
+        direction = math.atan2(xdelta,ydelta)
       # target for calculating joint velocities
       xp = x0 + D * math.sin(direction)
       yp = y0 + D * math.cos(direction)
       C = math.sqrt(xp*xp + yp*yp)
       if C > (A + B):
         C = A + B
-      theta = math.atan(xp/yp)
+      #theta = math.atan(xp/yp)
+      theta = math.atan2(xp,yp)
       b = math.acos((A*A+C*C-B*B)/(2*A*C))
       c = math.acos((A*A+B*B-C*C)/(2*A*B))
       alpha_target = theta - b
@@ -867,6 +870,7 @@ Options and arguments:
       self.m_jointTrajPoint.velocities[k] = abs(elbow_vel+shoulder_vel)
 
   def moveOneJoint(self, bttn, xbox):
+    self.m_fpState['new_goal'] = True
     joy = self.getButton(bttn, xbox)
     if joy == 0:
       return
