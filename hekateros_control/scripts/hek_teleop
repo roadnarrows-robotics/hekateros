@@ -368,7 +368,7 @@ Options and arguments:
                      Controller360State,
                      self.updateXbox)
 
-    # subscribe to XBox 360 controller state
+    # publish trajectory to hekateros controller
     self.m_joint_cmd_pub = rospy.Publisher("hekateros_control/joint_command",
                                         trajectory_msgs.msg.JointTrajectory)
 
@@ -580,6 +580,9 @@ Options and arguments:
       return
     self.showInfo("Set robot mode to %d." % (robotMode))
 
+  #
+  ## \brief Move robot along trajectory
+  #
   def moveRobot(self, trajectory):
     try:
       self.m_joint_cmd_pub.publish(trajectory)

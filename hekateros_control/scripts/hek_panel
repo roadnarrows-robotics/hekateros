@@ -165,6 +165,18 @@ def round100th(x):
 def round10th(x):
   return math.floor((x + 0.05) * 10.0) / 10.0
 
+#
+## Degrees to radians.
+#
+def degToRad(deg):
+  return deg / 180.0 * math.pi
+
+#
+## Radians to degrees.
+#
+def radToDeg(rad):
+  return rad / math.pi * 180.0
+
 
 # ------------------------------------------------------------------------------
 # Class configXml
@@ -328,7 +340,7 @@ class configDlg(Toplevel):
     # make sure dialog stays on top of its parent window (if needed)
     self.transient(master)
 
-    # isplay the window and wait for it to close
+    # display the window and wait for it to close
     self.wait_window(self)
 
   #
@@ -428,7 +440,6 @@ class configDlg(Toplevel):
     self.destroy()
 
 
-
 # ------------------------------------------------------------------------------
 # Class warnDlg
 # ------------------------------------------------------------------------------
@@ -480,7 +491,7 @@ class warnDlg(Toplevel):
     # make sure dialog stays on top of its parent window (if needed)
     self.transient(master)
 
-    # isplay the window and wait for it to close
+    # display the window and wait for it to close
     self.wait_window(self)
 
   #
@@ -574,6 +585,242 @@ class warnDlg(Toplevel):
 
 
 # ------------------------------------------------------------------------------
+# Class moveDlg
+# ------------------------------------------------------------------------------
+
+class moveDlg(Toplevel):
+  #
+  ## \brief Constructor.
+  ##
+  ## \param cnf     Configuration dictionary.
+  ## \param kw      Keyword options.
+  #
+  def __init__(self, master=None, cnf={}, **kw):
+    # initialize dialog data
+    kw = self.initData(kw)
+
+    Toplevel.__init__(self, master=master, cnf=cnf, **kw)
+    self.title(self.m_title)
+
+    # create and show widgets
+    self.createWidgets()
+
+    # allows the enter button to fire either button's action
+    self.m_bttnCancel.bind('<KeyPress-Return>', func=self.close)
+
+    # center the dialog over parent panel
+    if master is not None:
+      self.update_idletasks()
+      x0 = master.winfo_rootx()
+      y0 = master.winfo_rooty()
+      xp = x0 + (master.winfo_width() - self.winfo_width()) / 2 - 8
+      yp = y0 + (master.winfo_height() - self.winfo_height()) / 2 - 20
+      glist = [self.winfo_width(), self.winfo_height(), xp, yp]
+      #self.withdraw() # hide the dialog until position and size is set
+      self.geometry('{0}x{1}+{2}+{3}'.format(*glist))
+      #self.deiconify() # now show
+
+    # allows us to customize what happens when the close button is pressed
+    self.protocol("WM_DELETE_WINDOW", self.close)
+
+    #
+    # Modal diagle settings.
+    #
+    # set the focus on dialog window (needed on Windows)
+    self.focus_set()
+
+    # make sure events only go to our dialog
+    self.grab_set()
+
+    # make sure dialog stays on top of its parent window (if needed)
+    self.transient(master)
+
+    # display the window and wait for it to close
+    self.wait_window(self)
+
+  #
+  ## \brief Initialize class state data.
+  ##
+  ## \param kw      Keyword options.
+  ##
+  ## \return Modified keywords sans this specific class.
+  ##
+  def initData(self, kw):
+    self.m_icons          = {}    # must keep loaded icons referenced
+    if kw.has_key('title'):
+      self.m_title = kw['title']
+      del kw['title']
+    else:
+      self.m_title = "Move Arm To..."
+    if kw.has_key('image'):
+      self.m_icons['image'] = loadIcon(kw['image'])
+      del kw['image']
+    else:
+      self.m_icons['image'] = None
+    self.m_result = False
+    self.m_trajectory = kw['trajectory']
+    self.m_vals = { }
+    del kw['trajectory']
+    return kw
+
+  #
+  ## \brief Create gui widgets with supporting data and show.
+  #
+  def createWidgets(self):
+    frame = Frame(self)
+    frame.grid(row=0, column=0)
+
+    # move image 
+    w = Label(frame)
+    if self.m_icons['image'] is not None:
+      w = Label(frame)
+      w['image']  = self.m_icons['image']
+    w['anchor'] = CENTER
+    w.grid(row=0, column=0, rowspan=2, sticky=W+N+S)
+
+    # top heading
+    w = Label(frame)
+    helv = tkFont.Font(family="Helvetica",size=12,weight="bold")
+    w['font']   = helv
+    w['text']   = 'Specify Trajectory'
+    w['anchor'] = CENTER
+    w.grid(row=0, column=1, sticky=E+W)
+
+    width = 12
+    padx  = 2
+    pady  = 3
+    row   = 1
+
+    wframe = Frame(frame)
+    wframe.grid(row=row, column=1)
+
+    #
+    # Trajectory Table
+    #
+    row   = 0
+
+    # left column of labels
+    for text in [' ', 'Position(deg):', 'Velocity(%max):', 'Group Velocity:']:
+      w = Label(wframe, width=width, padx=padx, pady=pady, anchor=W, text=text)
+      w.grid(row=row, column=0, sticky=W+S)
+      row += 1
+
+    col         = 1
+    trajPoint   = self.m_trajectory.points[0]
+    startGroupV = 0.0
+
+    i = 0
+    for name in self.m_trajectory.joint_names:
+      # joint label
+      row = 0
+      w = Label(wframe, width=width, padx=padx, pady=pady, anchor=W, text=name)
+      w.grid(row=row, column=col, sticky=W)
+      self.m_vals[name] = { }
+
+      # joint position
+      row += 1
+      var = DoubleVar()
+      var.set(round10th(radToDeg(trajPoint.positions[i])))
+      w = Spinbox(wframe, justify=RIGHT, textvar=var,
+                        increment=0.1, from_=-720.0, to=720.0,
+                        fg=fgColors['normal'])
+      w['width'] = 7
+      w.grid(row=row, column=col, padx=1, pady=0, sticky=W)
+      d = {'var': var, 'w': w}
+      self.m_vals[name]['position'] = d
+    
+      # joint velocity
+      row += 1
+      var = DoubleVar()
+      var.set(round10th(trajPoint.velocities[i]))
+      startGroupV = var.get()
+      w = Spinbox(wframe, justify=RIGHT, textvar=var,
+                        increment=0.1, from_=0.0, to=100.0,
+                        fg=fgColors['normal'])
+      w['width'] = 7
+      w.grid(row=row, column=col, padx=1, pady=0, sticky=W)
+      d = {'var': var, 'w': w}
+      self.m_vals[name]['velocity'] = d
+    
+      col += 1
+      i += 1
+
+    if i > 0:
+      self.update_idletasks()
+      name = self.m_trajectory.joint_names[0]
+      x0 = self.m_vals[name]['position']['w'].winfo_rootx()
+      name = self.m_trajectory.joint_names[i-1]
+      x1 = self.m_vals[name]['position']['w'].winfo_rootx() + \
+           self.m_vals[name]['position']['w'].winfo_width()
+      length = x1 - x0
+    else:
+      length = 100
+
+    # delta group velocity
+    self.m_varGroupVel = DoubleVar()
+    self.m_varGroupVel.set(round10th(startGroupV))
+    w = Scale(wframe, variable=self.m_varGroupVel,
+                        from_=0.0, to=100.0, resolution=1.0,
+                        orient=HORIZONTAL, command=self.setGroupV)
+    w['width']  = 10
+    w['length'] = length
+    w.grid(row=3, column=1, columnspan=i, padx=1, pady=0, sticky=W)
+
+    #
+    # Dialog Buttons
+    #
+    row = 2
+
+    wframe = Frame(frame)
+    wframe.grid(row=row, column=1)
+
+    # cancel button
+    w = Button(wframe, width=10, text='Cancel', command=self.close)
+    w.grid(row=0, column=0, padx=2, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnCancel = w
+
+    # ok button
+    w = Button(wframe, width=10, text='Move', command=self.ok)
+    w.grid(row=0, column=1, padx=2, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnContinue = w
+
+  #
+  ## \brief Delta velocity callback
+  #
+  def setGroupV(self, v):
+    vel = self.m_varGroupVel.get()
+    for name in self.m_vals:
+      self.m_vals[name]['velocity']['var'].set(vel)
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def ok(self):
+    i = 0
+    trajPoint = self.m_trajectory.points[0]
+    for name in self.m_trajectory.joint_names:
+      pos = self.m_vals[name]['position']['var'].get()
+      vel = self.m_vals[name]['velocity']['var'].get()
+      if vel < 0.0:
+        vel = 0.0
+      elif vel > 100.0:
+        vel = 100.0
+      trajPoint.positions[i]  = degToRad(pos)
+      trajPoint.velocities[i] = vel
+      i += 1
+    self.m_result = True
+    self.close()
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def close(self):
+    self.destroy()
+
+
+# ------------------------------------------------------------------------------
 # Class aboutDlg
 # ------------------------------------------------------------------------------
 
@@ -627,7 +874,7 @@ class aboutDlg(Toplevel):
     # make sure dialog stays on top of its parent window (if needed)
     self.transient(master)
 
-    # isplay the window and wait for it to close
+    # display the window and wait for it to close
     self.wait_window(self)
 
   #
@@ -888,8 +1135,8 @@ class window(Frame):
     self.m_config         = configDft
     self.m_icons          = {}    # must keep loaded icons referenced
     self.m_wBttn          = {}    # button widgets
-    self.m_keysFewMoves  = []    # gui button keys depending on calibration
-    self.m_keysNoMoves   = []    # gui button keys depending on robot mode
+    self.m_keysFewMoves   = []    # gui button keys depending on calibration
+    self.m_keysNoMoves    = []    # gui button keys depending on robot mode
     self.m_robotStatus    = {}    # robot status widgets, variables, and values
     self.m_robotJoint     = {}    # robot joint state widgets, variables, etc.
     self.m_robotServo     = {}    # master servo to joint name map
@@ -904,6 +1151,9 @@ class window(Frame):
     if kw.has_key('config'):
       self.m_config = kw['config']
       del kw['config']
+    if kw.has_key('pub_joint_move_cb'):
+      self.cbMoveRobot = kw['pub_joint_move_cb']
+      del kw['pub_joint_move_cb']
 
     return kw
 
@@ -1004,6 +1254,14 @@ class window(Frame):
     w.grid(row=5, column=0, sticky=N+E+W)
     self.m_keysFewMoves.append('close_gripper')
     self.m_keysNoMoves.append('close_gripper')
+
+    # specify move
+    w = self.createButton(wframe, "Specify\nMove",
+                                  "icons/icon_hek_move.png",
+                                  self.specifyMove)
+    w.grid(row=6, column=0, sticky=N+E+W)
+    #RDK self.m_keysFewMoves.append('specify_move')
+    #RDK self.m_keysNoMoves.append('specify_move')
 
   #
   ## \brief Create robot status and joint state center panel.
@@ -1193,7 +1451,7 @@ class window(Frame):
 
     width = 12
     padx  = 10
-    pady  = 2
+    pady  = 3
     row   = 1
 
     # left column of labels
@@ -1374,20 +1632,26 @@ class window(Frame):
     w.grid(row=2, column=0, sticky=N+E+W)
     self.m_keysNoMoves.append('release')
 
+    # clear alarms
+    w = self.createButton(wframe, "Clear\nAlarms",
+                                  "icons/icon_alarm.png", self.clearAlarms)
+    w.grid(row=3, column=0, sticky=N+E+W)
+    self.m_keysNoMoves.append('clear_alarms')
+
     # settings
     w = self.createButton(wframe, "Settings",
                                   "icons/icon_settings.png", self.settings)
-    w.grid(row=3, column=0, sticky=N+E+W)
+    w.grid(row=4, column=0, sticky=N+E+W)
 
     # info
     w = self.createButton(wframe, "About",
                                   "icons/icon_info.png", self.about)
-    w.grid(row=4, column=0, sticky=N+E+W)
+    w.grid(row=5, column=0, sticky=N+E+W)
 
     # quit
     w = self.createButton(wframe, "Quit", "icons/icon_exit.png", self.destroy,
                                   fg='red')
-    w.grid(row=5, column=0, sticky=N+E+W)
+    w.grid(row=6, column=0, sticky=N+E+W)
 
   #
   ## \brief Create gui status bar at bottom of gui window.
@@ -1617,6 +1881,29 @@ Make sure the workspace is clear of obstructions.""")
     self.showInfo("Gripper closed.")
 
   #
+  ## \brief Specify move callback.
+  #
+  def specifyMove(self):
+    jointTrajectory  = trajectory_msgs.msg.JointTrajectory()
+    jointTrajPoint   = trajectory_msgs.msg.JointTrajectoryPoint()  
+    jointTrajectory.points.append(jointTrajPoint)
+    #RDK fake data
+    for name,pos in [('base_rot', 13.0), ('shoulder', -45.3), ('elbow', 115.3),
+                     ('wrist_pitch', 10), ('wrist_rot', -184.93),
+                     ('grip', 15.0)]:
+    #for name,val in self.m_robotJoint.iteritems(): 
+      jointTrajectory.joint_names.append(name)
+      #RDK pos = self.m_robotJoint[name]['position']['var'].get()
+      jointTrajPoint.positions.append(degToRad(pos))
+      jointTrajPoint.velocities.append(10.0)
+      jointTrajPoint.accelerations.append(0.0)
+    dlg = moveDlg(master=self, trajectory=jointTrajectory)
+    if not dlg.m_result:
+      return
+    else:
+      self.cbMoveRobot(jointTrajectory)
+  
+  #
   ## \brief (Reset) emergency stop callback.
   #
   def estop(self):
@@ -1714,6 +2001,24 @@ The arm may fall if not in a stable position.""")
       self.showError("Release arm request failed: %s." % (e.message))
       return
     self.showInfo("Hekateros has been release, all motors are unpowered.")
+
+  #
+  ## \brief Clear alarms callback.
+  #
+  def clearAlarms(self):
+    try:
+      rospy.wait_for_service("hekateros_control/clear_alarms", timeout=1)
+    except rospy.ROSException, e:
+      self.showError('Clear alarms: ' + e.message + '.')
+      return
+    try:
+      clear_alarms = rospy.ServiceProxy('hekateros_control/clear_alarms',
+                                          ClearAlarms)
+      clear_alarms()
+    except rospy.ServiceException, e:
+      self.showError("Clear alarms request failed: %s." % (e.message))
+      return
+    self.showInfo("Alarms cleared.")
   
   #
   ## \brief Open settings dialog callback.
@@ -1994,7 +2299,7 @@ The arm may fall if not in a stable position.""")
 
   def toJointState(self, opstate):
       if opstate == HekOpState.UNCALIBRATED:
-        return ("uncalibrated", fgColors['normal'])
+        return ("uncalibrated", fgColors['error'])
       elif opstate == HekOpState.CALIBRATING:
         return ("calibrating", fgColors['focus'])
       elif opstate == HekOpState.CALIBRATED:
@@ -2166,6 +2471,10 @@ Options and arguments:
                      HekJointStateExtended, 
                      self.updateJointStates) 
 
+    # publish trajectory to hekateros controller
+    self.m_joint_cmd_pub = rospy.Publisher("hekateros_control/joint_command",
+                                        trajectory_msgs.msg.JointTrajectory)
+
     self.m_win.showInfo("Hekateros interface initialized.")
 
   #
@@ -2183,6 +2492,16 @@ Options and arguments:
   #
   def updateJointStates(self, msg):
     self.m_win.updateJointStates(msg)
+
+  #
+  ## \brief Move robot along trajectory
+  #
+  def moveRobot(self, trajectory):
+    try:
+      self.m_joint_cmd_pub.publish(trajectory)
+      self.m_win.showInfo('Move on specified trajectory.')
+    except rospy.ROSException, e:
+      self.m_win.showError('joint_command: ' + e.message + '.')
 
   #
   ## \brief Run application.
@@ -2208,7 +2527,8 @@ Options and arguments:
     root = Tk()
 
     # create application window
-    self.m_win = window(master=root, config=config)
+    self.m_win = window(master=root, config=config,
+                                     pub_joint_move_cb=self.moveRobot)
 
     root.protocol('WM_DELETE_WINDOW', root.destroy)
 
