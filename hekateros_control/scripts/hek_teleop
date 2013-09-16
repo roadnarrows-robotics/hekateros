@@ -817,7 +817,7 @@ Options and arguments:
       MAX_VEL = 4
       UPPER_ARM = 406.27; A = UPPER_ARM
       FORE_ARM  = 401.6;  B = FORE_ARM
-      EPSILON = 0.1 # tolerance in L1 angle space
+      EPSILON = 0.7 # tolerance in L1 angle space
       D = 10 # distance used to calculate joint velocities [mm]
       alpha = self.m_jointTrajPoint.positions[i]
       beta = self.m_jointTrajPoint.positions[j]
@@ -926,7 +926,7 @@ Options and arguments:
     i = self.addTrajectoryJoint('wrist_rot')
     if i < 0:   # no joint
       return
-    self.m_jointTrajPoint.positions[i] -= degToRad(50.0)
+    self.m_jointTrajPoint.positions[i] -= degToRad(360.0)
     self.m_jointTrajPoint.velocities[i] = 20.0
 
   def rotateWristCcw(self, bttn, xbox):
@@ -935,7 +935,7 @@ Options and arguments:
     i = self.addTrajectoryJoint('wrist_rot')
     if i < 0:   # no joint
       return
-    self.m_jointTrajPoint.positions[i] += degToRad(50.0)
+    self.m_jointTrajPoint.positions[i] += degToRad(360.0)
     self.m_jointTrajPoint.velocities[i] = 20.0
 
   #
@@ -949,8 +949,8 @@ Options and arguments:
     i = self.addTrajectoryJoint('grip')
     if i < 0:   # no joint
       return
-    velocity = (trigger-deadzone)/255.0 * 10.0
-    self.m_jointTrajPoint.positions[i] += degToRad(35.0)
+    velocity = (trigger-deadzone)/255.0 * 2.0
+    self.m_jointTrajPoint.positions[i] += degToRad(10.0)
     self.m_jointTrajPoint.velocities[i] = velocity
   
   #
@@ -964,8 +964,8 @@ Options and arguments:
     i = self.addTrajectoryJoint('grip')
     if i < 0:   # no joint
       return
-    velocity = (trigger-deadzone)/255.0 * 10.0
-    self.m_jointTrajPoint.positions[i] -= degToRad(35.0)
+    velocity = (trigger-deadzone)/255.0 * 2.0
+    self.m_jointTrajPoint.positions[i] -= degToRad(10.0)
     self.m_jointTrajPoint.velocities[i] = velocity
 
   def prevJoint(self, bttn, xbox):
