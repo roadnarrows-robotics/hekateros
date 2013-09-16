@@ -1257,11 +1257,11 @@ class window(Frame):
 
     # specify move
     w = self.createButton(wframe, "Specify\nMove",
-                                  "icons/icon_hek_move.png",
+                                  "icons/icon_hek_in_motion.png",
                                   self.specifyMove)
     w.grid(row=6, column=0, sticky=N+E+W)
-    #RDK self.m_keysFewMoves.append('specify_move')
-    #RDK self.m_keysNoMoves.append('specify_move')
+    self.m_keysFewMoves.append('specify_move')
+    self.m_keysNoMoves.append('specify_move')
 
   #
   ## \brief Create robot status and joint state center panel.
@@ -1736,7 +1736,7 @@ Make sure the workspace is clear of obstructions.""")
       self.showInfo("Calibrating Hekateros.")
       self.update_idletasks()
 
-      # create calibration action client
+      # create calibration action client, if not already created
       if self.m_calibState['ac'] is None:
         self.m_calibState['ac'] = calibrate_ac()
 
@@ -1887,17 +1887,14 @@ Make sure the workspace is clear of obstructions.""")
     jointTrajectory  = trajectory_msgs.msg.JointTrajectory()
     jointTrajPoint   = trajectory_msgs.msg.JointTrajectoryPoint()  
     jointTrajectory.points.append(jointTrajPoint)
-    #RDK fake data
-    for name,pos in [('base_rot', 13.0), ('shoulder', -45.3), ('elbow', 115.3),
-                     ('wrist_pitch', 10), ('wrist_rot', -184.93),
-                     ('grip', 15.0)]:
-    #for name,val in self.m_robotJoint.iteritems(): 
+    for name,val in self.m_robotJoint.iteritems(): 
       jointTrajectory.joint_names.append(name)
-      #RDK pos = self.m_robotJoint[name]['position']['var'].get()
+      pos = self.m_robotJoint[name]['position']['var'].get()
       jointTrajPoint.positions.append(degToRad(pos))
       jointTrajPoint.velocities.append(10.0)
       jointTrajPoint.accelerations.append(0.0)
-    dlg = moveDlg(master=self, trajectory=jointTrajectory)
+    dlg = moveDlg(master=self, image='HekaterosInMotion.png',
+                                trajectory=jointTrajectory)
     if not dlg.m_result:
       return
     else:
