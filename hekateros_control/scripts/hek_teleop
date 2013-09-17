@@ -808,7 +808,6 @@ Options and arguments:
       D = goal_sign * 200; # distance to move in mm      
       UPPER_ARM = 406.27; A = UPPER_ARM
       FORE_ARM  = 401.6;  B = FORE_ARM
-      print "*** Generating new goal"
       alpha = self.m_jointTrajPoint.positions[i]
       beta  = self.m_jointTrajPoint.positions[j]
       gamma = self.m_jointTrajPoint.positions[k]
@@ -819,17 +818,14 @@ Options and arguments:
       yp = y0 + D * math.cos(direction)
       self.m_fpState['target_cart']['x'] = xp
       self.m_fpState['target_cart']['y'] = yp
-      print "moving from ({},{}) to ({},{}) in dir {}".format(x0, y0, xp, yp, direction)
       C = math.sqrt(xp*xp + yp*yp)
       if C > (A + B):
-        print "capping to length of arm"
         C = A + B
         
       #theta = math.atan(xp/yp)
       theta = math.atan2(xp,yp)
       b = math.acos((A*A+C*C-B*B)/(2*A*C))
       c = math.acos((A*A+B*B-C*C)/(2*A*B))
-      print "theta = {}, b = {}, c = {}".format(theta, b, c)
       self.m_fpState['target']['alpha'] = theta - b
       self.m_fpState['target']['beta']  = math.pi - c
       self.m_fpState['target']['gamma'] = direction - \
