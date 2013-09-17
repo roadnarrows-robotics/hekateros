@@ -35,24 +35,39 @@ public:
 
   void execute_cb(const hekateros_control::CalibrateGoalConstPtr &goal)
   {
+    int rc;
+
     ROS_INFO(
         "Executing Calibrate action - please standby.");
 
     pRobot->calibrateAsync();
 
-    while(pRobot->getAsyncState() && !(as_.isPreemptRequested()))
+    while( pRobot->getAsyncState() == HekAsyncTaskStateWorking )
     {
+      if( as_.isPreemptRequested() )
+      {
+        break;
+      }
+
       updateOpState(names_, feedback_);
       as_.publishFeedback(feedback_);
       sleep(1);
     }
 
-    ROS_INFO("Calibration complete.");
-    as_.setSucceeded();
-
-    as_.publishFeedback(feedback_);
-
-    return;
+    rc = pRobot->getAsyncRc();
+    result_.rc = rc;
+    
+    if( rc == HEK_OK )
+    {
+      ROS_INFO("Calibration complete.");
+      as_.setSucceeded(result_);
+      as_.publishFeedback(feedback_);
+    }
+    else if( rc != -HEK_ECODE_INTR )
+    {
+      ROS_ERROR("Calibration aborted with error code %d.", rc);
+      as_.setAborted(result_);
+    }
   }
 
   void preempt_cb()
@@ -70,6 +85,7 @@ protected:
   // feedback data
   std_msgs::String                     names_;
   hekateros_control::CalibrateFeedback feedback_;
+  hekateros_control::CalibrateResult   result_;
 
 };
 

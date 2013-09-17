@@ -346,6 +346,10 @@ Options and arguments:
       'target_cart': {'x':0, 'y':0},
     }
 
+    self.m_estopState = { \
+      'count':  0,
+      't0':     0
+    }
 
   #
   ## \brief Initialize ROS interface
@@ -718,13 +722,39 @@ Options and arguments:
   
   #
   ## \brief (Reset) emergency stop callback.
+  ##
+  ##  Requires double click.
   #
   def estop(self, bttn, xbox):
     if not self.buttonOffToOn(bttn, xbox):
       return
     elif not self.ready():
       return
-    if self.m_robotStatus.e_stopped.val != TriState.TRUE:
+    if True or self.m_robotStatus.e_stopped.val != TriState.TRUE:
+      self.m_estopState['count'] += 1
+      # first click
+      if self.m_estopState['count'] == 1:
+        self.m_estopState['t0'] = time.time()
+        return
+      # second click
+      elif self.m_estopState['count'] == 2:
+        t1 = time.time()
+        dt = t1 - self.m_estopState['t0']
+        # too slow - count as first click
+        if dt > 0.25:
+          self.m_estopState['count'] = 1
+          self.m_estopState['t0'] = t1
+          return
+      # nth click (bug)
+      else:
+        self.m_estopState['count'] = 0
+        self.m_estopState['t0'] = 0
+        return
+
+      # reset
+      self.m_estopState['count'] = 0
+      self.m_estopState['t0'] = 0
+
       try:
         rospy.wait_for_service("hekateros_control/estop", timeout=1)
       except rospy.ROSException, e:

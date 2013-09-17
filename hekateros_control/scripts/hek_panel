@@ -48,7 +48,9 @@ import rospy
 from industrial_msgs.msg import RobotMode
 from industrial_msgs.msg import TriState
 
+from actionlib_msgs.msg import GoalStatus
 from hekateros_control.calibrate_ac import *
+
 from hekateros_control.msg import HekRobotStatusExtended
 from hekateros_control.msg import HekJointStateExtended
 from hekateros_control.msg import ServoHealth
@@ -1739,6 +1741,7 @@ Make sure the workspace is clear of obstructions.""")
       # create calibration action client, if not already created
       if self.m_calibState['ac'] is None:
         self.m_calibState['ac'] = calibrate_ac()
+      return
 
       # start calibration
       if not self.m_calibState['ac'].exec_calib(self.calibrate_monitor):
@@ -1771,14 +1774,21 @@ Make sure the workspace is clear of obstructions.""")
   ## \brief Check if calibration is complete.
   #
   def calibrate_check_for_done(self):
-    if self.m_calibState['ac'].get_action_state() < 3:
+    state = self.m_calibState['ac'].get_action_state()
+    if state == GoalState.PENDING or \
+       state == GoalState.ACTIVE or \
+       state == GoalState.PREEMPTING or \
+       state == GoalState.RECALLING:
       self.m_calibState['id'] = self.after(100, self.calibrate_check_for_done)
     else:
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate']
-      self.showInfo("Hekateros calibration complete.")
       self.m_wBttn['calibrate']['text'] = "Calibrate"
       self.m_calibState['calibrating'] = False
       self.m_calibState['id'] = 0
+      if self.m_calibState['ac'].get_result() == 0:
+        self.showInfo("Calibration complete.")
+      else:
+        self.showInfo("Calibration failed.")
       self.update_idletasks()
 
   #
