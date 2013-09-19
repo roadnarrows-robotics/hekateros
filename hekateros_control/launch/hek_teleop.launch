@@ -1,0 +1,4 @@
+<launch>
+  <node name="xbox_360_controller" pkg="hid" type="xbox_360"/>
+  <node name="hek_teleop" pkg="hekateros_control" type="hek_teleop"/>
+</launch>

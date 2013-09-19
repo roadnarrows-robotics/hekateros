@@ -1741,7 +1741,6 @@ Make sure the workspace is clear of obstructions.""")
       # create calibration action client, if not already created
       if self.m_calibState['ac'] is None:
         self.m_calibState['ac'] = calibrate_ac()
-      return
 
       # start calibration
       if not self.m_calibState['ac'].exec_calib(self.calibrate_monitor):
