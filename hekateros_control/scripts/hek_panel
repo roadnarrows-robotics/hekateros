@@ -1774,10 +1774,10 @@ Make sure the workspace is clear of obstructions.""")
   #
   def calibrate_check_for_done(self):
     state = self.m_calibState['ac'].get_action_state()
-    if state == GoalState.PENDING or \
-       state == GoalState.ACTIVE or \
-       state == GoalState.PREEMPTING or \
-       state == GoalState.RECALLING:
+    if state == GoalStatus.PENDING or \
+       state == GoalStatus.ACTIVE or \
+       state == GoalStatus.PREEMPTING or \
+       state == GoalStatus.RECALLING:
       self.m_calibState['id'] = self.after(100, self.calibrate_check_for_done)
     else:
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate']
@@ -1787,7 +1787,7 @@ Make sure the workspace is clear of obstructions.""")
       if self.m_calibState['ac'].get_result() == 0:
         self.showInfo("Calibration complete.")
       else:
-        self.showInfo("Calibration failed.")
+        self.showError("Calibration failed.")
       self.update_idletasks()
 
   #
