@@ -67,7 +67,7 @@ public:
       }
 
       // wait until achieving goal point
-      float delta;
+      float delta=0;
       do 
       { 
         HekJointStatePoint curPos;
