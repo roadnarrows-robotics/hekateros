@@ -321,7 +321,7 @@ Options and arguments:
                               LEDPattern.XBOX_LED_2_ON,
                               LEDPattern.XBOX_LED_3_ON,
                               LEDPattern.XBOX_LED_4_ON ]
-    self.m_xboxLEDEstop   = LEDPattern.XBOX_LED_ALL_SPIN_2
+    self.m_xboxLEDEStop   = LEDPattern.XBOX_LED_ALL_SPIN_2
 
     ## \brief Teleoperation state.
     self.m_teleop = { \

@@ -38,9 +38,11 @@ public:
     
     trajectory_msgs::JointTrajectory jt = goal->trajectory;
 
+    HekJointTrajectoryPoint pt;
     for(int i=0; i<jt.points.size(); ++i)
     {
-      HekJointTrajectoryPoint pt;
+      pt.clear();
+
       // load trajectory point
       for(int j=0; j<jt.joint_names.size(); ++j)
       {
@@ -55,18 +57,22 @@ public:
       ROS_INFO("moving to trajectory point %d", i);
       pRobot->moveArm(pt);
 
-      // set tolerance
-      int tolerance;
-      if(i == (jt.points.size()-1))
+      // set waypoint tolerance
+      float tolerance;
+
+      // final point, lower tolerance
+      if(i == (jt.points.size()-1)) 
       {
-        tolerance = 10;
+        tolerance = 0.01;
       }
+      
+      // intermediate points, higher tolerance
       else
       {
-        tolerance = 100;
+        tolerance = 0.05;
       }
 
-      // wait until achieving goal point
+      // loop until below waypoint tolerance
       float delta=0;
       do 
       { 
@@ -78,23 +84,25 @@ public:
           string joint_name, joint_name_goal;
           double fPos;
           double fGoalPos, fGoalVel, fGoalAcc;
-          fPos = curPos[i].m_fPosition;
           pt[i].get(joint_name_goal, fGoalPos, fGoalVel, fGoalAcc);
 
-          if(joint_name == joint_name_goal)
+          if(curPos.hasJoint(joint_name_goal))
           {
-            delta += fabs(fGoalPos - fPos);
+            fPos = curPos[joint_name_goal].m_fPosition;
           }
-          else
+          else 
           {
-            LOGERROR("Joint name mismatch. Unable to calculate deltas.\n");
+            fPos = fGoalPos;
           }
+
+          delta += fabs(fGoalPos - fPos);
+
         }
 
-fprintf(stderr, "dhp - delta = %f\n", delta);
+ROS_INFO("DHP - delta %f, tolerance %f", delta, tolerance);
+usleep(100000);
 
-      } 
-      while (delta > tolerance);
+      } while (delta > tolerance);
 
     }
 
