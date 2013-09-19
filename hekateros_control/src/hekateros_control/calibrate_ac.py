@@ -35,3 +35,7 @@ class calibrate_ac(object):
         return self.c.get_state()
         pass
 
+    def get_result(self):
+        return self.c.get_result()
+        pass
+
