@@ -65,6 +65,7 @@ from hekateros_control.srv import EStop
 from hekateros_control.srv import ResetEStop
 from hekateros_control.srv import Freeze
 from hekateros_control.srv import Release
+from hekateros_control.srv import ClearAlarms
 from hekateros_control.srv import GetProductInfo
 
 import actionlib
