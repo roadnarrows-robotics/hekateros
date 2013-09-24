@@ -1760,6 +1760,7 @@ Make sure the workspace is clear of obstructions.""")
 
       # start calibration
       if not self.m_calibState['ac'].exec_calib(self.calibrate_monitor,
+                                  timeout=1,
                                   force_recalib=self.m_config['force_recalib']):
         self.showError("Could not execute calibration. " \
                        "Is the hekateros_control node running?")
