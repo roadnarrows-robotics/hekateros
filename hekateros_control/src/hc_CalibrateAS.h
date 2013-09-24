@@ -40,7 +40,7 @@ public:
     ROS_INFO(
         "Executing Calibrate action - please standby.");
 
-    pRobot->calibrateAsync();
+    pRobot->calibrateAsync(goal->force_recalib? true: false);
 
     while( pRobot->getAsyncState() == HekAsyncTaskStateWorking )
     {
