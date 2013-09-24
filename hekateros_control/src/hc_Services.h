@@ -101,8 +101,7 @@ bool GetProductInfo(hekateros_control::GetProductInfo::Request  &req,
   int maj, min, rev;
   string verString;
 
-  // TODO DHP if(!pRobot->isDescLoaded())
-  if(false)
+  if(!pRobot->isDescribed())
   {
     ROS_ERROR("Robot desc file not loaded - unable to determine version.");
     return false;
@@ -241,7 +240,7 @@ bool SetRobotMode(hekateros_control::SetRobotMode::Request  &req,
 {
   ROS_INFO("Setting robot mode.");
   pRobot->setRobotMode((HekRobotMode)req.mode.val);
-  return false;
+  return true;
 }
 
 #endif // _HC_SERVICES
