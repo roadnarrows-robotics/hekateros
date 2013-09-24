@@ -1,3 +1,4 @@
+uint8 force_recalib
 ---
 int8 rc
 ---

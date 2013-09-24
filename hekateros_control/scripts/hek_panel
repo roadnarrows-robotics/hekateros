@@ -102,6 +102,7 @@ configDft = \
 {
   'warn_on_calib':    True, # do [not] warn user at calibration start
   'warn_on_release':  True, # do [not] warn user on release
+  'force_recalib':    True, # do [not] force recalibration on all joints
 }
 
 ## \brief Alarm strings.
@@ -194,7 +195,7 @@ class configXml():
     self.m_inMainElem   = False
     self.m_curCfgElem   = None
     self.m_curData      = ""
-    self.m_cfgElems     = ['warn_on_calib', 'warn_on_release']
+    self.m_cfgElems     = configDft.keys()
     self.m_config       = None
 
   def parse(self, pathname):
@@ -387,6 +388,16 @@ class configDlg(Toplevel):
 
     row += 1
 
+    # force recalibration on all joints check button
+    self.m_varForceRecalib = IntVar()
+    self.m_varForceRecalib.set(self.m_config['force_recalib'])
+    w = Checkbutton(frame,
+        text="Force (re)calibration for all joints on calibrate action.",
+        variable=self.m_varForceRecalib)
+    w.grid(row=row, column=0, padx=20, sticky=W)
+
+    row += 1
+
     # warn on release check button
     self.m_varWarnRelease = IntVar()
     self.m_varWarnRelease.set(self.m_config['warn_on_release'])
@@ -419,6 +430,10 @@ class configDlg(Toplevel):
       self.m_config['warn_on_calib'] = True
     else:
       self.m_config['warn_on_calib'] = False
+    if self.m_varForceRecalib.get():
+      self.m_config['force_recalib'] = True
+    else:
+      self.m_config['force_recalib'] = False
     if self.m_varWarnRelease.get():
       self.m_config['warn_on_release'] = True
     else:
@@ -1744,7 +1759,8 @@ Make sure the workspace is clear of obstructions.""")
         self.m_calibState['ac'] = calibrate_ac()
 
       # start calibration
-      if not self.m_calibState['ac'].exec_calib(self.calibrate_monitor):
+      if not self.m_calibState['ac'].exec_calib(self.calibrate_monitor,
+                                  force_recalib=self.m_config['force_recalib']):
         self.showError("Could not execute calibration. " \
                        "Is the hekateros_control node running?")
         self.calibrate_cancel()
@@ -1785,7 +1801,7 @@ Make sure the workspace is clear of obstructions.""")
       self.m_wBttn['calibrate']['text'] = "Calibrate"
       self.m_calibState['calibrating'] = False
       self.m_calibState['id'] = 0
-      if self.m_calibState['ac'].get_result() == 0:
+      if self.m_calibState['ac'].get_result() >= 0:
         self.showInfo("Calibration complete.")
       else:
         self.showError("Calibration failed.")
