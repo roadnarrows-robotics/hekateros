@@ -19,9 +19,11 @@ find_package(Boost REQUIRED COMPONENTS system)
 # RDK, DHP TODO Create rnrpkgConfig.cmake
 # find_package(rnr
 #   REQUIRED COMPONENTS hekateros Dynamixel botsense netmsgs rnr_appkit rnr
+# WARNING:  The rnr libraries must of an unique name or other packages will
+#           clobber.
 # )
 find_library(
-  rnr_LIBRARIES
+  hek_ctl_rnr_LIBRARIES
   NAMES hekateros Dynamixel botsense netmsgs rnr_appkit rnr
   PATHS /prj/lib /prj/lib/rnr
 )
@@ -89,7 +91,7 @@ include_directories(
 )
 
 target_link_libraries(hekateros_control 
-  ${rnr_LIBRARIES}
+  ${hek_ctl_rnr_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
