@@ -23,7 +23,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_library(
   rnr_LIBRARIES
   NAMES hekateros Dynamixel botsense netmsgs rnr_appkit rnr
-  PATHS /prj/lib /prj/lib/rnr /usr/local/lib /usr/local/lib/rnr
+  PATHS /prj/lib /prj/lib/rnr
 )
 
 catkin_python_setup()
@@ -79,6 +79,8 @@ catkin_package(
   CATKIN_DEPENDS actionlib_msgs
 )
 
+add_executable(hekateros_control src/hekateros_control.cpp)
+
 include_directories(
   include 
   /prj/include 
@@ -86,10 +88,7 @@ include_directories(
   ${Boost_INCLUDE_DIRS}
 )
 
-add_executable(hekateros_control src/hekateros_control.cpp)
-
-target_link_libraries(
-  hekateros_control 
+target_link_libraries(hekateros_control 
   ${rnr_LIBRARIES}
   ${catkin_LIBRARIES}
 )
