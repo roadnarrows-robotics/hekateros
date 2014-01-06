@@ -24,8 +24,8 @@
 #include "hc_FollowJointTrajectoryAS.h"
 #include "hc_CalibrateAS.h"
 
-using namespace ::std;
 using namespace ::hekateros;
+using namespace ::std;
 
 /*!
  *  \brief Hekatero ROS control node main 
