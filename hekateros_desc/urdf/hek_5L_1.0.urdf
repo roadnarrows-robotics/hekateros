@@ -96,6 +96,7 @@
 
   <joint name="shoulder" type="revolute">
     <origin xyz="0.02 0.03 0.125" rpy="0 0 0"/>
+    <axis xyz="-1 0 0"/>
     <parent link="base"/>
     <child link="upper_arm"/>
 
@@ -104,14 +105,16 @@
 
   <joint name="elbow" type="revolute">
     <origin xyz="-0.015 0.0 0.405" rpy="0 0 0"/>
+    <axis xyz="-1 0 0"/>
     <parent link="upper_arm"/>
     <child link="forearm"/>
 
-    <limit effort="30" velocity="1.0" lower="-1.9" upper="1.9" />
+    <limit effort="30" velocity="1.0" lower="-2.3" upper="2.3" />
   </joint>
 
   <joint name="wrist_pitch" type="revolute">
     <origin xyz="-0.005 0 0.40" rpy="0 0 0"/>
+    <axis xyz="-1 0 0"/>
     <parent link="forearm"/>
     <child link="wrist_link"/>
 
@@ -171,7 +174,7 @@
   </link>
 
   <joint name="grip" type="revolute">
-    <axis xyz="0 0 1"/>
+    <axis xyz="0 0 -1"/>
     <origin xyz="0.005 -0.04 0.03" rpy="0 -1.575 0"/>
     <parent link="gear_assembly"/>
     <child link="finger_R"/>
