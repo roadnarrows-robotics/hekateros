@@ -46,12 +46,27 @@ public:
       // load trajectory point
       for(int j=0; j<jt.joint_names.size(); ++j)
       {
+        //DHP - clean this up :(
+        float pos = jt.points[i].positions[j];
+        float vel = jt.points[i].velocities[j];
+        
+        if(vel < 0)
+        {
+          vel = -1 * vel;
+        }
+
+        vel = vel / 2.0 * 100;
+        if (vel > 25)
+        {
+          vel = 25;
+        }
+        
         pt.append(jt.joint_names[j],
-                  jt.points[i].positions[j], 
-                  jt.points[i].velocities[j]);
-        ROS_INFO("j = %d pos=%2.1f speed=%2.1f", j, 
-                                                jt.points[i].positions[j], 
-                                                jt.points[i].velocities[j]);
+                  pos,
+                  vel);
+        ROS_INFO("j = %d name= %s pos=%2.1f speed=%2.1f", j, 
+                                                          jt.joint_names[j].c_str(),
+                                                          pos, vel);
       }
       
       ROS_INFO("moving to trajectory point %d", i);
@@ -63,17 +78,18 @@ public:
       // final point, lower tolerance
       if(i == (jt.points.size()-1)) 
       {
-        tolerance = 0.01;
+        tolerance = 0.2;
       }
       
       // intermediate points, higher tolerance
       else
       {
-        tolerance = 0.05;
+        tolerance = 3.5;
       }
 
       // loop until below waypoint tolerance
       float delta=0;
+      int counter = 0;
       do 
       { 
         HekJointStatePoint curPos;
@@ -102,7 +118,7 @@ public:
 ROS_INFO("DHP - delta %f, tolerance %f", delta, tolerance);
 usleep(100000);
 
-      } while (delta > tolerance);
+      } while (delta > tolerance && counter++ < 50);
 
     }
 
