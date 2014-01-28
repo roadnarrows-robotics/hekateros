@@ -1,0 +1,8 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: hekateros_desc
+    relative_path: urdf/hek_5L_1.0.urdf
+  SRDF:
+    relative_path: config/hek_5L_1.0.srdf
+  CONFIG:
+    generated_timestamp: 1390513520
