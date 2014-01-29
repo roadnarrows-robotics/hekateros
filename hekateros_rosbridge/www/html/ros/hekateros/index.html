@@ -9,19 +9,15 @@
 
 <!-- roadnarrows platform imports -->
 <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
-<script type="text/javascript" src="../js/rosbridge_global.js"></script>
-<script type="text/javascript" src="../js/rosbridge_hekateros.js"></script>
-<script type="text/javascript" src="../js/app.js"></script>
+<script type="text/javascript" src="../../../js/rosbridge_global.js"></script>
+<script type="text/javascript" src="../../../js/rosbridge_hekateros.js"></script>
 
 <script>
   window.onload = function(){
-    console.info("Start Hekateros application logic here");
-    });
+    hek.EStop(function(){
+  });
   }
 </script>
 
 </head>
-
-<body>
-  <div id="hekateros_vis"></div>
-</body>
+</html>
