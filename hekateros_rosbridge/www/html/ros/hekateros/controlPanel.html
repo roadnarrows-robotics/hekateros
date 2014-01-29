@@ -59,8 +59,8 @@
       }
       button
       {
-        width:100px;
-        height:50px;
+        width:125px;
+        height:55px;
         display:table;
       }
       hekateros
@@ -108,14 +108,6 @@
       {
         padding: 1px 4px;
       }
-      .left
-      {
-        background-color:#900;
-      }
-      .right
-      {
-        background-color:#900;
-      }
       .center
       {
         background-color:#090
@@ -133,236 +125,290 @@
         background-color:#b00;
       }
       </style>
-    <div id="controlPanel">
-      <div id="leftColumn">
+      
+      <div id="controlPanel">
+        <div id="leftColumn">
+        </div>
+        <div id="centerColumn">
+        </div>
+        <div id="rightColumn">
+        </div>
       </div>
-      <div id="centerColumn">
-      </div>
-      <div id="rightColumn">
-      </div>
-    </div>
     
-    <script>
-      var calibrate_action_goal;
+      <script>
+        var calibrate_action_goal;
 
-      window.onload = function(){
-        hek.sub_state(function(message){
-          //console.info(message)
-        });
-      }
+        window.onload = function(){
+          hek.sub_state(function(message){
+            //console.info(message)
+          });
+        }
 
-      function buttons_panel(id, side, image)
-      {
-        var panel = d3.select("#" + side + "Column").append("button")
-          .attr("id", id)
-          .attr("class", side)
-          .style("background-image", ".../img/" + image + ".xcf")
-          .text(id)
-          .attr("onclick", id + "()");
-      }
+        function buttons_panel(id, side, color)
+        {
+          var panel = d3.select("#" + side + "Column").append("button")
+            .attr("id", id)
+            .attr("class", side)
+            .style("background-color", color)
+            .style("background-image", "/img/" + id + ".png")
+            .style("text-align", "right")
+            .text(id)
+            .attr("onclick", id + "()");
+        }
+        
+        buttons_panel("Calibrate","left", "#ccc");
+        buttons_panel("Park","left", "#ccc");
+        buttons_panel("Balance","left", "#ccc");
+        buttons_panel("ZeroPoint","left", "#ccc");
+        buttons_panel("OpenGripper","left", "#ccc");
+        buttons_panel("CloseGripper","left", "#ccc");
+        buttons_panel("SpecifyMove","left", "#ccc");
+        buttons_panel("EStop","right", "#900");
+        buttons_panel("Freeze","right", "#ccc");
+        buttons_panel("Release","right", "#ccc");
+        buttons_panel("ClearAlarms","right", "#ccc");
+        buttons_panel("Settings","right", "#ccc");
+        buttons_panel("About","right", "#ccc");
+        buttons_panel("Quit","right", "#ccc");
+        
+        function EStop()
+        {
+          console.info("EStop");
+          d3.select("#EStop").text("Reset EStop").style("background-color", "#090").attr("id","resetEStop").attr("onclick","resetEStop()");
+          hek.EStop();  
+        } 
+
+        function resetEStop()
+        {
+          console.info("EStop Reset");
+          d3.select("#resetEStop").text("EStop").style("background-color","#900").
+  attr("id","EStop").attr("onclick","EStop()");
+          hek.resetEStop();
+        }
+
+        function Freeze()
+        {
+          console.info("Freeze");
+          hek.freeze();
+        }
+
+        function Release()
+        {
+          console.info("Release");
+          hek.release();
+        }
+
+        function Calibrate()
+        {
+          calibrate_action_goal = hek.calibrate();
+          calibrate_action_goal.send();
+          d3.select("#Calibrate").text("Cancel Calibrate").style("background-color", "#900").attr("id","cancelCalibrate").attr("onclick","cancelCalibrate()");
+        }
+
+        function cancelCalibrate()
+        {
+          calibrate_action_goal.cancel();
+          d3.select("#cancelCalibrate").text("Calibrate").style("background-color","#ccc").attr("id","Calibrate").attr("onclick","Calibrate()");
+        }
+
+        function Park()
+        {
+          console.info("Park");
+          hek.park();
+        }
+
+        function Balance()
+        {
+          console.info("Balanced");
+          hek.balanced();
+        }
+
+        function ZeroPoint()
+        {
+          console.info("Zero Point");
+          hek.zeroPoint();
+        }
+
+        function OpenGripper()
+        {
+          console.info("Open Gripper");
+          hek.openGripper();
+        }
+
+        function CloseGripper()
+        {
+          console.info("Close Gripper");
+          hek.closeGripper();
+        }
+
+        function isCalibrated()
+        {
+          var answer = hek.isCalibrated();
+          console.info("is the robot calibrated?" + answer);
+        } 
+
+        var name = d3.select("#centerColumn").append("hekateros")
+            .text("Hekateros Control Panel");
+        d3.select("#centerColumn").append("title")
+            .text("Robot Status");
       
-      buttons_panel("Calibrate","left");
-      buttons_panel("Park","left");
-      buttons_panel("Balance","left");
-      buttons_panel("ZeroPoint","left");
-      buttons_panel("OpenGripper","left", "GripperOpen");
-      buttons_panel("CloseGripper","left");
-      buttons_panel("SpecifyMove","left");
-      buttons_panel("EStop","right");
-      buttons_panel("Freeze","right");
-      buttons_panel("Release","right");
-      buttons_panel("ClearAlarms","right");
-      buttons_panel("Settings","right");
-      buttons_panel("About","right");
-      buttons_panel("Quit","right");
+     
+        function statusBar(data, columns) {
+          var bar = d3.select("title").append("bar"),
+            thead = bar.append("thead"),
+            tbody = bar.append("tbody");
+
+          //append the header row
+          thead.append("tr").selectAll("th")
+              .data(columns)
+              .enter()
+              .append("th")
+                  .text(function(column) { return column; });
+
+          // create a row for each object in the data
+          var rows = tbody.selectAll("tr")
+              .data(data)
+              .enter()
+              .append("tr");
+
+          // create a cell in each row for each column
+          var cells = rows.selectAll("td")
+              .data(function(row) {
+                  return columns.map(function(column) {
+                      return {column: column, value: row[column]};
+                  });
+              })
+              .enter()
+              .append("td")
+                  .text(function(d) { return d.value; });
       
-      function EStop()
-      {
-        console.info("EStop");
-        d3.select("#EStop").text("reset EStop").style("background-color", "#090").attr("id","resetEStop").attr("onclick","resetEStop()");
-        hek.EStop();  
-      } 
+          return bar;
+          } 
+          
+        var parts = [
+          { Mode       : 0, 
+               Calibrated  : 0, 
+               Motors      : 0, 
+               Moving      : 0, 
+               Alarms      : 0, 
+               EStop       : 0 }
+          ]    
+        var peopleTable = statusBar(parts, ["Mode", "Calibrated", "Motors", "Moving", "Alarms", "EStop"]);
+   
+          d3.select("#centerColumn").append("main")
+              .text("Joint State");
 
-      function resetEStop()
-      {
-        console.info("EStop Reset");
-        d3.select("#resetEStop").text("EStop").style("background-color","#900").
-attr("id","EStop").attr("onclick","Estop()");
-        hek.resetEStop();
-      }
 
-      function Freeze()
-      {
-        console.info("Freeze");
-        hek.freeze();
-      }
+        function tabulate(data, columns) {
+          var table = d3.select("main").append("table"),
+            thead = table.append("thead"),
+            tbody = table.append("tbody");
 
-      function Release()
-      {
-        console.info("Release");
-        hek.release();
-      }
+          //append the header row
+          thead.append("tr").selectAll("th")
+              .data(columns)
+              .enter()
+              .append("th")
+                  .text(function(column) { return column; });
 
-      function Calibrate()
-      {
-        calibrate_action_goal = hek.calibrate();
-        calibrate_action_goal.send();
-      }
+          // create a row for each object in the data
+          var rows = tbody.selectAll("tr")
+              .data(data)
+              .enter()
+              .append("tr");
 
-      function Park()
-      {
-        console.info("Park");
-        hek.park();
-      }
-
-      function Balance()
-      {
-        console.info("Balanced");
-        hek.balanced();
-      }
-
-      function ZeroPoint()
-      {
-        console.info("Zero Point");
-        hek.zeroPoint();
-      }
-
-      function OpenGripper()
-      {
-        console.info("Open Gripper");
-        hek.openGripper();
-      }
-
-      function CloseGripper()
-      {
-        console.info("Close Gripper");
-        hek.closeGripper();
-      }
-
+          // create a cell in each row for each column
+          var cells = rows.selectAll("td")
+              .data(function(row) {
+                  return columns.map(function(column) {
+                      return {column: column, value: row[column]};
+                  });
+              })
+              .enter()
+              .append("td")
+                  .text(function(d) { return d.value; });
       
+          return table;
+          }  
 
-      var name = d3.select("#centerColumn").append("hekateros")
-          .text("Hekateros Control Panel");
-      var titleBar = d3.select("#centerColumn").append("title")
-          .text("Robot Status");
-    
-    
-      d3.select("#centerColumn").append("main")
-          .text("Joint State");
+  // create joints
+  
+       var joints = [
+          { joint       : "Servo Id:", 
+                shoulder    : 30, 
+                elbow       : 0, 
+                wrist_pitch : 0, 
+                wrist_rot   : 0, 
+                grip        : 0},
 
+          { joint       : "State:", 
+                shoulder    : 32, 
+                elbow       : 0, 
+                wrist_pitch : 0, 
+                wrist_rot   : 0, 
+                grip        : 0},
 
-      function tabulate(data, columns) {
-      var table = d3.select("main").append("table"),
-        thead = table.append("thead"),
-        tbody = table.append("tbody");
+          { joint       : "Position(deg):",
+                shoulder    : 32, 
+                elbow       : 0, 
+                wrist_pitch : 0, 
+                wrist_rot   : 0, 
+                grip        : 0},
+              
+          { joint       : "Odmeter(ticks):",
+                shoulder    : 31, 
+                elbow       : 0,
+                wrist_pitch : 0,
+                wrist_rot   : 0, 
+                grip        : 0},
 
-    // append the header row
-    thead.append("tr")
-        .selectAll("th")
-        .data(columns)
-        .enter()
-        .append("th")
-            .text(function(column) { return column; });
+          { joint       : "Velocity(%max):",
+                shoulder    : 29, 
+                elbow       : 0,
+                wrist_pitch : 0,
+                wrist_rot   : 0,
+                grip        : 0},
 
-    // create a row for each object in the data
-    var rows = tbody.selectAll("tr")
-        .data(data)
-        .enter()
-        .append("tr");
+          { joint       : "Speed(raw):", 
+                shoulder    : 29,
+                elbow       : 0,
+                wrist_pitch : 0,
+                wrist_rot   : 0, 
+                grip        : 0},
 
-    // create a cell in each row for each column
-    var cells = rows.selectAll("td")
-        .data(function(row) {
-            return columns.map(function(column) {
-                return {column: column, value: row[column]};
-            });
-        })
-        .enter()
-        .append("td")
-            .text(function(d) { return d.value; });
-    
-    return table;
-}
+          { joint       : "Effrot(raw):", 
+                shoulder    : 29, 
+                elbow       : 0,
+                wrist_pitch : 0, 
+                wrist_rot   : 0, 
+                grip        : 0},
 
-// create joints
-var joints = [
-{ joint       : "Servo Id:", 
-      shoulder    : 30, 
-      elbow       : 0, 
-      wrist_pitch : 0, 
-      wrist_rot   : 0, 
-      grip        : 0},
+          { joint       : "Temperature(C):",
+                shoulder    : 29,
+                elbow       : 0, 
+                wrist_pitch : 0,
+                wrist_rot   : 0, 
+                grip        : 0},
 
-{ joint       : "State:", 
-      shoulder    : 32, 
-      elbow       : 0, 
-      wrist_pitch : 0, 
-      wrist_rot   : 0, 
-      grip        : 0},
+          { joint       : "Voltage(volts):",
+                shoulder    : 29, 
+                elbow       : 0, 
+                wrist_pitch : 0,
+                wrist_rot   : 0,
+                grip        : 0},
 
-{ joint       : "Position(deg):",
-      shoulder    : 32, 
-      elbow       : 0, 
-      wrist_pitch : 0, 
-      wrist_rot   : 0, 
-      grip        : 0},
-    
-{ joint       : "Odmeter(ticks):",
-      shoulder    : 31, 
-      elbow       : 0,
-      wrist_pitch : 0,
-      wrist_rot   : 0, 
-      grip        : 0},
+          { joint       : "Alarms:", 
+                shoulder    : 29,
+                elbow       : 0,
+                wrist_pitch : 0,
+                wrist_rot   : 0, 
+                grip        : 0}
+          ];
 
-{ joint       : "Velocity(%max):",
-      shoulder    : 29, 
-      elbow       : 0,
-      wrist_pitch : 0,
-      wrist_rot   : 0,
-      grip        : 0},
+        // render the table
+        var peopleTable = tabulate(joints, ["joint", "shoulder", "elbow", "wrist_pitch", "wrist_rot", "grip"]);
 
-{ joint       : "Speed(raw):", 
-      shoulder    : 29,
-      elbow       : 0,
-      wrist_pitch : 0,
-      wrist_rot   : 0, 
-      grip        : 0},
-
-{ joint       : "Effrot(raw):", 
-      shoulder    : 29, 
-      elbow       : 0,
-      wrist_pitch : 0, 
-      wrist_rot   : 0, 
-      grip        : 0},
-
-{ joint       : "Temperature(C):",
-      shoulder    : 29,
-      elbow       : 0, 
-      wrist_pitch : 0,
-      wrist_rot   : 0, 
-      grip        : 0},
-
-{ joint       : "Voltage(volts):",
-      shoulder    : 29, 
-      elbow       : 0, 
-      wrist_pitch : 0,
-      wrist_rot   : 0,
-      grip        : 0},
-
-{ joint       : "Alarms:", 
-      shoulder    : 29,
-      elbow       : 0,
-      wrist_pitch : 0,
-      wrist_rot   : 0, 
-      grip        : 0}
-];
-
-// render the table
-var peopleTable = tabulate(joints, ["joint", "shoulder", "elbow", "wrist_pitch", "wrist_rot", "grip"]);
-
-      
-
-    </script>
+      </script>
   </body>
 </html>
 
