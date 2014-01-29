@@ -77,10 +77,17 @@ function hekateros(throttle_rate) {
     var req = new ROSLIB.ServiceRequest({});
     this.openGripper_srv.callService(req, function(rsp){cb(rsp);});
   }
+
   this.closeGripper = function(cb) {
     cb = typeof cb !== 'undefined' ? cb : function(rsp){};
     var req = new ROSLIB.ServiceRequest({});
     this.closeGripper_srv.callService(req, function(rsp){cb(rsp);});
+  }
+
+  this.isCalibrated = function(cb) {
+    cb = typeof cb !== 'undefined' ? cb : function(rsp){};
+    var req = new ROSLIB.ServiceRequest({});
+    this.isCalibrated_srv.callService(req, function(rsp){cb(rsp);});
   }
 
   //Draw function for svg 
