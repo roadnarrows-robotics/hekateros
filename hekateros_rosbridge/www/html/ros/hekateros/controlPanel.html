@@ -52,7 +52,8 @@
         margin:5px;
         border:5px double #222;
         border-radius:5px;
-        background-size:;
+        background-size: contain; 
+        /*MIW Change Icon Size Here*/
         background-repeat:no-repeat;
         box-shadow: 3px 3px 3px #555;
 
@@ -150,7 +151,8 @@
             .attr("id", id)
             .attr("class", side)
             .style("background-color", color)
-            .style("background-image", "/img/" + id + ".png")
+            .style("background-image", "url('img/" + id + ".png')" )
+            //MIW Change icon path here
             .style("text-align", "right")
             .text(id)
             .attr("onclick", id + "()");
@@ -202,13 +204,23 @@
         {
           calibrate_action_goal = hek.calibrate();
           calibrate_action_goal.send();
-          d3.select("#Calibrate").text("Cancel Calibrate").style("background-color", "#900").attr("id","cancelCalibrate").attr("onclick","cancelCalibrate()");
+          d3.select("#Calibrate")
+              .text("Cancel Calibrate")
+              .style("background-color", "#900")
+              .style("background-image", "url('img/cancelCalibrate.png')")
+              .attr("id","cancelCalibrate")
+              .attr("onclick","cancelCalibrate()");
         }
 
         function cancelCalibrate()
         {
           calibrate_action_goal.cancel();
-          d3.select("#cancelCalibrate").text("Calibrate").style("background-color","#ccc").attr("id","Calibrate").attr("onclick","Calibrate()");
+          d3.select("#cancelCalibrate")
+              .text("Calibrate")
+              .style("background-color","#ccc")
+              .style("background-image", "url('img/Calibrate.png')")
+              .attr("id","Calibrate")
+              .attr("onclick","Calibrate()");
         }
 
         function Park()
