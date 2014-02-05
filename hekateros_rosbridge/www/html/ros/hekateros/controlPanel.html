@@ -109,6 +109,10 @@
       {
         padding: 1px 4px;
       }
+      th
+      {
+        text-align:left;
+      }
       .center
       {
         background-color:#090
@@ -145,33 +149,34 @@
           });
         }
 
-        function buttons_panel(id, side, color)
+        function buttons_panel(id, name, side, color)
         {
           var panel = d3.select("#" + side + "Column").append("button")
-            .attr("id", id)
-            .attr("class", side)
-            .style("background-color", color)
-            .style("background-image", "url('img/" + id + ".png')" )
-            //MIW Change icon path here
-            .style("text-align", "right")
-            .text(id)
-            .attr("onclick", id + "()");
+              .attr("id", id)
+              .attr("class", side)
+              .style("background-color", color)
+              .style("background-image", "url('img/" + id + ".png')" )
+              //MIW Change icon path here
+              .style("text-align", "right")
+              .style("text-shadow", "-1px 0 #ccc, 0 1px #ccc, 1px 0 #ccc, 0 -1px #ccc")
+              .text(name)
+              .attr("onclick", id + "()");
         }
         
-        buttons_panel("Calibrate","left", "#ccc");
-        buttons_panel("Park","left", "#ccc");
-        buttons_panel("Balance","left", "#ccc");
-        buttons_panel("ZeroPoint","left", "#ccc");
-        buttons_panel("OpenGripper","left", "#ccc");
-        buttons_panel("CloseGripper","left", "#ccc");
-        buttons_panel("SpecifyMove","left", "#ccc");
-        buttons_panel("EStop","right", "#900");
-        buttons_panel("Freeze","right", "#ccc");
-        buttons_panel("Release","right", "#ccc");
-        buttons_panel("ClearAlarms","right", "#ccc");
-        buttons_panel("Settings","right", "#ccc");
-        buttons_panel("About","right", "#ccc");
-        buttons_panel("Quit","right", "#ccc");
+        buttons_panel("Calibrate", "Calibrate", "left", "#ccc");
+        buttons_panel("Park", "Park", "left", "#ccc");
+        buttons_panel("Balance", "Balance", "left", "#ccc");
+        buttons_panel("ZeroPoint", "Zero Point", "left", "#ccc");
+        buttons_panel("OpenGripper", "Open Gripper", "left", "#ccc");
+        buttons_panel("CloseGripper", "Close Gripper", "left", "#ccc");
+        buttons_panel("SpecifyMove", "Specify Move", "left", "#ccc");
+        buttons_panel("EStop", "EStop", "right", "#900");
+        buttons_panel("Freeze", "Freeze", "right", "#ccc");
+        buttons_panel("Release", "Release", "right", "#ccc");
+        buttons_panel("ClearAlarms", "Clear Alarms", "right", "#ccc");
+        buttons_panel("Settings", "Settings", "right", "#ccc");
+        buttons_panel("About", "About", "right", "#ccc");
+        buttons_panel("Quit", "Quit", "right", "#ccc");
         
         function EStop()
         {
@@ -202,6 +207,7 @@
 
         function Calibrate()
         {
+          console.info("Calibrate")
           calibrate_action_goal = hek.calibrate();
           calibrate_action_goal.send();
           d3.select("#Calibrate")
@@ -214,6 +220,7 @@
 
         function cancelCalibrate()
         {
+          console.info("STOP calibration")
           calibrate_action_goal.cancel();
           d3.select("#cancelCalibrate")
               .text("Calibrate")
@@ -253,10 +260,18 @@
           hek.closeGripper();
         }
 
+        function About()
+        {
+          console.info("about hekateros");
+          var productInformation = hek.ProductInfo();
+          alert(productInformation);
+        }
+
         function isCalibrated()
         {
-          var answer = hek.isCalibrated();
-          console.info("is the robot calibrated?" + answer);
+          hek.sub_feedback(function(message){
+            console.info("is the robot calibrated?" + message);
+          }
         } 
 
         var name = d3.select("#centerColumn").append("hekateros")
@@ -266,7 +281,7 @@
       
      
         function statusBar(data, columns) {
-          var bar = d3.select("title").append("bar"),
+          var bar = d3.select("title").append("table"),
             thead = bar.append("thead"),
             tbody = bar.append("tbody");
 
