@@ -19,6 +19,7 @@ function hekateros(throttle_rate) {
     this.robot_status.subscribe(function(msg){cb(msg);});
   }
 
+
   this.calibrate = function(cb) {
     cb= typeof cb !== 'undefined' ? cb : function(rsp){};
     var msg = {force_recalib:1};
@@ -27,7 +28,14 @@ function hekateros(throttle_rate) {
       goalMessage: msg
     });
     return goal;
-    
+  }
+
+  this.sub_feedback = function(cb) {
+    if(typeof cb == 'undefined') {
+      console.error("When subscribing to a topic, you must provide a callback");
+      return;
+    }
+    this.calibrate_feedback.subscribe(function(msg){cb(msg);});
   }
 
   this.EStop = function(cb) {
@@ -89,6 +97,19 @@ function hekateros(throttle_rate) {
     var req = new ROSLIB.ServiceRequest({});
     this.isCalibrated_srv.callService(req, function(rsp){cb(rsp);});
   }
+  
+  this.clearAlarms = function(cb) {
+    cb = typeof cb !== 'undefined' ? cb : function(rsp){};
+    var req = new ROSLIB.ServiceRequest({});
+    this.clearAlarms_srv.callService(req, function(rsp){cb(rsp);});
+  }
+
+  this.ProductInfo = function(cb) {
+    cb = typeof cb !== 'undefined' ? cb : function(rsp){};
+    var req = new ROSLIB.ServiceRequest({});
+    this.getProductInfo_srv.callService(req, function(rsp){cb(rsp);});
+  }
+
 
   //Draw function for svg 
 
@@ -109,6 +130,12 @@ function hekateros(throttle_rate) {
     name: "/hekateros_control/robot_status",
     messageType: "industrial_msgs/RobotStatus",
     throttle_rate : this.throttle_rate 
+  });
+
+  this.calibrate_feedback = new ROSLIB.Topic({
+    ros: ros,
+    name: "/hekateros_control/calibrate_as/feedback",
+    maessageType: "hekateros_control/CalibrateActionFeedback"
   });
 
   //Services
@@ -132,7 +159,7 @@ function hekateros(throttle_rate) {
 
   this.clearAlarms_srv = new ROSLIB.Service({
     ros: ros,
-    name: "/hekateros_control/clearAlarms",
+    name: "/hekateros_control/clear_alarms",
     messageType: "/hekateros/ClearAlarms"
   });
   
