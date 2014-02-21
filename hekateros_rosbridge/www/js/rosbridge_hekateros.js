@@ -37,6 +37,22 @@ function hekateros(throttle_rate) {
     }
     this.calibrate_feedback.subscribe(function(msg){cb(msg);});
   }
+  
+  this.sub_robotStatus = function(cb) {
+    if(typeof cb == 'undefined') {
+      console.error("When subscribing to a topic, you must provide a callback");
+      return;
+    }
+    this.robot_status_EX.subscribe(function(msg){cb(msg);});
+  }
+  
+  this.sub_jointStates = function(cb) {
+    if(typeof cb == 'undefined') {
+      console.error("When subscribing to a topic, you must provide a callback");
+      return;
+    }
+    this.joint_states_EX.subscribe(function(msg){cb(msg);});
+  }
 
   this.EStop = function(cb) {
     cb = typeof cb !== 'undefined' ? cb : function(rsp){};
@@ -91,13 +107,7 @@ function hekateros(throttle_rate) {
     var req = new ROSLIB.ServiceRequest({});
     this.closeGripper_srv.callService(req, function(rsp){cb(rsp);});
   }
-
-  this.isCalibrated = function(cb) {
-    cb = typeof cb !== 'undefined' ? cb : function(rsp){};
-    var req = new ROSLIB.ServiceRequest({});
-    this.isCalibrated_srv.callService(req, function(rsp){cb(rsp);});
-  }
-  
+    
   this.clearAlarms = function(cb) {
     cb = typeof cb !== 'undefined' ? cb : function(rsp){};
     var req = new ROSLIB.ServiceRequest({});
@@ -110,7 +120,23 @@ function hekateros(throttle_rate) {
     this.getProductInfo_srv.callService(req, function(rsp){cb(rsp);});
   }
 
+  this.isCalibrated = function(message, cb) {
+    cb = typeof cb !== 'undefined' ? cb : function(rsp){};
+    var msg = new ROSLIB.Message({
+      val:message,
+    });
 
+    var req = new ROSLIB.ServiceRequest({
+      calibrated_state:msg
+    })
+    this.isCalibrated_srv.callService(req, function(rsp){cb(rsp);});
+  }
+
+  this.calibrated_state = {
+    uncalibrated : 0,
+    calibrating  : 1,
+    calibrated   : 2
+  };
   //Draw function for svg 
 
   //------------------------------------------------------------------------//
@@ -135,7 +161,19 @@ function hekateros(throttle_rate) {
   this.calibrate_feedback = new ROSLIB.Topic({
     ros: ros,
     name: "/hekateros_control/calibrate_as/feedback",
-    maessageType: "hekateros_control/CalibrateActionFeedback"
+    messageType: "hekateros_control/CalibrateActionFeedback"
+  });
+
+  this.robot_status_EX = new ROSLIB.Topic({
+    ros:ros,
+    name: "/hekateros_control/robot_status_ex",
+    messageType: "hekateros_control/HekRobotStatusExtended"
+  });
+  
+  this.joint_states_EX = new ROSLIB.Topic({
+    ros:ros,
+    name: "/hekateros_control/joint_states_ex",
+    messageType: "hekateros_control/HekJointStateExtended"
   });
 
   //Services
