@@ -16,17 +16,8 @@ find_package(catkin
 
 find_package(Boost REQUIRED COMPONENTS system)
 
-# RDK, DHP TODO Create rnrpkgConfig.cmake
-# find_package(rnr
-#   REQUIRED COMPONENTS hekateros Dynamixel botsense netmsgs rnr_appkit rnr
-# WARNING:  The rnr libraries must of an unique name or other packages will
-#           clobber.
-# )
-find_library(
-  hek_ctl_rnr_LIBRARIES
-  NAMES hekateros Dynamixel botsense netmsgs rnr_appkit rnr
-  PATHS /prj/lib /prj/lib/rnr
-)
+set(rnr_DIR /prj/lib/rnr)
+find_package(rnr)
 
 catkin_python_setup()
 
@@ -85,13 +76,13 @@ add_executable(hekateros_control src/hekateros_control.cpp)
 
 include_directories(
   include 
-  /prj/include 
+  ${rnr_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
 
 target_link_libraries(hekateros_control 
-  ${hek_ctl_rnr_LIBRARIES}
+  ${rnr_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
