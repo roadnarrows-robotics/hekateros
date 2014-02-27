@@ -184,7 +184,7 @@ class window(Frame):
   #
   def createWidgets(self):
     self.m_imageLoader = ImageLoader(py_pkg='hekateros_control.images') #,
-                                      #image_paths=imagePath)
+                                      image_paths=imagePath)
     self.createHeading()
     self.createLeftButtons()
     self.createCenterPanel()
