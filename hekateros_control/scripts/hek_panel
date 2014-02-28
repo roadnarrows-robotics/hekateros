@@ -183,7 +183,7 @@ class window(Frame):
   ## \brief Create gui widgets with supporting data and show.
   #
   def createWidgets(self):
-    self.m_imageLoader = ImageLoader(py_pkg='hekateros_control.images') #,
+    self.m_imageLoader = ImageLoader(py_pkg='hekateros_control.images',
                                       image_paths=imagePath)
     self.createHeading()
     self.createLeftButtons()
