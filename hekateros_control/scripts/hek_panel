@@ -2,14 +2,18 @@
 
 ###############################################################################
 #
-# Package:  RoadNarrows Hekateros Robotic Manipulator Package
+# Package:  RoadNarrows Robotics Hekateros Robotic Manipulator Package
+#
+# Link:     https://github.com/roadnarrows-robotics/hekateros
+#
+# ROS Node: hek_panel
 #
 # File: hek_panel
 #
 ## \file 
 ##
-## $LastChangedDate: 2012-12-06 16:33:18 -0700 (Thu, 06 Dec 2012) $
-## $Rev: 330 $
+## $LastChangedDate$
+## $Rev$
 ##
 ## \brief Graphical panel to interface with the hekateros_control node.
 ##
@@ -17,7 +21,7 @@
 ## \author Robin Knight (robin.knight@roadnarrows.com)
 ##  
 ## \par Copyright:
-##   (C) 2013-2013.  RoadNarrows LLC.\n
+##   (C) 2013-2014.  RoadNarrows LLC.\n
 ##   (http://www.roadnarrows.com)\n
 ##   All Rights Reserved
 ##
@@ -47,8 +51,6 @@ import trajectory_msgs.msg
 from industrial_msgs.msg import RobotMode
 from industrial_msgs.msg import TriState
 
-from hekateros_control.calibrate_ac import *
-
 from hekateros_control.msg import HekRobotStatusExtended
 from hekateros_control.msg import HekJointStateExtended
 from hekateros_control.msg import ServoHealth
@@ -71,8 +73,7 @@ from hekateros_control.AboutDlg import AboutDlg
 from hekateros_control.WarnDlg import WarnDlg
 from hekateros_control.MoveDlg import MoveDlg
 from hekateros_control.PanelConfig import *
-
-#RDK import hekateros_control.msg
+from hekateros_control.ACCalibrate import *
 
 
 # ------------------------------------------------------------------------------
@@ -84,8 +85,6 @@ appVersion = '1.1.0'
 
 ## \brief Image search paths.
 imagePath = [
-  "/prj/share/Hekateros/images",
-  "/usr/local/share/Hekateros/images",
   "/prj/share/appkit/images",
   "/usr/local/share/appkit/images"
 ]
@@ -917,7 +916,7 @@ Make sure the workspace is clear of obstructions.""")
 
       # create calibration action client, if not already created
       if self.m_calibState['ac'] is None:
-        self.m_calibState['ac'] = calibrate_ac()
+        self.m_calibState['ac'] = ACCalibrate()
 
       # start calibration
       if not self.m_calibState['ac'].exec_calib(self.calibrate_monitor,
@@ -946,6 +945,7 @@ Make sure the workspace is clear of obstructions.""")
       self.m_wBttn['calibrate']['text'] = "Calibrate"
       if self.m_calibState['id'] != 0:
         self.m_calibState['id'] = 0
+      self.showError("Calibration preempted.")
       self.update_idletasks()
 
   #
@@ -963,18 +963,19 @@ Make sure the workspace is clear of obstructions.""")
       self.m_wBttn['calibrate']['text'] = "Calibrate"
       self.m_calibState['calibrating'] = False
       self.m_calibState['id'] = 0
-      if self.m_calibState['ac'].get_result() >= 0:
+      calib_state = self.m_calibState['ac'].get_result().op.calib_state
+      if calib_state == OpState.CALIBRATED:
         self.showInfo("Calibration complete.")
       else:
         self.showError("Calibration failed.")
       self.update_idletasks()
 
   #
-  ## @brief monitor the calibration feedback
+  ## \brief monitor the calibration feedback
   #
-  def calibrate_monitor(self, fb):
+  def calibrate_monitor(self, feedback):
     if self.m_bHasJointPanel:
-      self.showJointStates(fb.joint)
+      self.showJointStates(feedback.joint)
   
   #
   ## \brief Go to parked position callback.

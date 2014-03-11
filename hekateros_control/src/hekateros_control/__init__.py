@@ -1,4 +1,4 @@
-## All (sub)modules in pan_tilt_control package.
+## All (sub)modules in hekateros_control package.
 __all__ = [
   'AboutDlg',
   'ACCalibrate',
