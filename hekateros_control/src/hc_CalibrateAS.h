@@ -55,17 +55,19 @@ public:
     }
 
     rc = pRobot->getAsyncRc();
-    result_.rc = rc;
+    //result_.rc = rc;
     
     if( rc == HEK_OK )
     {
       ROS_INFO("Calibration complete.");
+      result_.op.calib_state = hekateros_control::HekOpState::CALIBRATED;
       as_.setSucceeded(result_);
       as_.publishFeedback(feedback_);
     }
     else if( rc != -HEK_ECODE_INTR )
     {
       ROS_ERROR("Calibration aborted with error code %d.", rc);
+      result_.op.calib_state = hekateros_control::HekOpState::UNCALIBRATED;
       as_.setAborted(result_);
     }
   }
