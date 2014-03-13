@@ -6,7 +6,7 @@
 #include "trajectory_msgs/JointTrajectory.h"
 #include "Hekateros/hekRobot.h"
 
-#include "hekateros_control.h"
+#include "hekateros_control_tmp.h"
 
 void joint_commandCB(const trajectory_msgs::JointTrajectory &jt)
 {

@@ -12,7 +12,7 @@
 #include "sensor_msgs/JointState.h"
 #include "hekateros_control/HekJointStateExtended.h"
 
-#include "hekateros_control.h"
+#include "hekateros_control_tmp.h"
 #include "hc_StatePub.h"
 
 class CalibrateAS
