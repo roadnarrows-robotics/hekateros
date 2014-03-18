@@ -1,25 +1,25 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Package:   RoadNarrows Robotics ROS Pan-Tilt Robot Package
+// Package:   RoadNarrows Robotics Hekateros Robotic Manipulator ROS Package
 //
-// Link:      https://github.com/roadnarrows-robotics/pan_tilt
+// Link:      https://github.com/roadnarrows-robotics/hekateros
 //
-// ROS Node:  pan_tilt_control
+// ROS Node:  hekateros_control
 //
-// File:      pan_tilt_control.cpp
+// File:      hekateros_control.cpp
 //
 /*! \file
  *
  * $LastChangedDate$
  * $Rev$
  *
- * \brief The ROS pan_tilt_control node class implementation.
+ * \brief The ROS hekateros_control node class implementation.
  *
  * \author Danial Packard (daniel@roadnarrows.com)
  * \author Robin Knight (robin.knight@roadnarrows.com)
  *
  * \par Copyright:
- * (C) 2014  RoadNarrows
+ * (C) 2013-2014  RoadNarrows
  * (http://www.roadnarrows.com)
  * \n All Rights Reserved
  */
@@ -54,13 +54,20 @@
  */
 ////////////////////////////////////////////////////////////////////////////////
 
+//
+// System
+//
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-
 #include <string>
 #include <map>
+
+//
+// Boost libraries
+//
+#include <boost/bind.hpp>
 
 //
 // ROS
@@ -68,60 +75,72 @@
 #include "ros/ros.h"
 #include "actionlib/server/simple_action_server.h"
 
-
 //
-// ROS generated core, industrial, and pan-tilt messages.
+// ROS generated core, industrial, and hekateros messages.
 //
 #include "trajectory_msgs/JointTrajectory.h"
 #include "sensor_msgs/JointState.h"
 #include "industrial_msgs/RobotStatus.h"
-#include "pan_tilt_control/JointStateExtended.h"
-#include "pan_tilt_control/RobotStatusExtended.h"
+#include "hekateros_control/HekJointStateExtended.h"
+#include "hekateros_control/HekRobotStatusExtended.h"
 
 //
-// ROS generatated pan-tilt services.
+// ROS generatated hekateros services.
 //
-#include "pan_tilt_control/ClearAlarms.h"
-#include "pan_tilt_control/EStop.h"
-#include "pan_tilt_control/Freeze.h"
-#include "pan_tilt_control/GetProductInfo.h"
-#include "pan_tilt_control/GotoZeroPt.h"
-#include "pan_tilt_control/IsAlarmed.h"
-#include "pan_tilt_control/IsCalibrated.h"
-#include "pan_tilt_control/Pan.h"
-#include "pan_tilt_control/Release.h"
-#include "pan_tilt_control/ResetEStop.h"
-#include "pan_tilt_control/SetRobotMode.h"
-#include "pan_tilt_control/Stop.h"
-#include "pan_tilt_control/Sweep.h"
+#include "hekateros_control/Calibrate.h"
+#include "hekateros_control/ClearAlarms.h"
+#include "hekateros_control/CloseGripper.h"
+#include "hekateros_control/EStop.h"
+#include "hekateros_control/Freeze.h"
+#include "hekateros_control/GetProductInfo.h"
+#include "hekateros_control/GotoBalancedPos.h"
+#include "hekateros_control/GotoParkedPos.h"
+#include "hekateros_control/GotoZeroPt.h"
+#include "hekateros_control/IsAlarmed.h"
+#include "hekateros_control/IsCalibrated.h"
+#include "hekateros_control/IsDescLoaded.h"
+#include "hekateros_control/OpenGripper.h"
+#include "hekateros_control/Release.h"
+#include "hekateros_control/ResetEStop.h"
+#include "hekateros_control/SetRobotMode.h"
+#include "hekateros_control/Stop.h"
 
 //
 // ROS generated action servers.
 //
-#include "pan_tilt_control/CalibrateAction.h"
+#include "hekateros_control/CalibrateAction.h"
 
 //
-// RoadNarrows embedded pan-tilt library.
+// RoadNarrows
 //
-#include "pan_tilt/pan_tilt.h"
-#include "pan_tilt/ptRobot.h"
+#include "rnr/rnrconfig.h"
+#include "rnr/log.h"
+
+//
+// RoadNarrows embedded hekateros library.
+//
+#include "Hekateros/hekateros.h"
+#include "Hekateros/hekXmlCfg.h"
+#include "Hekateros/hekRobot.h"
+#include "Hekateros/hekUtils.h"
 
 //
 // Node headers.
 //
-#include "pan_tilt_control.h"
+#include "hekateros_control.h"
 
 
 using namespace std;
 using namespace hekateros;
-using namespace hc;
+using namespace hekateros_control;
 
 
 //------------------------------------------------------------------------------
 // HekaterosControl Class
 //------------------------------------------------------------------------------
 
-HekaterosControl::HekaterosControl(ros::NodeHandle &nh) : m_nh(nh)
+HekaterosControl::HekaterosControl(ros::NodeHandle &nh, double hz) :
+    m_nh(nh), m_hz(hz)
 {
 }
 
@@ -130,14 +149,49 @@ HekaterosControl::~HekaterosControl()
   disconnect();
 }
 
+int HekaterosControl::loadXml(const string &strCfgFile)
+{
+  HekXmlCfg xml;  // hekateros xml instance
+  int       rc;   // return code
 
-//..............................................................................
+  if( (rc = xml.loadFile(strCfgFile)) < 0 )
+  {
+    ROS_ERROR("Loading XML file '%s' failed.", strCfgFile.c_str());
+  }
+
+  else if( (rc = xml.setHekDescFromDOM(*m_robot.getHekDesc())) < 0 )
+  {
+    ROS_ERROR("Setting robot description failed.");
+  }
+
+  else if( (rc = m_robot.getHekDesc()->markAsDescribed()) < 0 )
+  {
+    ROS_ERROR("Failed to finalize descriptions.");
+  }
+
+  else
+  {
+    ROS_INFO("Hekateros description loaded:\n\t %s",
+       m_robot.getHekDesc()->getFullProdBrief().c_str());
+    rc = HEK_OK;
+  }
+
+  return rc;
+}
+
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 // Services
-//..............................................................................
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
 void HekaterosControl::advertiseServices()
 {
   string  strSvc;
+
+  strSvc = "calibrate";
+  m_services[strSvc] = m_nh.advertiseService(strSvc,
+                                          &HekaterosControl::calibrate,
+                                          &(*this));
 
   strSvc = "clear_alarms";
   m_services[strSvc] = m_nh.advertiseService(strSvc,
@@ -145,8 +199,8 @@ void HekaterosControl::advertiseServices()
                                           &(*this));
 
   strSvc = "close_gripper";
-  m_services[strSvc] = n.advertiseService(strSvc
-                                          &HekaterosControll::closeGripper,
+  m_services[strSvc] = m_nh.advertiseService(strSvc,
+                                          &HekaterosControl::closeGripper,
                                           &(*this));
  
   strSvc = "estop";
@@ -195,8 +249,8 @@ void HekaterosControl::advertiseServices()
                                           &(*this));
 
   strSvc = "open_gripper";
-  m_services[strSvc] = n.advertiseService(strSvc
-                                          &HekaterosControll::openGripper,
+  m_services[strSvc] = m_nh.advertiseService(strSvc,
+                                          &HekaterosControl::openGripper,
                                           &(*this));
  
   strSvc = "release";
@@ -213,22 +267,74 @@ void HekaterosControl::advertiseServices()
   m_services[strSvc] = m_nh.advertiseService(strSvc,
                                           &HekaterosControl::setRobotMode,
                                           &(*this));
+
+  strSvc = "stop";
+  m_services[strSvc] = m_nh.advertiseService(strSvc,
+                                          &HekaterosControl::stop,
+                                          &(*this));
+}
+
+bool HekaterosControl::calibrate(Calibrate::Request  &req,
+                                 Calibrate::Response &rsp)
+{
+  const char *svc = "calibrate";
+
+  ROS_DEBUG("%s", svc);
+
+  rsp.rc = m_robot.calibrate(req.force_recalib);
+
+  if( rsp.rc == HEK_OK )
+  {
+    ROS_INFO("Robot calibrated.");
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("%s failed. %s(rc=%d).", svc, getStrError(rsp.rc), rsp.rc);
+    return false;
+  }
 }
 
 bool HekaterosControl::clearAlarms(ClearAlarms::Request  &req,
-                                 ClearAlarms::Response &rsp)
+                                   ClearAlarms::Response &rsp)
 {
-  ROS_DEBUG("clear_alarms");
+  const char *svc = "clear_alarms";
+
+  ROS_DEBUG("%s", svc);
 
   m_robot.clearAlarms();
 
   return true;
 }
 
-bool HekaterosControl::estop(EStop::Request  &req,
-                           EStop::Response &rsp)
+bool HekaterosControl::closeGripper(CloseGripper::Request  &req,
+                                    CloseGripper::Response &rsp)
 {
-  ROS_DEBUG("estop");
+  const char *svc = "close_gripper";
+  int         rc;
+
+  ROS_DEBUG("%s", svc);
+
+  rc = m_robot.closeGripper();
+
+  if( rc == HEK_OK )
+  {
+    ROS_INFO("Closing gripper.");
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("%s failed. %s(rc=%d).", svc, getStrError(rc), rc);
+    return false;
+  }
+}
+
+bool HekaterosControl::estop(EStop::Request  &req,
+                             EStop::Response &rsp)
+{
+  const char *svc = "estop";
+
+  ROS_DEBUG("%s", svc);
 
   m_robot.estop();
 
@@ -238,21 +344,35 @@ bool HekaterosControl::estop(EStop::Request  &req,
 }
 
 bool HekaterosControl::freeze(Freeze::Request  &req,
-                            Freeze::Response &rsp)
+                              Freeze::Response &rsp)
 {
-  ROS_DEBUG("freeze");
+  const char *svc = "freeze";
+
+  ROS_DEBUG("%s", svc);
 
   m_robot.freeze();
+
+  ROS_INFO("Robot position frozen.");
 
   return true;
 }
 
 bool HekaterosControl::getProductInfo(GetProductInfo::Request  &req,
-                                    GetProductInfo::Response &rsp)
+                                      GetProductInfo::Response &rsp)
 {
+  const char *svc = "get_product_info";
+
   int   nMajor, nMinor, nRev;
 
-  ROS_DEBUG("get_product_info");
+  ROS_DEBUG("%s", svc);
+
+  if( m_robot.isDescribed() )
+  {
+    ROS_ERROR("%s failed: "
+              "Robot description not loaded - unable to determine info.",
+              svc);
+    return false;
+  }
 
   m_robot.getVersion(nMajor, nMinor, nRev);
 
@@ -267,66 +387,162 @@ bool HekaterosControl::getProductInfo(GetProductInfo::Request  &req,
   return true;
 }
 
-bool HekaterosControl::gotoZeroPt(GotoZeroPt::Request  &req,
-                                GotoZeroPt::Response &rsp)
+bool HekaterosControl::gotoBalancedPos(GotoBalancedPos::Request  &req,
+                                       GotoBalancedPos::Response &rsp)
 {
-  ROS_DEBUG("goto_zero");
+  const char *svc = "goto_balanced";
 
-  m_robot.gotoZeroPtPos();
+  ROS_DEBUG("%s", svc);
 
-  ROS_INFO("Moving pan-tilt to calibrated zero point.");
+  rsp.rc = m_robot.gotoZeroPtPos();
 
-  return true;
+  if( rsp.rc == HEK_OK )
+  {
+    ROS_INFO("Moving Hekateros to balanced position.");
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("%s failed. %s(rc=%d).", svc, getStrError(rsp.rc), rsp.rc);
+    return false;
+  }
+}
+
+bool HekaterosControl::gotoParkedPos(GotoParkedPos::Request  &req,
+                                     GotoParkedPos::Response &rsp)
+{
+  const char *svc = "goto_zero";
+
+  ROS_DEBUG("%s", svc);
+
+  rsp.rc = m_robot.gotoZeroPtPos();
+
+  if( rsp.rc == HEK_OK )
+  {
+    ROS_INFO("Moving Hekateros to parked position.");
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("%s failed. %s(rc=%d).", svc, getStrError(rsp.rc), rsp.rc);
+    return false;
+  }
+}
+
+bool HekaterosControl::gotoZeroPt(GotoZeroPt::Request  &req,
+                                  GotoZeroPt::Response &rsp)
+{
+  const char *svc = "goto_zero";
+
+  ROS_DEBUG("%s", svc);
+
+  rsp.rc = m_robot.gotoZeroPtPos();
+
+  if( rsp.rc == HEK_OK )
+  {
+    ROS_INFO("Moving Hekateros to calibrated zero point.");
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("%s failed. %s(rc=%d).", svc, getStrError(rsp.rc), rsp.rc);
+    return false;
+  }
 }
 
 bool HekaterosControl::isAlarmed(IsAlarmed::Request  &req,
-                               IsAlarmed::Response &rsp)
+                                 IsAlarmed::Response &rsp)
 {
-  ROS_DEBUG("is_alarmed");
+  const char *svc = "is_alarmed";
+
+  ROS_DEBUG("%s", svc);
 
   rsp.is_alarmed = m_robot.isAlarmed();
+
+  if( rsp.is_alarmed )
+  {
+    ROS_WARN("Hekateros is alarmed.");
+  }
 
   return true;
 }
 
 bool HekaterosControl::isCalibrated(IsCalibrated::Request  &req,
-                                  IsCalibrated::Response &rsp)
+                                    IsCalibrated::Response &rsp)
 {
-  ROS_DEBUG("is_calibrated");
+  const char *svc = "is_calibrated";
+
+  ROS_DEBUG("%s", svc);
 
   rsp.is_calibrated = m_robot.isCalibrated();
+
+  if( !rsp.is_calibrated )
+  {
+    ROS_WARN("Hekateros is not calibrated.");
+  }
 
   return true;
 }
 
-bool HekaterosControl::pan(Pan::Request  &req,
-                         Pan::Response &rsp)
+bool HekaterosControl::isDescLoaded(IsDescLoaded::Request  &req,
+                                    IsDescLoaded::Response &rsp)
 {
-  int   rc;
+  const char *svc = "is_desc_loaded";
 
-  ROS_DEBUG("pan");
+  ROS_DEBUG("%s", svc);
 
-  rc = m_robot.pan(req.min_pos, req.max_pos, req.velocity);
+  rsp.is_desc_loaded = m_robot.isCalibrated();
 
-  ROS_INFO("Panning from %lf to %lf.", req.min_pos, req.max_pos);
+  if( !rsp.is_desc_loaded )
+  {
+    ROS_WARN("Hekateros description file not loaded.");
+  }
 
-  return rc == PT_OK? true: false;
+  return true;
+}
+
+bool HekaterosControl::openGripper(OpenGripper::Request  &req,
+                                   OpenGripper::Response &rsp)
+{
+  const char *svc = "open_gripper";
+  int         rc;
+
+  ROS_DEBUG("%s", svc);
+
+  rc = m_robot.openGripper();
+
+  if( rc == HEK_OK )
+  {
+    ROS_INFO("Opening gripper.");
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("%s failed. %s(rc=%d).", svc, getStrError(rc), rc);
+    return false;
+  }
 }
 
 bool HekaterosControl::release(Release::Request  &req,
-                             Release::Response &rsp)
+                               Release::Response &rsp)
 {
-  ROS_DEBUG("release");
+  const char *svc = "release";
+
+  ROS_DEBUG("%s", svc);
 
   m_robot.release();
+
+  ROS_INFO("Robot released, motors are undriven.");
 
   return true;
 }
 
 bool HekaterosControl::resetEStop(ResetEStop::Request  &req,
-                                ResetEStop::Response &rsp)
+                                  ResetEStop::Response &rsp)
 {
-  ROS_DEBUG("reset_estop");
+  const char *svc = "reset_estop";
+
+  ROS_DEBUG("%s", svc);
 
   m_robot.resetEStop();
 
@@ -336,45 +552,37 @@ bool HekaterosControl::resetEStop(ResetEStop::Request  &req,
 }
 
 bool HekaterosControl::setRobotMode(SetRobotMode::Request  &req,
-                                  SetRobotMode::Response &rsp)
+                                    SetRobotMode::Response &rsp)
 {
-  ROS_DEBUG("set_robot_mode");
+  const char *svc = "set_robot_mode";
 
-  m_robot.setRobotMode((PanTiltRobotMode)req.mode.val);
+  ROS_DEBUG("%s", svc);
+
+  m_robot.setRobotMode((HekRobotMode)req.mode.val);
+
+  ROS_INFO("Robot mode set to %d.", req.mode.val);
 
   return true;
 }
 
 bool HekaterosControl::stop(Stop::Request  &req,
-                          Stop::Response &rsp)
+                            Stop::Response &rsp)
 {
-  ROS_DEBUG("stop");
+  const char *svc = "stop";
+
+  ROS_DEBUG("%s", svc);
 
   m_robot.freeze();
+
+  ROS_INFO("Robot stopped (position frozen).");
 
   return true;
 }
 
-bool HekaterosControl::sweep(Sweep::Request  &req,
-                           Sweep::Response &rsp)
-{
-  int   rc;
 
-  ROS_DEBUG("sweep");
-
-  rc = m_robot.sweep(req.pan_min_pos, req.pan_max_pos, req.pan_velocity,
-                     req.tilt_min_pos, req.tilt_max_pos, req.tilt_velocity);
-
-  ROS_INFO("Sweep from %lf to %lf and %lf to %lf.",
-          req.pan_min_pos, req.pan_max_pos, req.tilt_min_pos, req.tilt_max_pos);
-
-  return rc == PT_OK? true: false;
-}
-
-
-//..............................................................................
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 // Topic Publishers
-//..............................................................................
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
 void HekaterosControl::advertisePublishers(int nQueueDepth)
 {
@@ -386,7 +594,7 @@ void HekaterosControl::advertisePublishers(int nQueueDepth)
 
   strPub = "joint_states_ex";
   m_publishers[strPub] =
-    m_nh.advertise<pan_tilt_control::JointStateExtended>(strPub,nQueueDepth);
+    m_nh.advertise<HekJointStateExtended>(strPub,nQueueDepth);
 
   strPub = "robot_status";
   m_publishers[strPub] =
@@ -394,7 +602,7 @@ void HekaterosControl::advertisePublishers(int nQueueDepth)
 
   strPub = "robot_status_ex";
   m_publishers[strPub] =
-    m_nh.advertise<pan_tilt_control::RobotStatusExtended>(strPub,nQueueDepth);
+    m_nh.advertise<HekRobotStatusExtended>(strPub, nQueueDepth);
 }
 
 void HekaterosControl::publish()
@@ -405,7 +613,7 @@ void HekaterosControl::publish()
 
 void HekaterosControl::publishJointState()
 {
-  PanTiltJointStatePoint    state;
+  HekJointStatePoint    state;
 
   // get robot's extended joint state.
   m_robot.getJointState(state);
@@ -425,10 +633,10 @@ void HekaterosControl::publishJointState()
 
 void HekaterosControl::publishRobotStatus()
 {
-  PanTiltRobotStatus  status;
+  HekRobotState   status;   // really status 
 
   // get robot's extended status.
-  m_robot.getRobotStatus(status);
+  m_robot.getRobotState(status);
 
   // update robot status message
   updateRobotStatusMsg(status, m_msgRobotStatus);
@@ -443,8 +651,8 @@ void HekaterosControl::publishRobotStatus()
   m_publishers["robot_status_ex"].publish(m_msgRobotStatusEx);
 }
 
-void HekaterosControl::updateJointStateMsg(PanTiltJointStatePoint &state,
-                                         sensor_msgs::JointState &msg)
+void HekaterosControl::updateJointStateMsg(HekJointStatePoint      &state,
+                                           sensor_msgs::JointState &msg)
 {
   //
   // Clear previous joint state data.
@@ -474,10 +682,10 @@ void HekaterosControl::updateJointStateMsg(PanTiltJointStatePoint &state,
   }
 }
 
-void HekaterosControl::updateExtendedJointStateMsg(PanTiltJointStatePoint &state,
-                                     pan_tilt_control::JointStateExtended &msg)
+void HekaterosControl::updateExtendedJointStateMsg(HekJointStatePoint &state,
+                                                   HekJointStateExtended &msg)
 {
-  pan_tilt_control::OpState opstate;
+  HekOpState  opstate;
 
   // 
   // Clear previous extended joint state data.
@@ -520,8 +728,8 @@ void HekaterosControl::updateExtendedJointStateMsg(PanTiltJointStatePoint &state
   }
 }
 
-void HekaterosControl::updateRobotStatusMsg(PanTiltRobotStatus &status,
-                                          industrial_msgs::RobotStatus &msg)
+void HekaterosControl::updateRobotStatusMsg(HekRobotState &status,
+                                            industrial_msgs::RobotStatus &msg)
 {
   //
   // Set robot status header.
@@ -543,9 +751,8 @@ void HekaterosControl::updateRobotStatusMsg(PanTiltRobotStatus &status,
 
 }
 
-void HekaterosControl::updateExtendedRobotStatusMsg(
-                                    PanTiltRobotStatus &status,
-                                    pan_tilt_control::RobotStatusExtended &msg)
+void HekaterosControl::updateExtendedRobotStatusMsg(HekRobotState &status,
+                                                    HekRobotStatusExtended &msg)
 {
   ServoHealth sh;
   int         i;
@@ -558,7 +765,7 @@ void HekaterosControl::updateExtendedRobotStatusMsg(
   msg.header.seq++;
 
   //
-  // Set pan-tilt message extended robot status values.
+  // Set hekateros message extended robot status values.
   //
   msg.mode.val            = status.m_eRobotMode;
   msg.e_stopped.val       = status.m_eIsEStopped;
@@ -584,9 +791,9 @@ void HekaterosControl::updateExtendedRobotStatusMsg(
 }
 
 
-//..............................................................................
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 // Subscribed Topics
-//..............................................................................
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
 void HekaterosControl::subscribeToTopics(int nQueueDepth)
 {
@@ -602,7 +809,7 @@ void HekaterosControl::execJointCmd(const trajectory_msgs::JointTrajectory &jt)
 {
   ROS_DEBUG("Executing joint_command.");
 
-  PanTiltJointTrajectoryPoint pt;
+  HekJointTrajectoryPoint pt;
 
   // load trajectory point
   for(int j=0; j<jt.joint_names.size(); ++j)
@@ -615,5 +822,5 @@ void HekaterosControl::execJointCmd(const trajectory_msgs::JointTrajectory &jt)
                                           jt.points[0].velocities[j]);
   }
 
-  m_robot.move(pt);
+  m_robot.moveArm(pt);
 }

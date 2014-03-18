@@ -72,7 +72,12 @@ catkin_package(
   CATKIN_DEPENDS actionlib_msgs
 )
 
-add_executable(hekateros_control src/hekateros_control_main.cpp)
+add_executable(hekateros_control
+  src/hekateros_as_calib.cpp
+  src/hekateros_as_follow_traj.cpp
+  src/hekateros_control.cpp
+  src/hekateros_control_main.cpp
+)
 
 include_directories(
   include 

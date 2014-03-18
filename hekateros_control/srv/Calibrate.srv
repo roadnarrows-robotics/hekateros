@@ -1,2 +1,3 @@
-uint8 force_recalib
+bool force_recalib
 ---
+int8 rc

@@ -1,186 +1,332 @@
+////////////////////////////////////////////////////////////////////////////////
 //
-//  TODO (dhp) - set file header
+// Package:   RoadNarrows Robotics Hekateros Robotic Manipulator ROS Package
+//
+// Link:      https://github.com/roadnarrows-robotics/hekateros
+//
+// ROS Node:  hekateros_control
+//
+// File:      hekateros_control_main.cpp
+//
+/*! \file
+ *
+ * $LastChangedDate$
+ * $Rev$
+ *
+ * \brief The ROS hekateros_control main.
+ *
+ * \author Danial Packard (daniel@roadnarrows.com)
+ * \author Robin Knight (robin.knight@roadnarrows.com)
+ *
+ * \par Copyright:
+ * (C) 2013-2014  RoadNarrows
+ * (http://www.roadnarrows.com)
+ * \n All Rights Reserved
+ */
+/*
+ * @EulaBegin@
+ * 
+ * Permission is hereby granted, without written agreement and without
+ * license or royalty fees, to use, copy, modify, and distribute this
+ * software and its documentation for any purpose, provided that
+ * (1) The above copyright notice and the following two paragraphs
+ * appear in all copies of the source code and (2) redistributions
+ * including binaries reproduces these notices in the supporting
+ * documentation.   Substantial modifications to this software may be
+ * copyrighted by their authors and need not follow the licensing terms
+ * described here, provided that the new terms are clearly indicated in
+ * all files where they apply.
+ * 
+ * IN NO EVENT SHALL THE AUTHOR, ROADNARROWS LLC, OR ANY MEMBERS/EMPLOYEES
+ * OF ROADNARROW LLC OR DISTRIBUTORS OF THIS SOFTWARE BE LIABLE TO ANY
+ * PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL
+ * DAMAGES ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION,
+ * EVEN IF THE AUTHORS OR ANY OF THE ABOVE PARTIES HAVE BEEN ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * THE AUTHOR AND ROADNARROWS LLC SPECIFICALLY DISCLAIM ANY WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON AN
+ * "AS IS" BASIS, AND THE AUTHORS AND DISTRIBUTORS HAVE NO OBLIGATION TO
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+ * 
+ * @EulaEnd@
+ */
+////////////////////////////////////////////////////////////////////////////////
+
+//
+// System
 //
 #include <string>
 
+//
+// ROS 
+//
 #include "ros/ros.h"
+
+//
+// RoadNarrows
+//
 #include "rnr/rnrconfig.h"
 #include "rnr/log.h"
+#include "rnr/opts.h"
 
-#include "sensor_msgs/JointState.h"
-#include "industrial_msgs/RobotStatus.h"
-#include "hekateros_control/HekJointStateExtended.h"
-#include "hekateros_control/HekRobotStatusExtended.h"
-
+//
+// RoadNarrows embedded hekateros library.
+//
 #include "Hekateros/hekateros.h"
-#include "Hekateros/hekXmlCfg.h"
-#include "Hekateros/hekRobot.h"
 
-#include "hekateros_control_tmp.h"
-#include "hc_Bringup.h"
-#include "hc_Services.h"
-#include "hc_StatePub.h"
-#include "hc_Subscriptions.h"
-#include "hc_FollowJointTrajectoryAS.h"
-#include "hc_CalibrateAS.h"
+//
+// Node headers.
+//
+#include "hekateros_control.h"
+#include "hekateros_as_calib.h"
+#include "hekateros_as_follow_traj.h"
 
-using namespace ::hekateros;
 using namespace ::std;
+using namespace hekateros;
+using namespace hekateros_control;
+
+
+//. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+// Node Specific Defines and Data
+//. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+
+//
+// Application exit codes
+//
+#define APP_EC_OK   0   ///< success
+#define APP_EC_INIT 2   ///< initialization fatal error
+#define APP_EC_EXEC 4   ///< execution fatal error
+
+//
+// Data
+//
+const char *NodeName = "hekateros_control";   ///< this ROS node's name
+
+
+//. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+// RoadNarrows Specific Defines and Data
+//. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+
+//
+// Options
+//
+static char  *OptsCfgFile   = (char *)"/etc/hekateros.conf";  ///< config file
+static char  *OptsDevice    = (char *)"/dev/ttyUSB0";         ///< device name
+static int    OptsBaudRate  = 1000000;                        ///< baud rate
 
 /*!
- *  \brief Hekatero ROS control node main 
- */
-int main(int argc, char **argv)
+ * \brief The package information.
+ *
+ * For ROS nodes, RN package information is equivalent to this ROS application
+ * information.
+ * */
+static const PkgInfo_T PkgInfo =
 {
-  // set loglevel for RN libs
-  LOG_SET_THRESHOLD(LOG_LEVEL_DIAG3);
+  NodeName,                       ///< package name
+  "1.1.0",                        ///< package version
+  "2014.03.17",                   ///< date (and time)
+  "2014",                         ///< year
+  NodeName,                       ///< package full name
+  "Robin Knight, Daniel Packard", ///< authors
+  "RoadNarrows LLC",              ///< owner
+  "(C) 2013-2014 RoadNarrows LLC" ///< disclaimer
+};
 
-  ros::init(argc, argv, "hekateros_control");
-  ros::NodeHandle n("hekateros_control");
+/*!
+ * \brief Program information.
+ */
+static OptsPgmInfo_T AppPgmInfo =
+{
+  // usage_args
+  "[ROSOPTIONS]",
 
-  //pRobot = new HekRobot; // intialize global control robot
+  // synopsis
+  "The %P ROS node provides ROS interfaces to the Hekateros robotic "
+  "manipulator.",
+  
+  // long_desc 
+  "",
+ 
+  // diagnostics
+  NULL
+};
 
-  // TODO DHP -accept config filename as param
-  string config_fn = "/etc/hekateros.conf";
-  if( loadHekXml(config_fn) != 0)
+/*!
+ * \brief Command line options information.
+ */
+static OptsInfo_T AppOptsInfo[] =
+{
+  // --config
   {
-    ROS_FATAL("Unable to load Hekateros cfg file. Aborting node: %s", argv[0]);
-    return -1;
+    "device",             // long_opt
+    OPTS_NO_SHORT,        // short_opt
+    required_argument,    // has_arg
+    true,                 // has_default
+    &OptsCfgFile,         // opt_addr
+    OptsCvtArgStr,        // fn_cvt
+    OptsFmtStr,           // fn_fmt
+    "<name>",             // arg_name
+    "Hekateros serial USB Dynamixel bus device name."
+                          // opt desc
+  },
+
+  // --device, d
+  {
+    "device",             // long_opt
+    'd',                  // short_opt
+    required_argument,    // has_arg
+    true,                 // has_default
+    &OptsDevice,          // opt_addr
+    OptsCvtArgStr,        // fn_cvt
+    OptsFmtStr,           // fn_fmt
+    "<name>",             // arg_name
+    "Hekateros serial USB Dynamixel bus device name."
+                          // opt desc
+  },
+
+  // --baudrate, b
+  {
+    "baudrate",           // long_opt
+    'b',                  // short_opt
+    required_argument,    // has_arg
+    true,                 // has_default
+    &OptsBaudRate,        // opt_addr
+    OptsCvtArgInt,        // fn_cvt
+    OptsFmtInt,           // fn_fmt
+    "<rate>",             // arg_name
+    "Hekateros serial USB Dynamixel bus baud rate."
+                          // opt desc
+  },
+
+  {NULL, }
+};
+
+/*!
+ *  \brief ROS Hekateros control node main.
+ *
+ * \param argc    Command-line argument count.
+ * \param argv    Command-line argument list.
+ *
+ * \return Returns exit code.
+ */
+int main(int argc, char *argv[])
+{
+  string  strNodeName;  // ROS-given node name
+  double  hz = 10;      // ROS loop rate
+  int     rc;           // return code
+
+  // 
+  // Initialize the node. Parse the command line arguments and environment to
+  // determine ROS options such as node name, namespace and remappings.
+  // This call does not contact the master. This lets you use
+  // ros::master::check() and other ROS functions after calling ros::init()
+  // to check on the status of the master.
+  //
+  ros::init(argc, argv, NodeName);
+
+  //
+  // Parse node-specific options and arguments (from librnr).
+  //
+  OptsGet(NodeName, &PkgInfo, &AppPgmInfo, AppOptsInfo, true, &argc, argv);
+ 
+  //
+  //
+  // A ctrl-c interrupt will stop attempts to connect to the ROS core.
+  //
+  ros::NodeHandle nh(NodeName);
+
+  // actual ROS-given node name
+  strNodeName = ros::this_node::getName();
+
+  //
+  // Failed to connect.
+  //
+  if( !ros::master::check() )
+  {
+    // add optional non-ROS unit tests here, then simply exit.
+    return APP_EC_OK;
   }
 
-  // DHP TODO - make dev_name configurable as input param
-  string dev_name = "/dev/ttyUSB0";
-  if( connect(dev_name) != 0)
+  ROS_INFO("%s: Node started.", strNodeName.c_str());
+  
+  //
+  // Create a hekateros node object.
+  //
+  HekaterosControl  hek(nh, hz);
+
+  //
+  // Load and parse configuration file.
+  //
+  if( (rc = hek.loadXml(OptsCfgFile)) != HEK_OK )
   {
-    ROS_FATAL("Unable to connect to Hekateros. Aborting node: %s.", argv[0]);
-    return -1; // DHP
+    ROS_FATAL_STREAM(strNodeName
+        << ": Failed to load configuration file "
+        << OptsCfgFile);
+    return APP_EC_INIT;
   }
 
   //
-  // services 
-  // deprecated ros::ServiceServer calibrate_ser=n.advertiseService("calibrate",
-  // deprecated 						    Calibrate);
-
-  ros::ServiceServer clear_alarms_ser   = n.advertiseService("clear_alarms", 
-                                                             ClearAlarms);
- 
-  ros::ServiceServer close_gripper_ser  = n.advertiseService("close_gripper", 
-                                                             CloseGripper);
- 
-  ros::ServiceServer estop_srv          = n.advertiseService("estop", 
-                                                             EStop);
- 
-  ros::ServiceServer freeze_srv         = n.advertiseService("freeze", 
-                                                             Freeze);
- 
-  ros::ServiceServer get_prod_info_ser  = n.advertiseService("get_product_info",
-                                                             GetProductInfo);
-
-  ros::ServiceServer goto_balanced_ser  = n.advertiseService("goto_balanced",
-                                                             GotoBalancedPos);
-
-  ros::ServiceServer goto_parked_ser    = n.advertiseService("goto_parked",
-                                                             GotoParkedPos);
-
-  ros::ServiceServer goto_zero_ser      = n.advertiseService("goto_zero",
-                                                             GotoZeroPt);
-
-  ros::ServiceServer is_alarmed_ser     = n.advertiseService("is_alarmed", 
-                                                             IsAlarmed);
-
-  ros::ServiceServer is_calibrated_ser  = n.advertiseService("is_calibrated", 
-                                                             IsCalibrated);
-
-  ros::ServiceServer is_desc_ser        = n.advertiseService("is_desc_loaded", 
-                                                             IsDescLoaded);
- 
-  ros::ServiceServer open_gripper_ser   = n.advertiseService("open_gripper", 
-                                                             OpenGripper);
- 
-  ros::ServiceServer release_srv        = n.advertiseService("release", 
-                                                             Release);
- 
-  ros::ServiceServer reset_estop_srv    = n.advertiseService("reset_estop", 
-                                                             ResetEStop);
- 
-  ros::ServiceServer set_robot_mode_srv = n.advertiseService("set_robot_mode", 
-                                                             SetRobotMode);
- 
-  ROS_INFO(" -- Services registered!");
-
-  // services TODO DHP -
-  //    set_robot_mode
-  //    clear_alarms
-
+  // Connect to the Hekateros.
   //
-  // published topics
-  ros::Publisher joint_states_pub = 
-    n.advertise<sensor_msgs::JointState>("joint_states", 10);
-
-  ros::Publisher joint_states_ex_pub = 
-    n.advertise<hekateros_control::HekJointStateExtended>(
-                                         "joint_states_ex", 10);
-
-  ros::Publisher robot_status_pub = 
-    n.advertise<industrial_msgs::RobotStatus>(
-                                         "robot_status", 10);
-
-  ros::Publisher robot_status_ex_pub = 
-    n.advertise<hekateros_control::HekRobotStatusExtended>(
-                                         "robot_status_ex", 10);
-  ROS_INFO(" -- Published topics registered!");
-
-  //
-  // subscribed topics
-  ros::Subscriber joint_command_sub = n.subscribe("joint_command", 1, 
-                                                  joint_commandCB);
-  ROS_INFO(" -- Subscribed topics registered!");
-
-  //
-  // Action Servers
-  FollowJointTrajectoryAS follow_joint_traj_as("follow_joint_traj_as", n);
-  CalibrateAS             calibrate_as("calibrate_as", n);
-  ROS_INFO(" -- Action servers registered!");
-
-  // containers for published data
-  sensor_msgs::JointState joint_states;
-  hekateros_control::HekJointStateExtended joint_states_ex;
-  industrial_msgs::RobotStatus robot_status;
-  hekateros_control::HekRobotStatusExtended robot_status_ex;
-
-  ROS_INFO(" -- Ready to calibrate Hekateros");
-  ROS_WARN(" -- Please put Hekateros in a safe position before calibrating.");
-  ROS_WARN(" -- See user manual: \"Calibrating Hekateros\" for guidance.");
-
-  int seq=0;
-  ros::Rate loop_rate(5);
-  while(ros::ok())
+  if( (rc = hek.connect(OptsDevice, OptsBaudRate)) != HEK_OK )
   {
+    ROS_FATAL_STREAM(strNodeName << ": Failed to connect to Hekateros.");
+    return APP_EC_INIT;
+  }
 
-    int n;
-    if((n = updateJointStates(joint_states, joint_states_ex)) > 0)
-    {
-      joint_states.header.seq=seq;
-      joint_states_pub.publish(joint_states);
+  //
+  // Advertise services.
+  //
+  hek.advertiseServices();
 
-      joint_states_ex.header.seq=seq;
-      joint_states_ex_pub.publish(joint_states_ex);
-    }
+  ROS_INFO("%s: Services registered.", strNodeName.c_str());
 
-    if(updateRobotStatus(robot_status, robot_status_ex) == 0)
-    {
-      robot_status.header.seq=seq;
-      robot_status_pub.publish(robot_status);
+  //
+  // Advertise publishers.
+  //
+  hek.advertisePublishers();
+  
+  ROS_INFO("%s: Publishers registered.", strNodeName.c_str());
+  
+  //
+  // Subscribed to topics.
+  //
+  hek.subscribeToTopics();
+  
+  ROS_INFO("%s: Subscribed topics registered.", strNodeName.c_str());
 
-      robot_status.header.seq=seq;
-      robot_status_ex_pub.publish(robot_status_ex);
-    }
+  //
+  // Create Action Servers
+  //
+  ASCalibrate         asCalib("calibrate_as", hek);
+  ASFollowTrajectory  asFollowTrajectory("follow_joint_traj_as", hek);
 
+  ROS_INFO("%s: Action servers created.", strNodeName.c_str());
 
+  // set loop rate in Hertz
+  ros::Rate loop_rate(hz);
+
+  ROS_INFO("%s: Ready.", strNodeName.c_str());
+  ROS_WARN("Hekateros requires calibration:\n"
+           " -- Please put Hekateros in a safe position before calibrating.\n"
+           " -- See user manual: \"Calibrating Hekateros\" for guidance.");
+
+  //
+  // Main loop.
+  //
+  while( ros::ok() )
+  {
+    // make any callbacks on pending ROS events
     ros::spinOnce(); 
+
+    // publish all advertized topics
+    hek.publish();
+
+    // sleep to keep at loop rate
     loop_rate.sleep();
-    ++seq;
   }
 
-  return 0;
+  return APP_EC_OK;
 }

@@ -4,7 +4,7 @@
 //
 // Link:      https://github.com/roadnarrows-robotics/hekateros
 //
-// ROS Node:  pan_tilt_control
+// ROS Node:  hekateros_control
 //
 // File:      hekateros_control.h
 //
@@ -19,7 +19,7 @@
  * \author Robin Knight (robin.knight@roadnarrows.com)
  *
  * \par Copyright:
- * (C) 2014  RoadNarrows
+ * (C) 2013-2014  RoadNarrows
  * (http://www.roadnarrows.com)
  * \n All Rights Reserved
  */
@@ -54,14 +54,17 @@
  */
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef _PAN_TILT_CONTROL_H
-#define _PAN_TILT_CONTROL_H
+#ifndef _HEKATEROS_CONTROL_H
+#define _HEKATEROS_CONTROL_H
 
+//
+// System
+//
 #include <string>
 #include <map>
 
 //
-// Includes for boost libraries
+// Boost libraries
 //
 #include <boost/bind.hpp>
 
@@ -70,54 +73,67 @@
 //
 #include "ros/ros.h"
 #include "actionlib/server/simple_action_server.h"
+#include "control_msgs/FollowJointTrajectoryAction.h"
+#include "control_msgs/FollowJointTrajectoryAction.h"
 
 //
-// ROS generated core, industrial, and pan-tilt messages.
+// ROS generated core, industrial, and hekateros messages.
 //
 #include "trajectory_msgs/JointTrajectory.h"
 #include "sensor_msgs/JointState.h"
 #include "industrial_msgs/RobotStatus.h"
-#include "pan_tilt_control/JointStateExtended.h"
-#include "pan_tilt_control/RobotStatusExtended.h"
+#include "hekateros_control/HekJointStateExtended.h"
+#include "hekateros_control/HekRobotStatusExtended.h"
 
 //
-// ROS generatated pan-tilt services.
+// ROS generatated hekateros services.
 //
-#include "pan_tilt_control/ClearAlarms.h"
-#include "pan_tilt_control/EStop.h"
-#include "pan_tilt_control/Freeze.h"
-#include "pan_tilt_control/GetProductInfo.h"
-#include "pan_tilt_control/GotoZeroPt.h"
-#include "pan_tilt_control/IsAlarmed.h"
-#include "pan_tilt_control/IsCalibrated.h"
-#include "pan_tilt_control/Pan.h"
-#include "pan_tilt_control/Release.h"
-#include "pan_tilt_control/ResetEStop.h"
-#include "pan_tilt_control/SetRobotMode.h"
-#include "pan_tilt_control/Stop.h"
-#include "pan_tilt_control/Sweep.h"
+#include "hekateros_control/Calibrate.h"
+#include "hekateros_control/ClearAlarms.h"
+#include "hekateros_control/CloseGripper.h"
+#include "hekateros_control/EStop.h"
+#include "hekateros_control/Freeze.h"
+#include "hekateros_control/GetProductInfo.h"
+#include "hekateros_control/GotoBalancedPos.h"
+#include "hekateros_control/GotoParkedPos.h"
+#include "hekateros_control/GotoZeroPt.h"
+#include "hekateros_control/IsAlarmed.h"
+#include "hekateros_control/IsCalibrated.h"
+#include "hekateros_control/IsDescLoaded.h"
+#include "hekateros_control/OpenGripper.h"
+#include "hekateros_control/Release.h"
+#include "hekateros_control/ResetEStop.h"
+#include "hekateros_control/SetRobotMode.h"
+#include "hekateros_control/Stop.h"
 
 //
 // ROS generated action servers.
 //
-#include "pan_tilt_control/CalibrateAction.h"
+#include "hekateros_control/CalibrateAction.h"
 
 //
-// RoadNarrows embedded pan-tilt library.
+// RoadNarrows
 //
-#include "pan_tilt/pan_tilt.h"
-#include "pan_tilt/ptRobot.h"
+#include "rnr/rnrconfig.h"
+#include "rnr/log.h"
+
+//
+// RoadNarrows embedded hekateros library.
+//
+#include "Hekateros/hekateros.h"
+#include "Hekateros/hekXmlCfg.h"
+#include "Hekateros/hekRobot.h"
 
 //
 // Node headers.
 //
-#include "pan_tilt_control.h"
+#include "hekateros_control.h"
 
 
-namespace hc
+namespace hekateros_control
 {
   /*!
-   * \brief The class embodiment of the pan_tilt_control ROS node.
+   * \brief The class embodiment of the hekateros_control ROS node.
    */
   class HekaterosControl
   {
@@ -125,6 +141,9 @@ namespace hc
     /*! map of ROS server services type */
     typedef std::map<std::string, ros::ServiceServer> MapServices;
 
+    /*! map of ROS client services type */
+    typedef std::map<std::string, ros::ServiceClient> MapClientServices;
+    
     /*! map of ROS publishers type */
     typedef std::map<std::string, ros::Publisher> MapPublishers;
 
@@ -135,8 +154,9 @@ namespace hc
      * \brief Default initialization constructor.
      *
      * \param nh  Bound node handle.
+     * \param hz  Application nominal loop rate in Hertz.
      */
-    HekaterosControl(ros::NodeHandle &nh);
+    HekaterosControl(ros::NodeHandle &nh, double hz);
 
     /*!
      * \brief Destructor.
@@ -144,9 +164,49 @@ namespace hc
     virtual ~HekaterosControl();
 
     /*!
-     * \brief Advertise all services.
+     * \brief Load XML configuration and configure Hekateros product specifics.
+     *
+     * \param strCfgFile    XML configuration file name.
+     *
+     * \return Returns HEK_OK of success, \h_lt 0 on failure.
+     */
+    virtual int loadXml(const std::string &strCfgFile);
+
+    /*!
+     * \brief Connect to Hekateros hardware.
+     *
+     * \param strSerDevName   Serial device name connected to Dynamixel bus.
+     * \param nBaudRate       Serial baud rate.
+     *
+     * \return Returns HEK_OK of success, \h_lt 0 on failure.
+     */
+    int connect(const std::string &strSerDevName, int nBaudRate)
+    {
+      m_robot.connect(strSerDevName, nBaudRate);
+    }
+
+    /*!
+     * \brief Disconnect from Hekateros.
+     *
+     * \return Returns HEK_OK of success, \h_lt 0 on failure.
+     */
+    int disconnect()
+    {
+      m_robot.disconnect();
+    }
+
+    /*!
+     * \brief Advertise all server services.
      */
     virtual void advertiseServices();
+
+    /*!
+     * \brief Initialize client services.
+     */
+    virtual void clientServices()
+    {
+      // No client services
+    }
 
     /*!
      * \brief Advertise all publishers.
@@ -184,7 +244,7 @@ namespace hc
      *
      * \return Robot instance.
      */
-    PanTiltRobot &getRobot()
+    hekateros::HekRobot &getRobot()
     {
       return m_robot;
     }
@@ -195,8 +255,8 @@ namespace hc
      * \param [in] state  Robot joint state.
      * \param [out] msg   Joint state message.
      */
-    void updateJointStateMsg(PanTiltJointStatePoint &state,
-                             sensor_msgs::JointState &msg);
+    void updateJointStateMsg(hekateros::HekJointStatePoint &state,
+                             sensor_msgs::JointState       &msg);
 
     /*!
      * \brief Update extended joint state message from current robot joint
@@ -205,8 +265,8 @@ namespace hc
      * \param [in] state  Robot joint state.
      * \param [out] msg   Extended joint state message.
      */
-    void updateExtendedJointStateMsg(PanTiltJointStatePoint &state,
-                                     pan_tilt_control::JointStateExtended &msg);
+    void updateExtendedJointStateMsg(hekateros::HekJointStatePoint &state,
+                                     HekJointStateExtended         &msg);
 
     /*!
      * \brief Update robot status message from current robot status.
@@ -214,7 +274,7 @@ namespace hc
      * \param [in] status Robot status.
      * \param [out] msg   Robot status message.
      */
-    void updateRobotStatusMsg(PanTiltRobotStatus &status,
+    void updateRobotStatusMsg(hekateros::HekRobotState     &status,
                               industrial_msgs::RobotStatus &msg);
 
     /*!
@@ -223,31 +283,42 @@ namespace hc
      * \param [in] status Robot status.
      * \param [out] msg   Extended roobt status message.
      */
-    void updateExtendedRobotStatusMsg(PanTiltRobotStatus &status,
-                                   pan_tilt_control::RobotStatusExtended &msg);
+    void updateExtendedRobotStatusMsg(hekateros::HekRobotState &status,
+                                      HekRobotStatusExtended   &msg);
 
   protected:
     ros::NodeHandle  &m_nh;       ///< the node handler bound to this instance
-    PanTiltRobot     m_robot;     ///< real-time, pan-tilt robot mechanism
+    double            m_hz;       ///< application nominal loop rate
+    hekateros::HekRobot          m_robot;    ///< real-time, Hekateros robotic arm
 
     // ROS services, publishers, subscriptions.
-    MapServices       m_services;       ///< pan-tilt control services
-    MapPublishers     m_publishers;     ///< pan-tilt control publishers
-    MapSubscriptions  m_subscriptions;  ///< pan-tilt control subscriptions
+    MapServices       m_services;       ///< Hekateros control server services
+    MapClientServices m_clientServices; ///< Hekateros control client services
+    MapPublishers     m_publishers;     ///< Hekateros control publishers
+    MapSubscriptions  m_subscriptions;  ///< Hekateros control subscriptions
 
     // Messages for published data.
-    sensor_msgs::JointState               m_msgJointState;
-                                              ///< joint state message
-    pan_tilt_control::JointStateExtended  m_msgJointStateEx;
+    sensor_msgs::JointState       m_msgJointState;  ///< joint state message
+    HekJointStateExtended         m_msgJointStateEx;
                                               ///< extended joint state message
-    industrial_msgs::RobotStatus          m_msgRobotStatus;
-                                              ///< robot status message
-    pan_tilt_control::RobotStatusExtended m_msgRobotStatusEx;
+    industrial_msgs::RobotStatus  m_msgRobotStatus; ///< robot status message
+    HekRobotStatusExtended        m_msgRobotStatusEx;
                                               ///< extended robot status message
 
-    //..........................................................................
+    // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
     // Service callbacks
-    //..........................................................................
+    // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+    /*!
+     * \brief Calibrate robot service callback.
+     *
+     * \param req   Service request.
+     * \param rsp   Service response.
+     *
+     * \return Returns true on success, false on failure.
+     */
+    bool calibrate(hekateros_control::Calibrate::Request  &req,
+                   hekateros_control::Calibrate::Response &rsp);
 
     /*!
      * \brief Clear robot alarms service callback.
@@ -257,8 +328,19 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool clearAlarms(pan_tilt_control::ClearAlarms::Request  &req,
-                     pan_tilt_control::ClearAlarms::Response &rsp);
+    bool clearAlarms(hekateros_control::ClearAlarms::Request  &req,
+                     hekateros_control::ClearAlarms::Response &rsp);
+
+    /*!
+     * \brief Close end-effector gripper service callback.
+     *
+     * \param req   Service request.
+     * \param rsp   Service response.
+     *
+     * \return Returns true on success, false on failure.
+     */
+    bool closeGripper(hekateros_control::CloseGripper::Request  &req,
+                      hekateros_control::CloseGripper::Response &rsp);
 
     /*!
      * \brief Emergency stop robot service callback.
@@ -268,8 +350,8 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool estop(pan_tilt_control::EStop::Request  &req,
-               pan_tilt_control::EStop::Response &rsp);
+    bool estop(hekateros_control::EStop::Request  &req,
+               hekateros_control::EStop::Response &rsp);
 
     /*!
      * \brief Freeze (stop) robot service callback.
@@ -279,8 +361,8 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool freeze(pan_tilt_control::Freeze::Request  &req,
-                pan_tilt_control::Freeze::Response &rsp);
+    bool freeze(hekateros_control::Freeze::Request  &req,
+                hekateros_control::Freeze::Response &rsp);
 
     /*!
      * \brief Get robot product information service callback.
@@ -290,8 +372,30 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool getProductInfo(pan_tilt_control::GetProductInfo::Request  &req,
-                        pan_tilt_control::GetProductInfo::Response &rsp);
+    bool getProductInfo(hekateros_control::GetProductInfo::Request  &req,
+                        hekateros_control::GetProductInfo::Response &rsp);
+
+    /*!
+     * \brief Go to robot's balanced postion service callback.
+     *
+     * \param req   Service request.
+     * \param rsp   Service response.
+     *
+     * \return Returns true on success, false on failure.
+     */
+    bool gotoBalancedPos(hekateros_control::GotoBalancedPos::Request  &req,
+                         hekateros_control::GotoBalancedPos::Response &rsp);
+
+    /*!
+     * \brief Go to robot' parked postion service callback.
+     *
+     * \param req   Service request.
+     * \param rsp   Service response.
+     *
+     * \return Returns true on success, false on failure.
+     */
+    bool gotoParkedPos(hekateros_control::GotoParkedPos::Request  &req,
+                       hekateros_control::GotoParkedPos::Response &rsp);
 
     /*!
      * \brief Go to robot's zero point (home) position service callback.
@@ -301,8 +405,8 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool gotoZeroPt(pan_tilt_control::GotoZeroPt::Request  &req,
-                    pan_tilt_control::GotoZeroPt::Response &rsp);
+    bool gotoZeroPt(hekateros_control::GotoZeroPt::Request  &req,
+                    hekateros_control::GotoZeroPt::Response &rsp);
 
     /*!
      * \brief Test if robot is alarmed service callback.
@@ -312,8 +416,8 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool isAlarmed(pan_tilt_control::IsAlarmed::Request  &req,
-                   pan_tilt_control::IsAlarmed::Response &rsp);
+    bool isAlarmed(hekateros_control::IsAlarmed::Request  &req,
+                   hekateros_control::IsAlarmed::Response &rsp);
 
     /*!
      * \brief Test if robot is calibrated service callback.
@@ -323,19 +427,30 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool isCalibrated(pan_tilt_control::IsCalibrated::Request  &req,
-                      pan_tilt_control::IsCalibrated::Response &rsp);
+    bool isCalibrated(hekateros_control::IsCalibrated::Request  &req,
+                      hekateros_control::IsCalibrated::Response &rsp);
 
     /*!
-     * \brief Continuously pan service callback.
+     * \brief Test if robot description has been loaded service callback.
      *
      * \param req   Service request.
      * \param rsp   Service response.
      *
      * \return Returns true on success, false on failure.
      */
-    bool pan(pan_tilt_control::Pan::Request  &req,
-             pan_tilt_control::Pan::Response &rsp);
+    bool isDescLoaded(hekateros_control::IsDescLoaded::Request  &req,
+                      hekateros_control::IsDescLoaded::Response &rsp);
+
+    /*!
+     * \brief Open end-effector gripper service callback.
+     *
+     * \param req   Service request.
+     * \param rsp   Service response.
+     *
+     * \return Returns true on success, false on failure.
+     */
+    bool openGripper(hekateros_control::OpenGripper::Request  &req,
+                     hekateros_control::OpenGripper::Response &rsp);
 
     /*!
      * \brief Release drive power to robot motors service callback.
@@ -345,8 +460,8 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool release(pan_tilt_control::Release::Request  &req,
-                 pan_tilt_control::Release::Response &rsp);
+    bool release(hekateros_control::Release::Request  &req,
+                 hekateros_control::Release::Response &rsp);
 
     /*!
      * \brief Release robot's emergency stop condition service callback.
@@ -356,8 +471,8 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool resetEStop(pan_tilt_control::ResetEStop::Request  &req,
-                    pan_tilt_control::ResetEStop::Response &rsp);
+    bool resetEStop(hekateros_control::ResetEStop::Request  &req,
+                    hekateros_control::ResetEStop::Response &rsp);
 
     /*!
      * \brief Set robot's manual/auto mode service callback.
@@ -367,8 +482,8 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool setRobotMode(pan_tilt_control::SetRobotMode::Request  &req,
-                      pan_tilt_control::SetRobotMode::Response &rsp);
+    bool setRobotMode(hekateros_control::SetRobotMode::Request  &req,
+                      hekateros_control::SetRobotMode::Response &rsp);
 
     /*!
      * \brief Stop (freeze) robot service callback.
@@ -378,24 +493,13 @@ namespace hc
      *
      * \return Returns true on success, false on failure.
      */
-    bool stop(pan_tilt_control::Stop::Request  &req,
-              pan_tilt_control::Stop::Response &rsp);
-
-    /*!
-     * \brief Continuously sweep service callback.
-     *
-     * \param req   Service request.
-     * \param rsp   Service response.
-     *
-     * \return Returns true on success, false on failure.
-     */
-    bool sweep(pan_tilt_control::Sweep::Request  &req,
-               pan_tilt_control::Sweep::Response &rsp);
+    bool stop(hekateros_control::Stop::Request  &req,
+              hekateros_control::Stop::Response &rsp);
 
 
-    //..........................................................................
+    // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
     // Topic Publishers
-    //..........................................................................
+    // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
     /*!
      * \brief Publish joint state and extended joint state topics.
@@ -408,9 +512,9 @@ namespace hc
     void publishRobotStatus();
 
 
-    //..........................................................................
+    // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
     // Subscribed Topic Callbacks
-    //..........................................................................
+    // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
     /*!
      * \brief Execute joint trajectory subscibed topic callback.
@@ -423,4 +527,4 @@ namespace hc
 } // namespace hc
 
 
-#endif // _PAN_TILT_CONTROL_H
+#endif // _HEKATEROS_CONTROL_H
