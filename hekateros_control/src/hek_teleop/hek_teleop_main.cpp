@@ -4,18 +4,18 @@
 //
 // Link:      https://github.com/roadnarrows-robotics/hekateros
 //
-// ROS Node:  hekateros_control
+// ROS Node:  hek_teleop
 //
-// File:      hekateros_control_main.cpp
+// File:      hek_teleop_main.cpp
 //
 /*! \file
  *
  * $LastChangedDate$
  * $Rev$
  *
- * \brief The ROS hekateros_control main.
+ * \brief The ROS Hekateros teleoperation node main.
  *
- * \author Danial Packard (daniel@roadnarrows.com)
+ * \author Daniel Packard (daniel@roadnarrows.com)
  * \author Robin Knight (robin.knight@roadnarrows.com)
  *
  * \par Copyright:
@@ -54,9 +54,12 @@
  */
 ////////////////////////////////////////////////////////////////////////////////
 
+
 //
 // System
-//
+// 
+#include <unistd.h>
+#include <signal.h>
 #include <string>
 
 //
@@ -72,16 +75,9 @@
 #include "rnr/opts.h"
 
 //
-// RoadNarrows embedded hekateros library.
-//
-#include "Hekateros/hekateros.h"
-
-//
 // Node headers.
 //
-#include "hekateros_control.h"
-#include "hekateros_as_calib.h"
-#include "hekateros_as_follow_traj.h"
+#include "hek_teleop.h"
 
 using namespace ::std;
 using namespace hekateros;
@@ -104,8 +100,8 @@ using namespace hekateros_control;
 //
 // Data
 //
-const char *NodeName  = "hekateros_control";  ///< this ROS node's name
-static int  RcvSignal = NO_SIGNAL;            ///< received 'gracefull' signal
+const char *NodeName  = "hek_teleop";  ///< this ROS node's name
+static int  RcvSignal = NO_SIGNAL;      ///< received 'gracefull' signal
 
 
 
@@ -116,9 +112,6 @@ static int  RcvSignal = NO_SIGNAL;            ///< received 'gracefull' signal
 //
 // Options
 //
-static char  *OptsCfgFile   = (char *)"/etc/hekateros.conf";  ///< config file
-static char  *OptsDevice    = (char *)"/dev/ttyUSB0";         ///< device name
-static int    OptsBaudRate  = 1000000;                        ///< baud rate
 
 /*!
  * \brief The package information.
@@ -130,7 +123,7 @@ static const PkgInfo_T PkgInfo =
 {
   NodeName,                       ///< package name
   "1.1.0",                        ///< package version
-  "2014.03.17",                   ///< date (and time)
+  "2014.03.18",                   ///< date (and time)
   "2014",                         ///< year
   NodeName,                       ///< package full name
   "Robin Knight, Daniel Packard", ///< authors
@@ -147,8 +140,8 @@ static OptsPgmInfo_T AppPgmInfo =
   "[ROSOPTIONS]",
 
   // synopsis
-  "The %P ROS node provides ROS interfaces to the Hekateros robotic "
-  "manipulator.",
+  "The %P ROS node provides ROS interfaces to the embedded Hekateros "
+  "robotic manipulator.",
   
   // long_desc 
   "",
@@ -162,47 +155,6 @@ static OptsPgmInfo_T AppPgmInfo =
  */
 static OptsInfo_T AppOptsInfo[] =
 {
-  // --config
-  {
-    "config",             // long_opt
-    OPTS_NO_SHORT,        // short_opt
-    required_argument,    // has_arg
-    true,                 // has_default
-    &OptsCfgFile,         // opt_addr
-    OptsCvtArgStr,        // fn_cvt
-    OptsFmtStr,           // fn_fmt
-    "<file>",             // arg_name
-    "Hekateros serial USB Dynamixel bus device name."
-                          // opt desc
-  },
-
-  // --device, d
-  {
-    "device",             // long_opt
-    'd',                  // short_opt
-    required_argument,    // has_arg
-    true,                 // has_default
-    &OptsDevice,          // opt_addr
-    OptsCvtArgStr,        // fn_cvt
-    OptsFmtStr,           // fn_fmt
-    "<name>",             // arg_name
-    "Hekateros serial USB Dynamixel bus device name."
-                          // opt desc
-  },
-
-  // --baudrate, b
-  {
-    "baudrate",           // long_opt
-    'b',                  // short_opt
-    required_argument,    // has_arg
-    true,                 // has_default
-    &OptsBaudRate,        // opt_addr
-    OptsCvtArgInt,        // fn_cvt
-    OptsFmtInt,           // fn_fmt
-    "<rate>",             // arg_name
-    "Hekateros serial USB Dynamixel bus baud rate."
-                          // opt desc
-  },
 
   {NULL, }
 };
@@ -223,7 +175,7 @@ static void sigHandler(int sig)
 }
 
 /*!
- *  \brief ROS Hekateros control node main.
+ *  \brief ROS Hekateros teleoperation node main.
  *
  * \param argc    Command-line argument count.
  * \param argv    Command-line argument list.
@@ -233,8 +185,8 @@ static void sigHandler(int sig)
 int main(int argc, char *argv[])
 {
   string  strNodeName;  // ROS-given node name
-  double  hz = 10;      // ROS loop rate
-  int     rc;           // return code
+  double  hz = 30;
+  int     rc;
 
   // 
   // Initialize the node. Parse the command line arguments and environment to
@@ -268,69 +220,56 @@ int main(int argc, char *argv[])
     return APP_EC_OK;
   }
 
+  //
+  // Signals
+  //
+
+  // Override the default ros sigint handler. This must be set after the first
+  // NodeHandle is created.
+  signal(SIGINT, sigHandler);
+
+  // try to end safely with this signal
+  signal(SIGTERM, sigHandler);
+
   ROS_INFO("%s: Node started.", strNodeName.c_str());
   
   //
-  // Create a hekateros node object.
+  // Create a Hekateros teleoperation node object.
   //
-  HekaterosControl  hek(nh, hz);
+  HekTeleop  teleop(nh, hz);
 
   //
-  // Load and parse configuration file.
+  // Advertise server services.
   //
-  if( (rc = hek.configure(OptsCfgFile)) != HEK_OK )
-  {
-    ROS_FATAL_STREAM(strNodeName
-        << ": Failed to load configuration file "
-        << OptsCfgFile);
-    return APP_EC_INIT;
-  }
+  teleop.advertiseServices();
+
+  ROS_INFO("%s: Server services registered.", strNodeName.c_str());
 
   //
-  // Connect to the Hekateros.
+  // Initializedd client services.
   //
-  if( (rc = hek.connect(OptsDevice, OptsBaudRate)) != HEK_OK )
-  {
-    ROS_FATAL_STREAM(strNodeName << ": Failed to connect to Hekateros.");
-    return APP_EC_INIT;
-  }
+  teleop.clientServices();
 
-  //
-  // Advertise services.
-  //
-  hek.advertiseServices();
-
-  ROS_INFO("%s: Services registered.", strNodeName.c_str());
+  ROS_INFO("%s: Client services initialized.", strNodeName.c_str());
 
   //
   // Advertise publishers.
   //
-  hek.advertisePublishers();
+  teleop.advertisePublishers();
   
   ROS_INFO("%s: Publishers registered.", strNodeName.c_str());
   
   //
   // Subscribed to topics.
   //
-  hek.subscribeToTopics();
+  teleop.subscribeToTopics();
   
   ROS_INFO("%s: Subscribed topics registered.", strNodeName.c_str());
-
-  //
-  // Create Action Servers
-  //
-  ASCalibrate         asCalib("calibrate_as", hek);
-  ASFollowTrajectory  asFollowTrajectory("follow_joint_traj_as", hek);
-
-  ROS_INFO("%s: Action servers created.", strNodeName.c_str());
 
   // set loop rate in Hertz
   ros::Rate loop_rate(hz);
 
   ROS_INFO("%s: Ready.", strNodeName.c_str());
-  ROS_WARN("Hekateros requires calibration:\n"
-           " -- Please put Hekateros in a safe position before calibrating.\n"
-           " -- See user manual: \"Calibrating Hekateros\" for guidance.");
 
   //
   // Main loop.
@@ -340,11 +279,17 @@ int main(int argc, char *argv[])
     // make any callbacks on pending ROS events
     ros::spinOnce(); 
 
-    // publish all advertized topics
-    hek.publish();
+    // check integrity of communications
+    teleop.commCheck();
 
     // sleep to keep at loop rate
     loop_rate.sleep();
+  }
+
+  if( ros::ok() )
+  {
+    teleop.putRobotInSafeMode(true);
+    usleep(1000000);
   }
 
   return APP_EC_OK;

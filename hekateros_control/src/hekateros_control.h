@@ -164,13 +164,13 @@ namespace hekateros_control
     virtual ~HekaterosControl();
 
     /*!
-     * \brief Load XML configuration and configure Hekateros product specifics.
+     * \brief Configure Hekateros product specifics.
      *
      * \param strCfgFile    XML configuration file name.
      *
      * \return Returns HEK_OK of success, \h_lt 0 on failure.
      */
-    virtual int loadXml(const std::string &strCfgFile);
+    virtual int configure(const std::string &strCfgFile);
 
     /*!
      * \brief Connect to Hekateros hardware.

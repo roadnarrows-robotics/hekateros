@@ -79,6 +79,10 @@ add_executable(hekateros_control
   src/hekateros_control_main.cpp
 )
 
+add_executable(hek_teleop 
+  src/hek_teleop/hek_teleop.cpp 
+  src/hek_teleop/hek_teleop_main.cpp 
+)
 include_directories(
   include 
   ${rnr_INCLUDE_DIRS}
@@ -91,14 +95,19 @@ target_link_libraries(hekateros_control
   ${catkin_LIBRARIES}
 )
 
+target_link_libraries(hek_teleop 
+  ${rnr_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
 add_dependencies(hekateros_control hekateros_control_gencpp)
+add_dependencies(hek_teleop hek_control_gencpp)
 
 install(
   PROGRAMS 
     scripts/calibrate_arm
     scripts/hek_panel
-    scripts/hek_teleop
+    #scripts/hek_teleop_viewer
     scripts/joint_trajectory_demo 
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-

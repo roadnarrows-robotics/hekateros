@@ -149,7 +149,7 @@ HekaterosControl::~HekaterosControl()
   disconnect();
 }
 
-int HekaterosControl::loadXml(const string &strCfgFile)
+int HekaterosControl::configure(const string &strCfgFile)
 {
   HekXmlCfg xml;  // hekateros xml instance
   int       rc;   // return code
