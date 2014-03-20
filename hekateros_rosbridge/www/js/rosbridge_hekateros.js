@@ -61,19 +61,19 @@ function hekateros(throttle_rate) {
   }
 
   this.resetEStop = function(cb) {
-    cb = typeof cb !== 'underfined' ? cb : function(rsp){};
+    cb = typeof cb !== 'undefined' ? cb : function(rsp){};
     var req = new ROSLIB.serviceRequest({});
     this.resetEStop_srv.callService(req, function(rsp){cb(rsp);});
   }
   
   this.freeze = function(cb) {
-    cb = typeof cb !== 'underfined' ? cb : function(rsp){};
+    cb = typeof cb !== 'undefined' ? cb : function(rsp){};
     var req = new ROSLIB.serviceRequest({});
     this.freeze_srv.callService(req, function(rsp){cb(rsp);});
   }
   
   this.release = function(cb) {
-    cb = typeof cb !== 'underfined' ? cb : function(rsp){};
+    cb = typeof cb !== 'undefined' ? cb : function(rsp){};
     var req = new ROSLIB.serviceRequest({});
     this.release_srv.callService(req, function(rsp){cb(rsp);});
   }
@@ -120,24 +120,12 @@ function hekateros(throttle_rate) {
     this.getProductInfo_srv.callService(req, function(rsp){cb(rsp);});
   }
 
-  this.isCalibrated = function(message, cb) {
-    cb = typeof cb !== 'undefined' ? cb : function(rsp){};
-    var msg = new ROSLIB.Message({
-      val:message,
-    });
-
-    var req = new ROSLIB.ServiceRequest({
-      calibrated_state:msg
-    })
-    this.isCalibrated_srv.callService(req, function(rsp){cb(rsp);});
-  }
-
-  this.calibrated_state = {
-    uncalibrated : 0,
-    calibrating  : 1,
-    calibrated   : 2
-  };
-  //Draw function for svg 
+  //Draw function for svg
+  this.draw = function ()
+  {
+   create_panel();
+   mainTable();
+  } 
 
   //------------------------------------------------------------------------//
   //                          PRIVATE IMPLEMENTATION                        //
@@ -192,7 +180,7 @@ function hekateros(throttle_rate) {
   this.release_srv = new ROSLIB.Service({
     ros: ros,
     name: "/hekateros_control/release",
-    messageType:"Release"
+    messageType: "/hekateros/Release"
   });
 
   this.clearAlarms_srv = new ROSLIB.Service({
