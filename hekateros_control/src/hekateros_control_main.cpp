@@ -57,6 +57,8 @@
 //
 // System
 //
+#include <sys/types.h>
+#include <unistd.h>
 #include <string>
 
 //
@@ -116,9 +118,11 @@ static int  RcvSignal = NO_SIGNAL;            ///< received 'gracefull' signal
 //
 // Options
 //
-static char  *OptsCfgFile   = (char *)"/etc/hekateros.conf";  ///< config file
-static char  *OptsDevice    = (char *)"/dev/ttyUSB0";         ///< device name
-static int    OptsBaudRate  = 1000000;                        ///< baud rate
+static char  *OptsCfgFile     = (char *)HekEtcCfg;      ///< configuration file
+static char  *OptsDevDynabus  = (char *)HekDevDynabus;  ///< dynabus device name
+static int    OptsBaudDynabus = HekBaudRateDynabus;     ///< dynabus baud rate
+static char  *OptsDevArduino  = (char *)HekDevArduino;  ///< arduino device name
+static int    OptsBaudArduino = HekBaudRateArduino;     ///< arduino baud rate
 
 /*!
  * \brief The package information.
@@ -176,31 +180,59 @@ static OptsInfo_T AppOptsInfo[] =
                           // opt desc
   },
 
-  // --device, d
+  // --dynabus
   {
-    "device",             // long_opt
-    'd',                  // short_opt
+    "dynabus",            // long_opt
+    OPTS_NO_SHORT,        // short_opt
     required_argument,    // has_arg
     true,                 // has_default
-    &OptsDevice,          // opt_addr
+    &OptsDevDynabus,      // opt_addr
     OptsCvtArgStr,        // fn_cvt
     OptsFmtStr,           // fn_fmt
-    "<name>",             // arg_name
-    "Hekateros serial USB Dynamixel bus device name."
+    "<device>",           // arg_name
+    "Hekateros Dynamixel bus serial USB device name."
                           // opt desc
   },
 
-  // --baudrate, b
+  // --dynabus-baudrate
   {
-    "baudrate",           // long_opt
-    'b',                  // short_opt
+    "dynabus-baudrate",   // long_opt
+    OPTS_NO_SHORT,        // short_opt
     required_argument,    // has_arg
     true,                 // has_default
-    &OptsBaudRate,        // opt_addr
+    &OptsBaudDynabus,     // opt_addr
     OptsCvtArgInt,        // fn_cvt
     OptsFmtInt,           // fn_fmt
     "<rate>",             // arg_name
-    "Hekateros serial USB Dynamixel bus baud rate."
+    "Hekateros Dynamixel bus serial USB baud rate."
+                          // opt desc
+  },
+
+  // --arduino
+  {
+    "arduino",            // long_opt
+    OPTS_NO_SHORT,        // short_opt
+    required_argument,    // has_arg
+    true,                 // has_default
+    &OptsDevArduino,      // opt_addr
+    OptsCvtArgStr,        // fn_cvt
+    OptsFmtStr,           // fn_fmt
+    "<device>",           // arg_name
+    "Hekateros Arduino monitor subprocessor serial USB device name."
+                          // opt desc
+  },
+
+  // --arduino-baudrate
+  {
+    "arduino-baudrate",   // long_opt
+    OPTS_NO_SHORT,        // short_opt
+    required_argument,    // has_arg
+    true,                 // has_default
+    &OptsBaudArduino,     // opt_addr
+    OptsCvtArgInt,        // fn_cvt
+    OptsFmtInt,           // fn_fmt
+    "<rate>",             // arg_name
+    "Hekateros Arduino monitor subprocessor serial USB baud rate."
                           // opt desc
   },
 
@@ -232,9 +264,11 @@ static void sigHandler(int sig)
  */
 int main(int argc, char *argv[])
 {
-  string  strNodeName;  // ROS-given node name
-  double  hz = 10;      // ROS loop rate
-  int     rc;           // return code
+  string  strNodeName;    // ROS-given node name
+  string  strDevDynabus;  // serial USB device for Dynamixel bus
+  string  strDevArduino;  // serial USB device for Arduino subprocessor
+  double  hz = 10;        // ROS loop rate
+  int     rc;             // return code
 
   // 
   // Initialize the node. Parse the command line arguments and environment to
@@ -289,9 +323,12 @@ int main(int argc, char *argv[])
   //
   // Connect to the Hekateros.
   //
-  if( (rc = hek.connect(OptsDevice, OptsBaudRate)) != HEK_OK )
+  rc = hek.connect(OptsDevDynabus, OptsBaudDynabus,
+                   OptsDevArduino, OptsBaudArduino);
+  if( rc != HEK_OK )
   {
-    ROS_FATAL_STREAM(strNodeName << ": Failed to connect to Hekateros.");
+    ROS_FATAL_STREAM(strNodeName
+        << ": Failed to connect to Hekateros.");
     return APP_EC_INIT;
   }
 

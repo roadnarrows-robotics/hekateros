@@ -175,14 +175,20 @@ namespace hekateros_control
     /*!
      * \brief Connect to Hekateros hardware.
      *
-     * \param strSerDevName   Serial device name connected to Dynamixel bus.
-     * \param nBaudRate       Serial baud rate.
+     * \param strDevDynabus     Dynabus serial device name.
+     * \param nBaudRateDynabus  Dynabus baud rate.
+     * \param strDevArduino     Arduino serial device name.
+     * \param nBaudRateArduino  Arduino baud rate.
      *
      * \return Returns HEK_OK of success, \h_lt 0 on failure.
      */
-    int connect(const std::string &strSerDevName, int nBaudRate)
+    int connect(const std::string &strDevDynabus,
+                int                nBaudRateDynabus,
+                const std::string &strDevArduino,
+                int                nBaudRateArduino)
     {
-      m_robot.connect(strSerDevName, nBaudRate);
+      m_robot.connect(strDevDynabus, nBaudRateDynabus,
+                      strDevArduino, nBaudRateArduino);
     }
 
     /*!
