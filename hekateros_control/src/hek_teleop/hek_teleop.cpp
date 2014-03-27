@@ -161,15 +161,17 @@ using namespace hekateros_control;
 
 HekTeleop::HekTeleop(ros::NodeHandle &nh, double hz) : m_nh(nh), m_hz(hz)
 {
-  m_eState          = TeleopStateUninit;
-  m_eMode           = TeleopModeFirstPerson;
-  m_bHasXboxComm    = false;
-  m_nWdXboxCounter  = 0;
-  m_nWdXboxTimeout  = countsPerSecond(3.0);
-  m_bHasHekComm    = false;
-  m_nWdHekCounter  = 0;
-  m_nWdHekTimeout  = countsPerSecond(5.0);
-  m_bHasFullComm    = false;
+  m_eState            = TeleopStateUninit;
+  m_eMode             = TeleopModeFirstPerson;
+  m_bHasXboxComm      = false;
+  m_nWdXboxCounter    = 0;
+  m_nWdXboxTimeout    = countsPerSecond(3.0);
+  m_bRcvdRobotStatus  = false;
+  m_bRcvdJointState   = false;
+  m_bHasRobotComm     = false;
+  m_nWdRobotCounter   = 0;
+  m_nWdRobotTimeout   = countsPerSecond(5.0);
+  m_bHasFullComm      = false;
 
   m_buttonState = map_list_of
       (ButtonIdGotoBalPos,    0)
@@ -421,6 +423,8 @@ void HekTeleop::advertisePublishers(int nQueueDepth)
 
 void HekTeleop::publishJointCmd()
 {
+  static bool bPubJointCmd = false;
+  
   if( m_msgJointTraj.joint_names.size() > 0 )
   {
     m_msgJointTraj.header.stamp    = ros::Time::now();
@@ -430,6 +434,12 @@ void HekTeleop::publishJointCmd()
 
     // publish
     m_publishers["/hekateros_control/joint_command"].publish(m_msgJointTraj);
+    bPubJointCmd = true;
+  }
+  else if( bPubJointCmd )
+  {
+    freeze();
+    bPubJointCmd = false;
   }
 }
 
@@ -458,7 +468,7 @@ void HekTeleop::subscribeToTopics(int nQueueDepth)
                                           &HekTeleop::cbRobotStatus,
                                           &(*this));
 
-  strSub = "/hekateros_control/joint_state";
+  strSub = "/hekateros_control/joint_states_ex";
   m_subscriptions[strSub] = m_nh.subscribe(strSub, nQueueDepth,
                                           &HekTeleop::cbJointState,
                                           &(*this));
@@ -478,12 +488,12 @@ void HekTeleop::cbRobotStatus(const HekRobotStatusExtended &msg)
 {
   ROS_DEBUG("Received robot status.");
 
-  m_bHasHekComm    = true;
-  m_nWdHekCounter  = 0;
-
   // RDK might autoset pause/start here
 
-  m_msgRobotStatus = msg;
+  m_msgRobotStatus    = msg;
+  m_bRcvdRobotStatus  = true;
+  m_bHasRobotComm     = m_bRcvdJointState;
+  m_nWdRobotCounter   = 0;
 }
 
 void HekTeleop::cbJointState(const HekJointStateExtended &msg)
@@ -496,13 +506,26 @@ void HekTeleop::cbJointState(const HekJointStateExtended &msg)
 
   ROS_DEBUG("Received joint state.");
 
-  m_bHasHekComm    = true;
-  m_nWdHekCounter  = 0;
+  m_nWdRobotCounter = 0;
+  m_msgJointState   = msg;
+
+  if( !m_bRcvdJointState )
+  {
+    for(i=0; i<msg.name.size(); ++i)
+    {
+      m_mapJoints[msg.name[i]] = -1;
+    }
+
+    if( i > 0 )
+    {
+      m_bRcvdJointState = true;
+    }
+  }
 
   //
   // Gripper tactile feedback.
   //
-  if( (i = indexOfArmJoint("grip")) >= 0 )
+  if( (i = indexOfRobotJoint("grip")) >= 0 )
   {
     rumbleRight == ((float)msg.effort[i] - DeadZone)/(MaxEffort - DeadZone) *
                                                   XBOX360_RUMBLE_RIGHT_MAX;
@@ -511,8 +534,6 @@ void HekTeleop::cbJointState(const HekJointStateExtended &msg)
       setRumble(m_rumbleLeft, rumbleRight);
     }
   }
-
-  m_msgJointState = msg;
 }
 
 void HekTeleop::cbXboxConnStatus(const hid::ConnStatus &msg)
@@ -541,13 +562,11 @@ void HekTeleop::cbXboxBttnState(const hid::Controller360State &msg)
         execAllButtonActions(buttonState);
         break;
       case TeleopStatePaused:
-        buttonStart(buttonState);    // only button active in pause state
+        buttonStart(buttonState);    // only active button in pause state
         break;
       case TeleopStateUninit:
       default:
-        m_eState = TeleopStatePaused;
-        setLED(LEDPatOn);       // see comment block in buttonPause();
-        setLED(LEDPatPaused);
+        pause();
         break;
     }
   }
@@ -570,15 +589,15 @@ void HekTeleop::commCheck()
     }
   }
 
-  if( m_bHasHekComm )
+  if( m_bHasRobotComm )
   {
-    if( ++m_nWdHekCounter >= m_nWdHekTimeout )
+    if( ++m_nWdRobotCounter >= m_nWdRobotTimeout )
     {
-      m_bHasHekComm = false;
+      m_bHasRobotComm = false;
     }
   }
 
-  bool hasComm  = m_bHasXboxComm && m_bHasHekComm;
+  bool hasComm  = m_bHasXboxComm && m_bHasRobotComm;
 
   // had communitcation, but no more
   if( m_bHasFullComm && !hasComm )
@@ -588,6 +607,12 @@ void HekTeleop::commCheck()
   }
 
   m_bHasFullComm = hasComm;
+  
+  // not really a communication check function, but convenient.
+  if( m_eState == TeleopStatePaused )
+  {
+    driveLEDsFigure8Pattern();
+  }
 }
 
 void HekTeleop::putRobotInSafeMode(bool bHard)
@@ -696,15 +721,12 @@ void HekTeleop::buttonStart(ButtonState &buttonState)
 
     setRobotMode(HekRobotModeManual);
 
-    m_eState = TeleopStateReady;
-    m_fpState.m_bNewGoal = true;
-
     if( m_msgRobotStatus.e_stopped.val == TriState::TRUE )
     {
       resetEStop();
     }
 
-    setLED(LEDPatReady);
+    ready();
   }
 }
 
@@ -716,16 +738,7 @@ void HekTeleop::buttonPause(ButtonState &buttonState)
 
     setRobotMode(HekRobotModeAuto);
 
-    m_eState = TeleopStatePaused;
-
-    //
-    // Set 'previous' pattern to long pause state. This is the Xbox default
-    // power-on pattern. Then go to short term 'pause' pattern. The Xbox
-    // controller will automatically time out this pattern and transition to
-    // the previous pattern.
-    //
-    setLED(LEDPatOn);
-    setLED(LEDPatPaused);
+    pause();
   }
 }
 
@@ -1255,7 +1268,48 @@ void HekTeleop::buttonRotateWristCcw(ButtonState &buttonState)
 // Support
 //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
-ssize_t HekTeleop::indexOfArmJoint(const string &strJointName)
+void HekTeleop::pause()
+{
+  m_eState = TeleopStatePaused;
+
+  setLED(LEDPatPaused);
+}
+
+void HekTeleop::ready()
+{
+  m_eState = TeleopStateReady;
+  m_fpState.m_bNewGoal = true;
+
+  setLED(LEDPatReady);
+}
+
+void HekTeleop::driveLEDsFigure8Pattern()
+{
+  static int nLEDTimeout = -1;
+  static int nLEDCounter = 0;
+  static int iLED = 0;
+  static int LEDPat[] =
+  {
+    XBOX360_LED_PAT_1_ON, XBOX360_LED_PAT_2_ON,
+    XBOX360_LED_PAT_3_ON, XBOX360_LED_PAT_4_ON
+  };
+
+  // lazy init
+  if( nLEDTimeout < 0 )
+  {
+    nLEDTimeout = countsPerSecond(0.25);
+  }
+
+  // switch pattern
+  if( nLEDCounter++ >= nLEDTimeout )
+  {
+    iLED = (iLED + 1) % arraysize(LEDPat);
+    setLED(LEDPat[iLED]);
+    nLEDCounter = 0;
+  }
+}
+
+ssize_t HekTeleop::indexOfRobotJoint(const string &strJointName)
 {
   for(size_t i=0; i<m_msgJointState.name.size(); ++i)
   {
@@ -1283,36 +1337,50 @@ ssize_t HekTeleop::indexOfTrajectoryJoint(const string &strJointName)
 
 ssize_t HekTeleop::addJointToTrajectoryPoint(const string &strJointName)
 {
-  ssize_t i, j;
+  MapJoints::iterator pos;
+  ssize_t             i;
+
+  pos = m_mapJoints.find(strJointName);
 
   // no joint
-  if( (i = indexOfArmJoint(strJointName)) < 0 )
+  if( pos == m_mapJoints.end() )
   {
     return -1;
   }
 
-  // new joint in trajectory point
-  else if( (j = indexOfTrajectoryJoint(strJointName)) < 0 )
+  // add new joint to trajectory point
+  else if( pos->second < 0 )
   {
     m_msgJointTraj.joint_names.push_back(strJointName);
-    m_msgJointTrajPoint.positions.push_back(m_msgJointState.position[i]);
-    m_msgJointTrajPoint.velocities.push_back(m_msgJointState.velocity[i]);
+    if( (i = indexOfRobotJoint(strJointName)) >= 0 )
+    {
+      m_msgJointTrajPoint.positions.push_back(m_msgJointState.position[i]);
+      m_msgJointTrajPoint.velocities.push_back(m_msgJointState.velocity[i]);
+    }
     m_msgJointTrajPoint.accelerations.push_back(0.0);
-    return (ssize_t)(m_msgJointTraj.joint_names.size() - 1);
+    pos->second = m_msgJointTraj.joint_names.size() - 1;
+    return pos->second;
   }
 
-  // existing joint already added to trajectory point
+  // joint already added to trajectory point
   else
   {
-    return j;
+    return pos->second;
   }
 }
 
 void HekTeleop::clearJointTrajectory()
 {
+  MapJoints::iterator iter;
+  
   m_msgJointTraj.joint_names.clear();
   m_msgJointTraj.points.clear();
   m_msgJointTrajPoint.positions.clear();
   m_msgJointTrajPoint.velocities.clear();
   m_msgJointTrajPoint.accelerations.clear();
+
+  for(iter=m_mapJoints.begin(); iter!=m_mapJoints.end(); ++iter)
+  {
+    iter->second = -1;
+  }
 }

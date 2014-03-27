@@ -164,6 +164,9 @@ namespace hekateros_control
     /*! map of ROS subscriptions type */
     typedef std::map<std::string, ros::Subscriber> MapSubscriptions;
 
+    /*! map of joint names to link indices */
+    typedef std::map<std::string, int> MapJoints;
+
     /*!
      * \brief Teleoperation state.
      */
@@ -220,11 +223,12 @@ namespace hekateros_control
      */
     enum LEDPat
     {
-      LEDPatOn        = XBOX360_LED_PAT_ALL_BLINK, ///< default xbox on pattern
-      LEDPatPaused    = XBOX360_LED_PAT_ALL_SPIN_2,///< temp, auto-trans to prev
-      LEDPatReady     = XBOX360_LED_PAT_ALL_SPIN,  ///< spin, first-person mode
-      LEDPatShoulder  = XBOX360_LED_PAT_1_ON,     ///< isolated shoulder move
-      LEDPatElbow     = XBOX360_LED_PAT_2_ON,     ///< isolate elbow move
+      LEDPatOff       = XBOX360_LED_PAT_ALL_OFF,    ///< all off
+      LEDPatOn        = XBOX360_LED_PAT_ALL_BLINK,  ///< default xbox on pattern
+      LEDPatPaused    = XBOX360_LED_PAT_4_ON,       ///< pause teleop pattern
+      LEDPatReady     = XBOX360_LED_PAT_ALL_SPIN,   ///< spin, first-person mode
+      LEDPatShoulder  = XBOX360_LED_PAT_1_ON,       ///< isolated shoulder move
+      LEDPatElbow     = XBOX360_LED_PAT_2_ON        ///< isolated elbow move
     };
 
     /*!
@@ -371,14 +375,17 @@ namespace hekateros_control
     bool              m_bHasXboxComm;   ///< Xbox communications is [not] good
     int               m_nWdXboxCounter; ///< Xbox watchdog counter
     int               m_nWdXboxTimeout; ///< Xbox watchdog timeout
-    bool              m_bHasHekComm;    ///< robot communications is [not] good
-    int               m_nWdHekCounter;  ///< robot watchdog counter
-    int               m_nWdHekTimeout;  ///< robot watchdog timeout
+    bool              m_bHasRobotComm;  ///< robot communications is [not] good
+    int               m_nWdRobotCounter;///< robot watchdog counter
+    int               m_nWdRobotTimeout;///< robot watchdog timeout
+    bool              m_bRcvdRobotStatus; ///< has [not] recieved any bot status
+    bool              m_bRcvdJointState; ///< has [not] recieved any joint state
     bool              m_bHasFullComm;   ///< good full communications
     ButtonState       m_buttonState;    ///< saved previous button state
     int               m_rumbleLeft;     ///< saved previous left rumble speed 
     int               m_rumbleRight;    ///< saved previous right rumble speed 
     FirstPersonState  m_fpState;        ///< first person state data
+    MapJoints         m_mapJoints;      ///< map of joint names - link indices
 
     // messages
     hekateros_control::HekRobotStatusExtended m_msgRobotStatus;
@@ -715,13 +722,28 @@ namespace hekateros_control
     //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
     /*!
-     * \brief Get the index of the joint of the arm.
+     * \brief Go to pause teleoperation state.
+     */
+    void pause();
+
+    /*!
+     * \brief Go to ready to teleoperate state.
+     */
+    void ready();
+
+    /*!
+     * \brief Drive Xbox360 LEDs into a figure 8 pattern.
+     */
+    void driveLEDsFigure8Pattern();
+
+    /*!
+     * \brief Get the index of the joint of the robot.
      *
      * \param strJointName    Joint name.
      * 
      * \return Returns index \h_ge 0 if found. Otherwise returns -1.
      */
-    ssize_t indexOfArmJoint(const std::string &strJointName);
+    ssize_t indexOfRobotJoint(const std::string &strJointName);
 
     /*!
      * \brief Get the index of the joint in the current joint trajectory.

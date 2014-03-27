@@ -37,7 +37,6 @@ from Tkconstants import *
 from tkFileDialog import *
 import tkFont
 
-import webbrowser
 import xml.parsers.expat as expat
 
 from hekateros_control.Utils import *

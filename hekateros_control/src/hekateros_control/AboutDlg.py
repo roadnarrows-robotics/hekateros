@@ -38,6 +38,8 @@ from Tkconstants import *
 from tkFileDialog import *
 import tkFont
 
+import webbrowser
+
 from hekateros_control.Utils import *
 
 
