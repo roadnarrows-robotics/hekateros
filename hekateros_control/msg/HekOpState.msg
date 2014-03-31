@@ -1,7 +1,9 @@
-int8   calib_state
+### Hekateros hekateros_control/HekOpState message
 
-### calibration state enum
-int8   UNCALIBRATED = 0
-int8   CALIBRATING  = 1
-int8   CALIBRATED   = 2
+int8   calib_state          # joint or robot calibration state
+
+# calibration state enum
+int8   UNCALIBRATED = 0     # uncalibrated
+int8   CALIBRATING  = 1     # calibrating
+int8   CALIBRATED   = 2     # calibrated
 
