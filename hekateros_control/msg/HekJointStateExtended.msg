@@ -16,5 +16,7 @@ int32[]        encoder_pos      # servo encoder position
 int32[]        raw_speed        # servo raw speed (unitless scale)
 HekOpState[]   op_state         # servo operation state:
                                 #   UNCALIBRATED, CALIBRATING, CALIBRATED
-industrial_msgs/TriState[] opt_switch1  # optical limit switch 1 state
-industrial_msgs/TriState[] opt_switch2  # optical limit switch 2 state
+industrial_msgs/TriState[] opt_switch1  # optical limit switch 1 state:
+                                        #   ON OFF
+industrial_msgs/TriState[] opt_switch2  # optical limit switch 2 state:
+                                        #   ON OFF

@@ -1,2 +1,4 @@
+# Hekateros hekateros_control/IsAlarmed service
+
 ---
-bool is_alarmed
+bool is_alarmed   # robot is [not] alarmed

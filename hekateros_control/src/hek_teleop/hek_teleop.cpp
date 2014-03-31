@@ -1297,7 +1297,7 @@ void HekTeleop::driveLEDsFigure8Pattern()
   // lazy init
   if( nLEDTimeout < 0 )
   {
-    nLEDTimeout = countsPerSecond(0.25);
+    nLEDTimeout = countsPerSecond(0.50);
   }
 
   // switch pattern
@@ -1338,31 +1338,40 @@ ssize_t HekTeleop::indexOfTrajectoryJoint(const string &strJointName)
 ssize_t HekTeleop::addJointToTrajectoryPoint(const string &strJointName)
 {
   MapJoints::iterator pos;
-  ssize_t             i;
+  ssize_t             i, j;
 
-  pos = m_mapJoints.find(strJointName);
+  //
+  // First joint added. So add all joints to trajectory point, with each joint
+  // set to its current position and with zero velocity. This would stop any
+  // previous joint movements not controlled in current trajectory.
+  //
+  if( m_msgJointTraj.joint_names.size() == 0 )
+  {
+    for(pos=m_mapJoints.begin(), i=0; pos!=m_mapJoints.end(); ++pos, ++i)
+    {
+      m_msgJointTraj.joint_names.push_back(pos->first);
+      if( (j = indexOfRobotJoint(strJointName)) >= 0 )
+      {
+        m_msgJointTrajPoint.positions.push_back(m_msgJointState.position[j]);
+      }
+      else
+      {
+        m_msgJointTrajPoint.positions.push_back(0.0);
+      }
+      m_msgJointTrajPoint.velocities.push_back(0.0);
+      m_msgJointTrajPoint.accelerations.push_back(0.0);
+
+      pos->second = i;
+    }
+  }
 
   // no joint
-  if( pos == m_mapJoints.end() )
+  if( (pos = m_mapJoints.find(strJointName)) == m_mapJoints.end() )
   {
     return -1;
   }
 
-  // add new joint to trajectory point
-  else if( pos->second < 0 )
-  {
-    m_msgJointTraj.joint_names.push_back(strJointName);
-    if( (i = indexOfRobotJoint(strJointName)) >= 0 )
-    {
-      m_msgJointTrajPoint.positions.push_back(m_msgJointState.position[i]);
-      m_msgJointTrajPoint.velocities.push_back(m_msgJointState.velocity[i]);
-    }
-    m_msgJointTrajPoint.accelerations.push_back(0.0);
-    pos->second = m_msgJointTraj.joint_names.size() - 1;
-    return pos->second;
-  }
-
-  // joint already added to trajectory point
+  // joint index
   else
   {
     return pos->second;

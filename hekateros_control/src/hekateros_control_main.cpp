@@ -59,6 +59,7 @@
 //
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 #include <string>
 
 //
@@ -265,8 +266,6 @@ static void sigHandler(int sig)
 int main(int argc, char *argv[])
 {
   string  strNodeName;    // ROS-given node name
-  string  strDevDynabus;  // serial USB device for Dynamixel bus
-  string  strDevArduino;  // serial USB device for Arduino subprocessor
   double  hz = 10;        // ROS loop rate
   int     rc;             // return code
 
@@ -331,6 +330,17 @@ int main(int argc, char *argv[])
         << ": Failed to connect to Hekateros.");
     return APP_EC_INIT;
   }
+
+  //
+  // Signals
+  //
+
+  // Override the default ros sigint handler. This must be set after the first
+  // NodeHandle is created.
+  signal(SIGINT, sigHandler);
+
+  // try to end safely with this signal
+  signal(SIGTERM, sigHandler);
 
   //
   // Advertise services.

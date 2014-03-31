@@ -1,2 +1,4 @@
+# Hekateros hekateros_control/IsDescLoaded service
+
 ---
-bool is_desc_loaded
+bool is_desc_loaded   # specific hekateros model is [not] loaded and parsed

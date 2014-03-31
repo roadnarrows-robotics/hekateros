@@ -293,9 +293,9 @@ namespace hekateros_control
                                       HekRobotStatusExtended   &msg);
 
   protected:
-    ros::NodeHandle  &m_nh;       ///< the node handler bound to this instance
-    double            m_hz;       ///< application nominal loop rate
-    hekateros::HekRobot          m_robot;    ///< real-time, Hekateros robotic arm
+    ros::NodeHandle    &m_nh;     ///< the node handler bound to this instance
+    double              m_hz;     ///< application nominal loop rate
+    hekateros::HekRobot m_robot;  ///< real-time, Hekateros robotic arm
 
     // ROS services, publishers, subscriptions.
     MapServices       m_services;       ///< Hekateros control server services
