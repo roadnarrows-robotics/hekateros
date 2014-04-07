@@ -617,8 +617,6 @@ void HekTeleop::commCheck()
 
 void HekTeleop::putRobotInSafeMode(bool bHard)
 {
-  static float  fGovDft = 0.20;
-
   // stop robot
   freeze();
 
