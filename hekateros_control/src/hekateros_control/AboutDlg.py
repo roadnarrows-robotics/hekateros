@@ -161,7 +161,7 @@ class AboutDlg(Toplevel):
     w = Label(frame)
     w['text']   = self.m_prodBrief
     w['anchor'] = W
-    w['width']  = rwidth
+    w['width']  = lwidth + rwidth
     w.grid(row=row, column=1, columnspan=2, padx=2, sticky=W)
 
     row += 1
@@ -294,8 +294,8 @@ class AboutDlg(Toplevel):
 Hekateros is designed and developed by RoadNarrows, a robotics and intelligent systems
 company base in Colorado USA. We are dedictated to supporting open software and
 hardware interfaces to foster a global community of users and developers."""
-    w['justify'] = LEFT
-    w['anchor'] = W
+    w['justify'] = CENTER
+    w['anchor'] = CENTER
     w.grid(row=row, column=0, columnspan=3, padx=5, sticky=W)
 
     row += 1

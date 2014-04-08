@@ -129,6 +129,8 @@ class ConfigDlg(Toplevel):
   ## \return Modified keywords sans this specific class.
   ##
   def initData(self, kw):
+    self.m_saved    = False
+    self.m_filename = None
     if kw.has_key('config'):
       self.m_config = kw['config']
       del kw['config']
@@ -228,10 +230,11 @@ class ConfigDlg(Toplevel):
       except OSError, err:
         print "%s: %s" % (dirname, err)
         return
-    filename = dirname + os.path.sep + ConfigDlg.ConfigFileName
+    self.m_filename = dirname + os.path.sep + ConfigDlg.ConfigFileName
     xml = ConfigXml()
-    xml.save(filename, self.m_config)
+    xml.save(self.m_filename, self.m_config)
     self.close()
+    self.m_saved = True
 
   #
   ## \brief Destroy window callback.
