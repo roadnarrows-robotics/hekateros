@@ -7,7 +7,7 @@
 #include "Hekateros/hekXmlCfg.h"
 #include "Hekateros/hekRobot.h"
 
-#include "hekateros_control.h"
+#include "hekateros_control_tmp.h"
 
 using namespace ::std;
 using namespace ::hekateros;

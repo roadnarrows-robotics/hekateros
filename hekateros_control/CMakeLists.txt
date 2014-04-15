@@ -16,17 +16,8 @@ find_package(catkin
 
 find_package(Boost REQUIRED COMPONENTS system)
 
-# RDK, DHP TODO Create rnrpkgConfig.cmake
-# find_package(rnr
-#   REQUIRED COMPONENTS hekateros Dynamixel botsense netmsgs rnr_appkit rnr
-# WARNING:  The rnr libraries must of an unique name or other packages will
-#           clobber.
-# )
-find_library(
-  hek_ctl_rnr_LIBRARIES
-  NAMES hekateros Dynamixel botsense netmsgs rnr_appkit rnr
-  PATHS /prj/lib /prj/lib/rnr
-)
+set(rnr_DIR /prj/lib/rnr)
+find_package(rnr)
 
 catkin_python_setup()
 
@@ -81,28 +72,42 @@ catkin_package(
   CATKIN_DEPENDS actionlib_msgs
 )
 
-add_executable(hekateros_control src/hekateros_control.cpp)
+add_executable(hekateros_control
+  src/hekateros_as_calib.cpp
+  src/hekateros_as_follow_traj.cpp
+  src/hekateros_control.cpp
+  src/hekateros_control_main.cpp
+)
 
+add_executable(hek_teleop 
+  src/hek_teleop/hek_teleop.cpp 
+  src/hek_teleop/hek_teleop_main.cpp 
+)
 include_directories(
   include 
-  /prj/include 
+  ${rnr_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
 
 target_link_libraries(hekateros_control 
-  ${hek_ctl_rnr_LIBRARIES}
+  ${rnr_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(hek_teleop 
+  ${rnr_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
 add_dependencies(hekateros_control hekateros_control_gencpp)
+add_dependencies(hek_teleop hek_control_gencpp)
 
 install(
   PROGRAMS 
     scripts/calibrate_arm
     scripts/hek_panel
-    scripts/hek_teleop
+    #scripts/hek_teleop_viewer
     scripts/joint_trajectory_demo 
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-

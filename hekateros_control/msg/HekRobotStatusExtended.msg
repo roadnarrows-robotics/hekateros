@@ -1,15 +1,17 @@
-# industrial_msgs/RobotStatus
-Header    header
+### Hekateros hekateros_control/HekRobotStatusExtended message
 
-industrial_msgs/RobotMode mode
-industrial_msgs/TriState  e_stopped
-industrial_msgs/TriState  drives_powered
-industrial_msgs/TriState  motion_possible
-industrial_msgs/TriState  in_motion
-industrial_msgs/TriState  in_error
+# Base industrial_msgs/RobotStatus
+Header    header    # standard header
 
-int32 error_code
+industrial_msgs/RobotMode mode              # robot operation mode: AUTO MANUAL
+industrial_msgs/TriState  e_stopped         # emergency stopped: TRUE FALSE
+industrial_msgs/TriState  drives_powered    # servos powered: TRUE FALSE
+industrial_msgs/TriState  motion_possible   # motion possbile: TRUE FALSE
+industrial_msgs/TriState  in_motion         # in motion: TRUE FALSE
+industrial_msgs/TriState  in_error          # in error condition: TRUE FALSE
+int32 error_code                            # hekateros error code
 
-# extended hek robot status
-industrial_msgs/TriState  is_calibrated
-ServoHealth[]             servo_health
+# Hekateros extensions
+industrial_msgs/TriState  is_calibrated # robot calibration status:
+                                        #  UNCALIBRATED, CALIBRATING, CALIBRATED
+ServoHealth[]             servo_health  # servo health

@@ -10,7 +10,7 @@
 
 #include "Hekateros/hekTraj.h"
 
-#include "hekateros_control.h"
+#include "hekateros_control_tmp.h"
 
 class FollowJointTrajectoryAS
 {

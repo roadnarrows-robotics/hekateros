@@ -1,5 +1,5 @@
 uint8 force_recalib
 ---
-int8 rc
+HekOpState op
 ---
 HekJointStateExtended joint

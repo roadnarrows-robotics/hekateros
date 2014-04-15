@@ -1,0 +1,11 @@
+controller_list:
+ - name: hekateros_control
+   action_ns: follow_joint_traj_as
+   type: FollowJointTrajectory
+   default: true
+   joints:
+     - base_rot
+     - elbow
+     - shoulder
+     - wrist_pitch
+     - wrist_rot

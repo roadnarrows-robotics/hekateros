@@ -25,7 +25,7 @@
 #include "Hekateros/hekXmlCfg.h"
 #include "Hekateros/hekRobot.h"
 
-#include "hekateros_control.h"
+#include "hekateros_control_tmp.h"
 
 /*!
  *  \brief Request calibrate.

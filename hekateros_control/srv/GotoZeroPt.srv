@@ -1,2 +1,4 @@
+# Hekateros hekateros_control/GotoZeroPt service
+
 ---
-int8 rc
+int8 rc   # return code
