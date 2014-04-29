@@ -152,16 +152,21 @@ class AboutDlg(Toplevel):
     w['anchor'] = W
     w.grid(row=0, column=1, columnspan=2, sticky=E+W)
 
-    lwidth = 10
-    rwidth = 26
+    bg      = w['bg']
+    lwidth  = 10
+    rwidth  = 26
 
     row = 1
 
     # product brief
-    w = Label(frame)
-    w['text']   = self.m_prodBrief
-    w['anchor'] = W
-    w['width']  = lwidth + rwidth
+    w = Text(frame)
+    w['wrap']   = WORD
+    w['width']  = lwidth + rwidth + 5
+    w['height']  = 3
+    w['relief']  = 'flat'
+    w['bg']  = bg
+    w.insert(END, self.m_prodBrief)
+    w['state']  = 'disabled'
     w.grid(row=row, column=1, columnspan=2, padx=2, sticky=W)
 
     row += 1

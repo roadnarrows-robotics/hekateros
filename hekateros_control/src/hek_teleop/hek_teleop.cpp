@@ -498,10 +498,12 @@ void HekTeleop::cbRobotStatus(const HekRobotStatusExtended &msg)
 
 void HekTeleop::cbJointState(const HekJointStateExtended &msg)
 {
-  static float  MaxEffort = 1023; // effort is between [0, 1023] 
-  static float  DeadZone  = 256;  // no haptic feedback in this zone
+  static float  DeadZone  =  256.0;   // no haptic feedback in this zone
+  static float  Scale     = (float)XBOX360_RUMBLE_RIGHT_MAX/(1023.0 - DeadZone);
+                                      // effort to rumble scale factor
 
   ssize_t   i;
+  float     effort;
   int       rumbleRight;
 
   ROS_DEBUG("Received joint state.");
@@ -525,14 +527,22 @@ void HekTeleop::cbJointState(const HekJointStateExtended &msg)
   //
   // Gripper tactile feedback.
   //
-  if( (i = indexOfRobotJoint("grip")) >= 0 )
+  if( m_bHasFullComm &&
+      (m_eState == TeleopStateReady) &&
+      ((i = indexOfRobotJoint("grip")) >= 0) )
   {
-    rumbleRight == ((float)msg.effort[i] - DeadZone)/(MaxEffort - DeadZone) *
-                                                  XBOX360_RUMBLE_RIGHT_MAX;
-    if( rumbleRight >= 0 )
+    effort = (float)msg.effort[i];
+
+    if( effort > DeadZone )
     {
-      setRumble(m_rumbleLeft, rumbleRight);
+      rumbleRight == (int)((effort - DeadZone) * Scale);
     }
+    else
+    {
+      rumbleRight = 0;
+    }
+
+    setRumble(m_rumbleLeft, rumbleRight);
   }
 }
 
@@ -630,6 +640,7 @@ void HekTeleop::putRobotInSafeMode(bool bHard)
   
   m_eState = TeleopStateUninit;
 
+  setRumble(0, 0);
   setLED(LEDPatOn);
 }
 
@@ -1270,6 +1281,7 @@ void HekTeleop::pause()
 {
   m_eState = TeleopStatePaused;
 
+  setRumble(0, 0);
   setLED(LEDPatPaused);
 }
 
