@@ -366,7 +366,7 @@ bool HekaterosControl::getProductInfo(GetProductInfo::Request  &req,
 
   ROS_DEBUG("%s", svc);
 
-  if( m_robot.isDescribed() )
+  if( !m_robot.isDescribed() )
   {
     ROS_ERROR("%s failed: "
               "Robot description not loaded - unable to determine info.",
@@ -781,10 +781,10 @@ void HekaterosControl::updateExtendedRobotStatusMsg(HekRobotState &status,
 
   for(i=0; i<status.m_vecServoHealth.size(); ++i)
   {
-    sh.servo_id = status.m_vecServoHealth[i].m_nServoId;
+    sh.servo_id = (s8_t)status.m_vecServoHealth[i].m_nServoId;
     sh.temp     = status.m_vecServoHealth[i].m_fTemperature;
     sh.voltage  = status.m_vecServoHealth[i].m_fVoltage;
-    sh.alarm    = status.m_vecServoHealth[i].m_uAlarms;
+    sh.alarm    = (u8_t)status.m_vecServoHealth[i].m_uAlarms;
 
     msg.servo_health.push_back(sh);
   }

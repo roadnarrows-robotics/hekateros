@@ -83,6 +83,7 @@ add_executable(hek_teleop
   src/hek_teleop/hek_teleop.cpp 
   src/hek_teleop/hek_teleop_main.cpp 
 )
+
 include_directories(
   include 
   ${rnr_INCLUDE_DIRS}
@@ -101,7 +102,7 @@ target_link_libraries(hek_teleop
 )
 
 add_dependencies(hekateros_control hekateros_control_gencpp)
-add_dependencies(hek_teleop hek_control_gencpp)
+add_dependencies(hek_teleop hekateros_control hek_control_gencpp)
 
 install(
   PROGRAMS 
