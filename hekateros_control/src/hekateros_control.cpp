@@ -394,7 +394,7 @@ bool HekaterosControl::gotoBalancedPos(GotoBalancedPos::Request  &req,
 
   ROS_DEBUG("%s", svc);
 
-  rsp.rc = m_robot.gotoZeroPtPos();
+  rsp.rc = m_robot.gotoBalancedPos();
 
   if( rsp.rc == HEK_OK )
   {
@@ -415,7 +415,7 @@ bool HekaterosControl::gotoParkedPos(GotoParkedPos::Request  &req,
 
   ROS_DEBUG("%s", svc);
 
-  rsp.rc = m_robot.gotoZeroPtPos();
+  rsp.rc = m_robot.gotoParkedPos();
 
   if( rsp.rc == HEK_OK )
   {

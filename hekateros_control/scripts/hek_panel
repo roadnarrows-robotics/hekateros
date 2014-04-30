@@ -1059,7 +1059,7 @@ Make sure the workspace is clear of obstructions.""")
       self.m_calibState['calibrating'] = False
       self.m_calibState['id'] = 0
       calib_state = self.m_calibState['ac'].get_result().op.calib_state
-      if calib_state == OpState.CALIBRATED:
+      if calib_state == HekOpState.CALIBRATED:
         self.showInfo("Calibration complete.")
       else:
         self.showError("Calibration failed.")
