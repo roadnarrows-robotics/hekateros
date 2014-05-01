@@ -320,6 +320,7 @@ void HekTeleop::estop()
 void HekTeleop::freeze()
 {
   hekateros_control::Freeze svc;
+  ROS_INFO("Robot pre-stopped.");
 
   if( m_clientServices["/hekateros_control/freeze"].call(svc) )
   {
@@ -434,11 +435,20 @@ void HekTeleop::publishJointCmd()
 
     // publish
     m_publishers["/hekateros_control/joint_command"].publish(m_msgJointTraj);
+
     bPubJointCmd = true;
   }
   else if( bPubJointCmd )
   {
-    freeze();
+    nullJointTrajectory();
+
+    m_msgJointTraj.header.stamp    = ros::Time::now();
+    m_msgJointTraj.header.frame_id = "0";
+    m_msgJointTraj.header.seq++;
+    m_msgJointTraj.points.push_back(m_msgJointTrajPoint);
+
+    m_publishers["/hekateros_control/joint_command"].publish(m_msgJointTraj);
+
     bPubJointCmd = false;
   }
 }
@@ -498,7 +508,7 @@ void HekTeleop::cbRobotStatus(const HekRobotStatusExtended &msg)
 
 void HekTeleop::cbJointState(const HekJointStateExtended &msg)
 {
-  static float  DeadZone  =  256.0;   // no haptic feedback in this zone
+  static float  DeadZone  =  128.0;   // no haptic feedback in this zone
   static float  Scale     = (float)XBOX360_RUMBLE_RIGHT_MAX/(1023.0 - DeadZone);
                                       // effort to rumble scale factor
 
@@ -531,7 +541,7 @@ void HekTeleop::cbJointState(const HekJointStateExtended &msg)
       (m_eState == TeleopStateReady) &&
       ((i = indexOfRobotJoint("grip")) >= 0) )
   {
-    effort = (float)msg.effort[i];
+    effort = fabs((float)msg.effort[i]);
 
     if( effort > DeadZone )
     {
@@ -716,6 +726,10 @@ void HekTeleop::execAllButtonActions(ButtonState &buttonState)
 
     buttonCloseGripper(buttonState);
     buttonOpenGripper(buttonState);
+    buttonPitchWrist(buttonState);
+    buttonRotateWristCw(buttonState);
+    buttonRotateWristCcw(buttonState);
+    buttonRotateBase(buttonState);
     buttonMoveJoints(buttonState);
 
     publishJointCmd();
@@ -863,38 +877,14 @@ void HekTeleop::buttonEStop(ButtonState &buttonState)
 
 void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
 {
-  static int deadzone = 10;
-
-  int     trigger = buttonState[ButtonIdOpenGripper];
-  int     i;
-  double  vel;
-
-  if( trigger < deadzone )
-  {
-    return;
-  }
-
-  // no joint found on arm
-  if( (i = addJointToTrajectoryPoint("grip")) < 0 )
-  {
-    return;
-  }
-
-  vel = (double)(trigger-deadzone) / XBOX360_TRIGGER_MAX * 2.0;
-
-  m_msgJointTrajPoint.positions[i] += degToRad(10.0);
-  m_msgJointTrajPoint.velocities[i] = vel;
-}
-
-void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
-{
-  static int deadzone = 10;
+  static int    deadzone  = 10;
+  static double scale     = 15.0;
 
   int     trigger = buttonState[ButtonIdCloseGripper];
   int     i;
   double  vel;
 
-  if( trigger < deadzone )
+  if( trigger <= deadzone )
   {
     return;
   }
@@ -905,10 +895,42 @@ void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
     return;
   }
 
-  vel = (double)(trigger-deadzone) / XBOX360_TRIGGER_MAX * 2.0;
+  vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
+            scale;
 
-  m_msgJointTrajPoint.positions[i] -= degToRad(10.0);
+  m_msgJointTrajPoint.positions[i] += degToRad(30.0);
   m_msgJointTrajPoint.velocities[i] = vel;
+
+  ROS_INFO("Closing gripper.");
+}
+
+void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
+{
+  static int    deadzone  = 10;
+  static double scale     = 15.0;
+
+  int     trigger = buttonState[ButtonIdOpenGripper];
+  int     i;
+  double  vel;
+
+  if( trigger <= deadzone )
+  {
+    return;
+  }
+
+  // no joint found on arm
+  if( (i = addJointToTrajectoryPoint("grip")) < 0 )
+  {
+    return;
+  }
+
+  vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
+            scale;
+
+  m_msgJointTrajPoint.positions[i] -= degToRad(30.0);
+  m_msgJointTrajPoint.velocities[i] = vel;
+
+  ROS_INFO("Opening gripper.");
 }
 
 void HekTeleop::buttonMoveJoints(ButtonState &buttonState)
@@ -1127,7 +1149,7 @@ void HekTeleop::buttonMoveShoulder(int joy)
   }
 
   pos = degToRad(40.0);
-  vel = (double)(joy) / XBOX360_JOY_MAX * 10.0;
+  vel = (double)(joy) / XBOX360_JOY_MAX * 5.0;
 
   if( vel < 0.0 )
   {
@@ -1154,7 +1176,7 @@ void HekTeleop::buttonMoveElbow(int joy)
   }
 
   pos = degToRad(40.0);
-  vel = (double)(joy) / XBOX360_JOY_MAX * 10.0;
+  vel = (double)(joy) / XBOX360_JOY_MAX * 5.0;
 
   if( vel < 0.0 )
   {
@@ -1348,7 +1370,6 @@ ssize_t HekTeleop::indexOfTrajectoryJoint(const string &strJointName)
 ssize_t HekTeleop::addJointToTrajectoryPoint(const string &strJointName)
 {
   MapJoints::iterator pos;
-  ssize_t             i, j;
 
   //
   // First joint added. So add all joints to trajectory point, with each joint
@@ -1357,22 +1378,7 @@ ssize_t HekTeleop::addJointToTrajectoryPoint(const string &strJointName)
   //
   if( m_msgJointTraj.joint_names.size() == 0 )
   {
-    for(pos=m_mapJoints.begin(), i=0; pos!=m_mapJoints.end(); ++pos, ++i)
-    {
-      m_msgJointTraj.joint_names.push_back(pos->first);
-      if( (j = indexOfRobotJoint(strJointName)) >= 0 )
-      {
-        m_msgJointTrajPoint.positions.push_back(m_msgJointState.position[j]);
-      }
-      else
-      {
-        m_msgJointTrajPoint.positions.push_back(0.0);
-      }
-      m_msgJointTrajPoint.velocities.push_back(0.0);
-      m_msgJointTrajPoint.accelerations.push_back(0.0);
-
-      pos->second = i;
-    }
+    nullJointTrajectory();
   }
 
   // no joint
@@ -1385,6 +1391,29 @@ ssize_t HekTeleop::addJointToTrajectoryPoint(const string &strJointName)
   else
   {
     return pos->second;
+  }
+}
+
+void HekTeleop::nullJointTrajectory()
+{
+  MapJoints::iterator pos;
+  ssize_t             i, j;
+
+  for(pos=m_mapJoints.begin(), i=0; pos!=m_mapJoints.end(); ++pos, ++i)
+  {
+    m_msgJointTraj.joint_names.push_back(pos->first);
+    if( (j = indexOfRobotJoint(pos->first)) >= 0 )
+    {
+      m_msgJointTrajPoint.positions.push_back(m_msgJointState.position[j]);
+    }
+    else
+    {
+      m_msgJointTrajPoint.positions.push_back(0.0);
+    }
+    m_msgJointTrajPoint.velocities.push_back(0.0);
+    m_msgJointTrajPoint.accelerations.push_back(0.0);
+
+    pos->second = i;
   }
 }
 

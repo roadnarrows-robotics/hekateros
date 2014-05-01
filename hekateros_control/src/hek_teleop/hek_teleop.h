@@ -766,6 +766,14 @@ namespace hekateros_control
      */
     ssize_t addJointToTrajectoryPoint(const std::string &strJointName);
 
+    /*
+     * \brief Set null joint trajectory.
+     *
+     * A null trajectory is a trajectory to the current joint position at
+     * zero velocity.
+     */
+    void nullJointTrajectory();
+
     /*!
      * \brief Clear joint trajectory.
      */
