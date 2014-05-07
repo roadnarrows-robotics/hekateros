@@ -1123,7 +1123,7 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
       beta_delta = 1.0;
     }
 
-    double scale        = (double)joy/(double)(XBOX360_JOY_MAX * V_MAX);
+    double scale        = (double)joy/(double)(XBOX360_JOY_MAX) * V_MAX;
     double shoulder_vel = alpha_delta * scale;
     double elbow_vel    = beta_delta * scale;
 
