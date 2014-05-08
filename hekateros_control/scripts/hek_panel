@@ -1638,6 +1638,13 @@ The arm may fall if not in a stable position.""")
     var.set(val)
     w['state'] = 'readonly'
 
+  #
+  ## \brief map alignment value to justify equivalent.
+  ##
+  ## \param align   Alignment
+  ## 
+  ## \return jusity
+  #
   def alignToJustify(self, align):
     if align == W:
       return LEFT
