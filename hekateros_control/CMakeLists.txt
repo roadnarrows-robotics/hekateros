@@ -16,7 +16,7 @@ find_package(catkin
 
 find_package(Boost REQUIRED COMPONENTS system)
 
-set(rnr_DIR /prj/lib/rnr)
+set(rnr_DIR /usr/local/lib/cmake/rnr)
 find_package(rnr)
 
 catkin_python_setup()
