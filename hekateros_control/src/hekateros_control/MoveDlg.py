@@ -215,6 +215,7 @@ class MoveDlg(Toplevel):
            self.m_vals[name]['position']['w'].winfo_width()
       length = x1 - x0
     else:
+      i = 1
       length = 100
 
     # delta group velocity

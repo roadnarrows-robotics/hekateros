@@ -81,7 +81,7 @@ from hekateros_control.ACCalibrate import *
 # ------------------------------------------------------------------------------
 
 ## \brief Application version. Update as needed. 
-appVersion = '1.1.0'
+appVersion = '1.1.1'
 
 ## \brief Image search paths.
 imagePath = [
@@ -1173,7 +1173,7 @@ Make sure the workspace is clear of obstructions.""")
     jointTrajectory.points.append(jointTrajPoint)
     for name,val in self.m_robotJoint.iteritems(): 
       jointTrajectory.joint_names.append(name)
-      pos = self.m_robotJoint[name]['position']['var'].get()
+      pos = self.m_robotJoint[name]['position']['raw']
       jointTrajPoint.positions.append(degToRad(pos))
       jointTrajPoint.velocities.append(10.0)
       jointTrajPoint.accelerations.append(0.0)

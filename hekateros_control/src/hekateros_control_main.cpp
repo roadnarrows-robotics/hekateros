@@ -322,13 +322,12 @@ int main(int argc, char *argv[])
   //
   // Connect to the Hekateros.
   //
-  rc = hek.connect(OptsDevDynabus, OptsBaudDynabus,
-                   OptsDevArduino, OptsBaudArduino);
-  if( rc != HEK_OK )
+  while( (rc = hek.connect(OptsDevDynabus, OptsBaudDynabus,
+                           OptsDevArduino, OptsBaudArduino)) != HEK_OK )
   {
-    ROS_FATAL_STREAM(strNodeName
-        << ": Failed to connect to Hekateros.");
-    return APP_EC_INIT;
+    ROS_ERROR_STREAM(strNodeName << ": Failed to connect to Hekateros.");
+    sleep(5);
+    //return APP_EC_INIT;
   }
 
   //
