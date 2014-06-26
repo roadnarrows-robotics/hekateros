@@ -282,14 +282,14 @@ namespace hekateros_control
      *
      * \param nQueueDepth   Maximum queue depth.
      */
-    virtual void advertisePublishers(int nQueueDepth=10);
+    virtual void advertisePublishers(int nQueueDepth=2);
 
     /*!
      * \brief Subscribe to all topics.
      *
      * \param nQueueDepth   Maximum queue depth.
      */
-    virtual void subscribeToTopics(int nQueueDepth=10);
+    virtual void subscribeToTopics(int nQueueDepth=2);
 
     /*!
      * \brief Publish.
