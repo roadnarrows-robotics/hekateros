@@ -1174,7 +1174,7 @@ Make sure the workspace is clear of obstructions.""")
     for name,val in self.m_robotJoint.iteritems(): 
       jointTrajectory.joint_names.append(name)
       pos = self.m_robotJoint[name]['position']['raw']
-      jointTrajPoint.positions.append(degToRad(pos))
+      jointTrajPoint.positions.append(pos)
       jointTrajPoint.velocities.append(10.0)
       jointTrajPoint.accelerations.append(0.0)
     dlg = MoveDlg(master=self, image='HekaterosInMotion.png',
