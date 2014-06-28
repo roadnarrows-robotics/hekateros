@@ -266,7 +266,7 @@ static void sigHandler(int sig)
 int main(int argc, char *argv[])
 {
   string  strNodeName;    // ROS-given node name
-  double  hz = 10;        // ROS loop rate
+  double  hz = 30;        // ROS loop rate
   int     rc;             // return code
 
   // 
