@@ -108,6 +108,7 @@ install(
   PROGRAMS 
     scripts/calibrate_arm
     scripts/hek_panel
+    scripts/hek_pyteleop
     #scripts/hek_teleop_viewer
     scripts/joint_trajectory_demo 
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
