@@ -549,10 +549,6 @@ Options and arguments:
   def initTrajectory(self):
     self.m_jointTrajectory  = trajectory_msgs.msg.JointTrajectory()
     self.m_jointTrajPoint   = trajectory_msgs.msg.JointTrajectoryPoint()  
-    #self.m_jointTrajectory.joint_names  = []
-    #self.m_jointTrajectory.points       = []
-    #self.m_jointTrajPoint.positions     = []
-    #self.m_jointTrajPoint.velocities    = []
 
   def addTrajectoryJoint(self, jointName):
     if not self.m_jointState.has_key(jointName):

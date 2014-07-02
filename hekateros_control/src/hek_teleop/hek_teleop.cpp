@@ -436,19 +436,16 @@ void HekTeleop::publishJointCmd()
     // publish
     m_publishers["/hekateros_control/joint_command"].publish(m_msgJointTraj);
 
+    // save trajectory point
+    m_mapPrevTraj = m_mapTraj;
+    m_msgPrevJointTrajPoint = m_msgJointTrajPoint;
+
     bPubJointCmd = true;
   }
   else if( bPubJointCmd )
   {
-    nullJointTrajectory();
-
-    m_msgJointTraj.header.stamp    = ros::Time::now();
-    m_msgJointTraj.header.frame_id = "0";
-    m_msgJointTraj.header.seq++;
-    m_msgJointTraj.points.push_back(m_msgJointTrajPoint);
-
-    m_publishers["/hekateros_control/joint_command"].publish(m_msgJointTraj);
-
+    freeze();
+    clearPrevJointTrajectory();
     bPubJointCmd = false;
   }
 }
@@ -520,39 +517,37 @@ void HekTeleop::cbJointState(const HekJointStateExtended &msg)
 
   m_nWdRobotCounter = 0;
   m_msgJointState   = msg;
+  m_bRcvdJointState = true;
 
-  if( !m_bRcvdJointState )
+  m_mapCurPos.clear();
+  m_mapCurVel.clear();
+
+  for(i=0; i<msg.name.size(); ++i)
   {
-    for(i=0; i<msg.name.size(); ++i)
-    {
-      m_mapJoints[msg.name[i]] = -1;
-    }
+    // current joint position and velocity
+    m_mapCurPos[msg.name[i]] = msg.position[i]; 
+    m_mapCurVel[msg.name[i]] = msg.velocity[i]; 
 
-    if( i > 0 )
+    //
+    // Gripper tactile feedback.
+    //
+    if( msg.name[i] == "grip" &&
+        m_bHasFullComm &&
+        (m_eState == TeleopStateReady) )
     {
-      m_bRcvdJointState = true;
-    }
-  }
+      effort = fabs((float)msg.effort[i]);
 
-  //
-  // Gripper tactile feedback.
-  //
-  if( m_bHasFullComm &&
-      (m_eState == TeleopStateReady) &&
-      ((i = indexOfRobotJoint("grip")) >= 0) )
-  {
-    effort = fabs((float)msg.effort[i]);
+      if( effort > DeadZone )
+      {
+        rumbleRight == (int)((effort - DeadZone) * Scale);
+      }
+      else
+      {
+        rumbleRight = 0;
+      }
 
-    if( effort > DeadZone )
-    {
-      rumbleRight == (int)((effort - DeadZone) * Scale);
+      setRumble(m_rumbleLeft, rumbleRight);
     }
-    else
-    {
-      rumbleRight = 0;
-    }
-
-    setRumble(m_rumbleLeft, rumbleRight);
   }
 }
 
@@ -877,58 +872,69 @@ void HekTeleop::buttonEStop(ButtonState &buttonState)
 
 void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
 {
+  static string jointName("grip");
   static int    deadzone  = 10;
   static double scale     = 15.0;
 
   int     trigger = buttonState[ButtonIdCloseGripper];
   int     i;
+  double  pos;
   double  vel;
 
+  // stop
   if( trigger <= deadzone )
   {
+    stopJoint(jointName);
     return;
   }
 
-  // no joint found on arm
-  if( (i = addJointToTrajectoryPoint("grip")) < 0 )
+  // no joint
+  if( m_mapCurPos.find(jointName) == m_mapCurPos.end() )
   {
     return;
   }
 
+  // goal position and velocity
+  pos = m_mapCurPos[jointName] + degToRad(30.0);
   vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
             scale;
 
-  m_msgJointTrajPoint.positions[i] += degToRad(30.0);
-  m_msgJointTrajPoint.velocities[i] = vel;
+  // new joint trajectory point
+  addJoint(jointName, pos, vel);
 
   ROS_INFO("Closing gripper.");
 }
 
 void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
 {
+  static string jointName("grip");
   static int    deadzone  = 10;
   static double scale     = 15.0;
 
   int     trigger = buttonState[ButtonIdOpenGripper];
   int     i;
+  double  pos;
   double  vel;
 
   if( trigger <= deadzone )
   {
+    stopJoint(jointName);
     return;
   }
 
-  // no joint found on arm
-  if( (i = addJointToTrajectoryPoint("grip")) < 0 )
+  // no joint
+  if( m_mapCurPos.find(jointName) == m_mapCurPos.end() )
   {
     return;
   }
 
+  // goal position and velocity
+  pos = m_mapCurPos[jointName] - degToRad(30.0);
   vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
             scale;
 
-  m_msgJointTrajPoint.positions[i] -= degToRad(30.0);
-  m_msgJointTrajPoint.velocities[i] = vel;
+  // new joint trajectory point
+  addJoint(jointName, pos, vel);
 
   ROS_INFO("Opening gripper.");
 }
@@ -936,11 +942,6 @@ void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
 void HekTeleop::buttonMoveJoints(ButtonState &buttonState)
 {
   int joy = buttonState[ButtonIdMoveJoints];
-
-  if( joy == 0 )
-  {
-    return;
-  }
 
   switch( m_eMode )
   {
@@ -980,6 +981,14 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
   double    x0, y0;
   double    xp, yp;
   double    b, c;
+
+  if( joy == 0 )
+  {
+    stopJoint("shoulder");
+    stopJoint("elbow");
+    stopJoint("wrist_pitch");
+    return;
+  }
 
   if( (i = addJointToTrajectoryPoint("shoulder")) < 0 )
   {
@@ -1138,16 +1147,25 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
 
 void HekTeleop::buttonMoveShoulder(int joy)
 {
+  static string jointName("shoulder");
+
   int     i;        // joint index
   double  pos;      // delta joint position
   double  vel;      // joint velocity
 
-  // no joint found on arm
-  if( (i = addJointToTrajectoryPoint("shoulder")) < 0 )
+  if( joy == 0 )
+  {
+    stopJoint(jointName);
+    return;
+  }
+
+  // no joint
+  if( m_mapCurPos.find(jointName) == m_mapCurPos.end() )
   {
     return;
   }
 
+  // goal position and velocity
   pos = degToRad(40.0);
   vel = (double)(joy) / XBOX360_JOY_MAX * 5.0;
 
@@ -1157,24 +1175,35 @@ void HekTeleop::buttonMoveShoulder(int joy)
     vel = -vel;
   }
 
-  m_msgJointTrajPoint.positions[i] += pos;
-  m_msgJointTrajPoint.velocities[i] = vel;
+  pos = m_mapCurPos[jointName] + pos;
+
+  // new joint trajectory point
+  addJoint(jointName, pos, vel);
 
   m_fpState.m_bNewGoal = true;
 }
 
 void HekTeleop::buttonMoveElbow(int joy)
 {
+  static string jointName("elbow");
+
   int     i;        // joint index
   double  pos;      // delta joint position
   double  vel;      // joint velocity
 
-  // no joint found on arm
-  if( (i = addJointToTrajectoryPoint("elbow")) < 0 )
+  if( joy == 0 )
+  {
+    stopJoint(jointName);
+    return;
+  }
+
+  // no joint
+  if( m_mapCurPos.find(jointName) == m_mapCurPos.end() )
   {
     return;
   }
 
+  // goal position and velocity
   pos = degToRad(40.0);
   vel = (double)(joy) / XBOX360_JOY_MAX * 5.0;
 
@@ -1184,14 +1213,18 @@ void HekTeleop::buttonMoveElbow(int joy)
     vel = -vel;
   }
 
-  m_msgJointTrajPoint.positions[i] += pos;
-  m_msgJointTrajPoint.velocities[i] = vel;
+  pos = m_mapCurPos[jointName] + pos;
+
+  // new joint trajectory point
+  addJoint(jointName, pos, vel);
 
   m_fpState.m_bNewGoal = true;
 }
 
 void HekTeleop::buttonRotateBase(ButtonState &buttonState)
 {
+  static string jointName("base_rot");
+
   int     joy = buttonState[ButtonIdRotBase];
   int     i;        // joint index
   double  pos;      // delta joint position
@@ -1199,15 +1232,17 @@ void HekTeleop::buttonRotateBase(ButtonState &buttonState)
 
   if( joy == 0 )
   {
+    stopJoint(jointName);
     return;
   }
 
-  // no joint found on arm
-  if( (i = addJointToTrajectoryPoint("base_rot")) < 0 )
+  // no joint
+  if( m_mapCurPos.find(jointName) == m_mapCurPos.end() )
   {
     return;
   }
 
+  // goal position and velocity
   pos = degToRad(45.0);
   vel = (double)(joy) / XBOX360_JOY_MAX * 20.0;
 
@@ -1217,12 +1252,16 @@ void HekTeleop::buttonRotateBase(ButtonState &buttonState)
     vel = -vel;
   }
 
-  m_msgJointTrajPoint.positions[i] += pos;
-  m_msgJointTrajPoint.velocities[i] = vel;
+  pos = m_mapCurPos[jointName] + pos;
+
+  // new joint trajectory point
+  addJoint(jointName, pos, vel);
 }
 
 void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
 {
+  static string jointName("wrist_pitch");
+
   int     joy = buttonState[ButtonIdPitchWrist];
   int     i;        // joint index
   double  pos;      // delta joint position
@@ -1230,15 +1269,17 @@ void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
 
   if( joy == 0 )
   {
+    stopJoint(jointName);
     return;
   }
 
-  // no joint found on arm
-  if( (i = addJointToTrajectoryPoint("wrist_pitch")) < 0 )
+  // no joint
+  if( m_mapCurPos.find(jointName) == m_mapCurPos.end() )
   {
     return;
   }
 
+  // goal position and velocity
   pos = degToRad(45.0);
   vel = (double)(joy) / XBOX360_JOY_MAX * 20.0;
 
@@ -1248,50 +1289,69 @@ void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
     vel = -vel;
   }
 
-  m_msgJointTrajPoint.positions[i] += pos;
-  m_msgJointTrajPoint.velocities[i] = vel;
+  pos = m_mapCurPos[jointName] + pos;
+
+  // new joint trajectory point
+  addJoint(jointName, pos, vel);
 
   m_fpState.m_bNewGoal = true;
 }
 
 void HekTeleop::buttonRotateWristCw(ButtonState &buttonState)
 {
-  int   i;
+  static string jointName("wrist_rot");
 
-  // off
+  int     i;
+  double  pos;
+  double  vel;
+
   if( buttonState[ButtonIdRotWristCw] == 0 )
   {
+    stopJoint(jointName);
     return;
   }
 
-  // no joint found on arm
-  if( (i = addJointToTrajectoryPoint("wrist_rot")) < 0 )
+  // no joint
+  if( m_mapCurPos.find(jointName) == m_mapCurPos.end() )
   {
     return;
   }
 
-  m_msgJointTrajPoint.positions[i] -= degToRad(360.0);
-  m_msgJointTrajPoint.velocities[i] = 20.0;
+  // goal position and velocity
+  pos = m_mapCurPos[jointName] - degToRad(360.0);
+  vel = 20.0;
+
+  // new joint trajectory point
+  addJoint(jointName, pos, vel);
 }
 
 void HekTeleop::buttonRotateWristCcw(ButtonState &buttonState)
 {
-  int   i;
+  static string jointName("wrist_rot");
+
+  int     i;
+  double  pos;
+  double  vel;
 
   // off
   if( buttonState[ButtonIdRotWristCcw] == 0 )
   {
+    stopJoint(jointName);
     return;
   }
 
-  // no joint found on arm
-  if( (i = addJointToTrajectoryPoint("wrist_rot")) < 0 )
+  // no joint
+  if( m_mapCurPos.find(jointName) == m_mapCurPos.end() )
   {
     return;
   }
 
-  m_msgJointTrajPoint.positions[i] += degToRad(360.0);
-  m_msgJointTrajPoint.velocities[i] = 20.0;
+  // goal position and velocity
+  pos = m_mapCurPos[jointName] + degToRad(360.0);
+  vel = 20.0;
+
+  // new joint trajectory point
+  addJoint(jointName, pos, vel);
 }
 
 
@@ -1369,66 +1429,96 @@ ssize_t HekTeleop::indexOfTrajectoryJoint(const string &strJointName)
 
 ssize_t HekTeleop::addJointToTrajectoryPoint(const string &strJointName)
 {
-  MapJoints::iterator pos;
+  MapJointTraj::iterator  p;
+  MapJointState::iterator q;
 
-  //
-  // First joint added. So add all joints to trajectory point, with each joint
-  // set to its current position and with zero velocity. This would stop any
-  // previous joint movements not controlled in current trajectory.
-  //
-  if( m_msgJointTraj.joint_names.size() == 0 )
+  // joint already added
+  if( (p = m_mapTraj.find(strJointName)) != m_mapTraj.end() )
   {
-    nullJointTrajectory();
+    return p->second;
   }
 
-  // no joint
-  if( (pos = m_mapJoints.find(strJointName)) == m_mapJoints.end() )
+  // add new joint with current state
+  else if( (q = m_mapCurPos.find(strJointName)) != m_mapCurPos.end() )
+  {
+    m_msgJointTraj.joint_names.push_back(strJointName);
+    m_msgJointTrajPoint.positions.push_back(q->second);
+    m_msgJointTrajPoint.velocities.push_back(m_mapCurVel[strJointName]);
+    m_msgJointTrajPoint.accelerations.push_back(0.0);
+  }
+
+  // unknown joint
+  else
   {
     return -1;
   }
+}
 
-  // joint index
-  else
+void HekTeleop::stopJoint(const string &strJointName)
+{
+  MapJointTraj::iterator  p;
+  ssize_t                 i;
+
+  // if in old and not zero velocity
+  if( ((p = m_mapPrevTraj.find(strJointName)) != m_mapPrevTraj.end()) &&
+      m_msgPrevJointTrajPoint.velocities[p->second] != 0.0 )
   {
-    return pos->second;
+    if( (i = addJointToTrajectoryPoint(strJointName)) >= 0 )
+    {
+      m_msgJointTrajPoint.velocities[i] = 0.0;
+    }
   }
 }
 
-void HekTeleop::nullJointTrajectory()
+void HekTeleop::addJoint(const string &strJointName, double pos, double vel)
 {
-  MapJoints::iterator pos;
-  ssize_t             i, j;
+  MapJointTraj::iterator  p;
+  ssize_t                 i;
 
-  for(pos=m_mapJoints.begin(), i=0; pos!=m_mapJoints.end(); ++pos, ++i)
+  // no previous joint trajectory point
+  if( (p = m_mapPrevTraj.find(strJointName)) == m_mapPrevTraj.end() )
   {
-    m_msgJointTraj.joint_names.push_back(pos->first);
-    if( (j = indexOfRobotJoint(pos->first)) >= 0 )
+    if( (i = addJointToTrajectoryPoint(strJointName)) >= 0 )
     {
-      m_msgJointTrajPoint.positions.push_back(m_msgJointState.position[j]);
+      m_msgJointTrajPoint.positions[i]  = pos;
+      m_msgJointTrajPoint.velocities[i] = vel;
     }
-    else
-    {
-      m_msgJointTrajPoint.positions.push_back(0.0);
-    }
-    m_msgJointTrajPoint.velocities.push_back(0.0);
-    m_msgJointTrajPoint.accelerations.push_back(0.0);
+  }
 
-    pos->second = i;
+  else
+  {
+    i = p->second;
+
+    // previous joint trajectory point is different
+    if( (pos != m_msgPrevJointTrajPoint.positions[i]) ||
+        (vel != m_msgJointTrajPoint.velocities[i]) )
+    {
+      if( (i = addJointToTrajectoryPoint(strJointName)) >= 0 )
+      {
+        m_msgJointTrajPoint.positions[i]  = pos;
+        m_msgJointTrajPoint.velocities[i] = vel;
+      }
+    }
   }
 }
 
 void HekTeleop::clearJointTrajectory()
 {
-  MapJoints::iterator iter;
-  
   m_msgJointTraj.joint_names.clear();
   m_msgJointTraj.points.clear();
+
   m_msgJointTrajPoint.positions.clear();
   m_msgJointTrajPoint.velocities.clear();
   m_msgJointTrajPoint.accelerations.clear();
 
-  for(iter=m_mapJoints.begin(); iter!=m_mapJoints.end(); ++iter)
-  {
-    iter->second = -1;
-  }
+  m_mapTraj.clear();
+}
+
+void HekTeleop::clearPrevJointTrajectory()
+{
+  m_msgPrevJointTrajPoint.positions.clear();
+  m_msgPrevJointTrajPoint.velocities.clear();
+  m_msgPrevJointTrajPoint.accelerations.clear();
+
+  m_mapPrevTraj.clear();
 }

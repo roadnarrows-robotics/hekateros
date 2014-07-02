@@ -185,7 +185,7 @@ class MoveDlg(Toplevel):
       var = DoubleVar()
       var.set(round10th(radToDeg(trajPoint.positions[i])))
       w = Spinbox(wframe, justify=RIGHT, textvar=var,
-                        increment=0.1, from_=-720.0, to=720.0)
+                        increment=0.1, from_=-50000.0, to=50000.0)
       w['width'] = 7
       w.grid(row=row, column=col, padx=1, pady=0, sticky=W)
       d = {'var': var, 'w': w}
@@ -264,12 +264,13 @@ class MoveDlg(Toplevel):
     trajPoint = self.m_trajectory.points[0]
     for name in self.m_trajectory.joint_names:
       pos = self.m_vals[name]['position']['var'].get()
+      pos = degToRad(pos)
       vel = self.m_vals[name]['velocity']['var'].get()
       if vel < 0.0:
         vel = 0.0
       elif vel > 100.0:
         vel = 100.0
-      trajPoint.positions[i]  = degToRad(pos)
+      trajPoint.positions[i]  = pos
       trajPoint.velocities[i] = vel
       i += 1
     self.m_result = True

@@ -164,8 +164,11 @@ namespace hekateros_control
     /*! map of ROS subscriptions type */
     typedef std::map<std::string, ros::Subscriber> MapSubscriptions;
 
-    /*! map of joint names to link indices */
-    typedef std::map<std::string, int> MapJoints;
+    /*! map of joint names to joint state datum */
+    typedef std::map<std::string, double> MapJointState;
+
+    /*! map of joint names to joint trajectory point indices */
+    typedef std::map<std::string, int> MapJointTraj;
 
     /*!
      * \brief Teleoperation state.
@@ -385,18 +388,25 @@ namespace hekateros_control
     int               m_rumbleLeft;     ///< saved previous left rumble speed 
     int               m_rumbleRight;    ///< saved previous right rumble speed 
     FirstPersonState  m_fpState;        ///< first person state data
-    MapJoints         m_mapJoints;      ///< map of joint names - link indices
+
+    MapJointState     m_mapCurPos;    ///< joint name to current joint position
+    MapJointState     m_mapCurVel;    ///< joint name to current joint velocity
+    MapJointTraj      m_mapTraj;      ///< joint name to traj. point index
+    MapJointTraj      m_mapPrevTraj;  ///< joint name to previous traj pt index
 
     // messages
     hekateros_control::HekRobotStatusExtended m_msgRobotStatus;
-                                                    ///< current robot status 
-    hekateros_control::HekJointStateExtended m_msgJointState;
-                                                    ///< current joint state
-    trajectory_msgs::JointTrajectory m_msgJointTraj;
-                                                    ///< working joint traj.
-    trajectory_msgs::JointTrajectoryPoint m_msgJointTrajPoint;
-                                                    ///< working joint traj. pt
-    hid::ConnStatus m_msgConnStatus;                ///< saved last conn status 
+                                          ///< current robot extended status msg
+    hekateros_control::HekJointStateExtended  m_msgJointState;
+                                          ///< current extended joint state msg
+    trajectory_msgs::JointTrajectory          m_msgJointTraj;
+                                          ///< working joint trajectory msg
+    trajectory_msgs::JointTrajectoryPoint     m_msgJointTrajPoint;
+                                          ///< working joint trajectory point
+    trajectory_msgs::JointTrajectoryPoint     m_msgPrevJointTrajPoint;
+                                          ///< previous joint trajectory point
+    hid::ConnStatus                           m_msgConnStatus;
+                                          ///< saved last connection status 
 
 
     //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -774,11 +784,15 @@ namespace hekateros_control
      */
     void nullJointTrajectory();
 
+    void stopJoint(const std::string &strJointName);
+    void addJoint(const std::string &strJointName, double pos, double vel);
+
     /*!
      * \brief Clear joint trajectory.
      */
     void clearJointTrajectory();
     
+    void clearPrevJointTrajectory();
   };
 
 } // namespace hekateros_control
