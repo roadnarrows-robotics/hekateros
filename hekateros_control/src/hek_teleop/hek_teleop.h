@@ -746,52 +746,60 @@ namespace hekateros_control
      */
     void driveLEDsFigure8Pattern();
 
-    /*!
-     * \brief Get the index of the joint of the robot.
+    /*
+     * \brief Conditionally stop a joint's trajectory.
+     *
+     * If the joint has been included in the current joint trajectory point and
+     * that joint is moving, then replace with a null (i.e. stop) point
+     * component.
      *
      * \param strJointName    Joint name.
-     * 
-     * \return Returns index \h_ge 0 if found. Otherwise returns -1.
+     *
+     * \return If stopped, returns the relevant index \h_ge 0 of the joint in
+     * the trajectory point. Otherwise, -1 is returned.
      */
-    ssize_t indexOfRobotJoint(const std::string &strJointName);
+    ssize_t stopJoint(const std::string &strJointName);
 
-    /*!
-     * \brief Get the index of the joint in the current joint trajectory.
+    /*
+     * \brief Conditionally add a joint's trajectory.
+     *
+     * If the joint has not been included in the current joint trajectory point
+     * or that joint's goal position or velocity differs, then the new values
+     * are added/replaced with the new values.
      *
      * \param strJointName    Joint name.
-     * 
-     * \return Returns index \h_ge 0 if found. Otherwise returns -1.
+     * \param pos             Joint goal position (radians).
+     * \param vel             Joint goal velocity (%).
+     *
+     * \return If added, returns the relevant index \h_ge 0 of the joint in
+     * the trajectory point. Otherwise, -1 is returned.
      */
-    ssize_t indexOfTrajectoryJoint(const std::string &strJointName);
-    
+    ssize_t addJoint(const std::string &strJointName, double pos, double vel);
+
     /*!
      * \brief Add a joint to the current joint trajectory point.
      *
-     *  The joint is only added if it does not exist in point.
+     * The joint is only added if it does not exist in point.
+     * 
+     * The joint is initialized with the null goal trajectory. That is, the
+     * joint's goal position equals its current joint position, and with zero
+     * velocity and zero acceleration.
      *
      * \param strJointName    Joint name.
      * 
-     * \return Returns index \h_ge 0 of the added or existing joint.
-     * If the joint does not exists in the arm, -1 is returned.
+     * \return Returns the index of the existing or added component to the
+     * trajectory point on success, -1 on failure.
      */
     ssize_t addJointToTrajectoryPoint(const std::string &strJointName);
-
-    /*
-     * \brief Set null joint trajectory.
-     *
-     * A null trajectory is a trajectory to the current joint position at
-     * zero velocity.
-     */
-    void nullJointTrajectory();
-
-    void stopJoint(const std::string &strJointName);
-    void addJoint(const std::string &strJointName, double pos, double vel);
 
     /*!
      * \brief Clear joint trajectory.
      */
     void clearJointTrajectory();
     
+    /*!
+     * \brief Clear previous saved joint trajectory.
+     */
     void clearPrevJointTrajectory();
   };
 

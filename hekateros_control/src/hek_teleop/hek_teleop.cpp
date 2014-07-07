@@ -1401,30 +1401,55 @@ void HekTeleop::driveLEDsFigure8Pattern()
   }
 }
 
-ssize_t HekTeleop::indexOfRobotJoint(const string &strJointName)
+ssize_t HekTeleop::stopJoint(const string &strJointName)
 {
-  for(size_t i=0; i<m_msgJointState.name.size(); ++i)
+  MapJointTraj::iterator  p;
+  ssize_t                 i = -1;
+
+  // if in old and not zero velocity
+  if( ((p = m_mapPrevTraj.find(strJointName)) != m_mapPrevTraj.end()) &&
+      m_msgPrevJointTrajPoint.velocities[p->second] != 0.0 )
   {
-    if( m_msgJointState.name[i] == strJointName )
+    if( (i = addJointToTrajectoryPoint(strJointName)) >= 0 )
     {
-      return (ssize_t)i;
+      m_msgJointTrajPoint.velocities[i] = 0.0;
     }
   }
 
-  return -1;
+  return i;
 }
 
-ssize_t HekTeleop::indexOfTrajectoryJoint(const string &strJointName)
+ssize_t HekTeleop::addJoint(const string &strJointName, double pos, double vel)
 {
-  for(size_t i=0; i<m_msgJointTraj.joint_names.size(); ++i)
+  MapJointTraj::iterator  p;
+  ssize_t                 i;        // previous trajectory point index
+  ssize_t                 j = -1;   // current trajectory point index
+
+  // there exists a previous joint trajectory point component
+  if( (p = m_mapPrevTraj.find(strJointName)) != m_mapPrevTraj.end() )
   {
-    if( m_msgJointTraj.joint_names[i] == strJointName )
+    i = p->second;
+
+    // previous joint trajectory point is different
+    if( (pos != m_msgPrevJointTrajPoint.positions[i]) ||
+        (vel != m_msgJointTrajPoint.velocities[i]) )
     {
-      return (ssize_t)i;
+      if( (j = addJointToTrajectoryPoint(strJointName)) >= 0 )
+      {
+        m_msgJointTrajPoint.positions[j]  = pos;
+        m_msgJointTrajPoint.velocities[j] = vel;
+      }
     }
   }
 
-  return -1;
+  // no previous joint trajectory point component
+  else if( (j = addJointToTrajectoryPoint(strJointName)) >= 0 )
+  {
+    m_msgJointTrajPoint.positions[j]  = pos;
+    m_msgJointTrajPoint.velocities[j] = vel;
+  }
+
+  return j;
 }
 
 ssize_t HekTeleop::addJointToTrajectoryPoint(const string &strJointName)
@@ -1438,67 +1463,20 @@ ssize_t HekTeleop::addJointToTrajectoryPoint(const string &strJointName)
     return p->second;
   }
 
-  // add new joint with current state
+  // add new joint with null trajectory
   else if( (q = m_mapCurPos.find(strJointName)) != m_mapCurPos.end() )
   {
     m_msgJointTraj.joint_names.push_back(strJointName);
     m_msgJointTrajPoint.positions.push_back(q->second);
     m_msgJointTrajPoint.velocities.push_back(m_mapCurVel[strJointName]);
     m_msgJointTrajPoint.accelerations.push_back(0.0);
+    return m_msgJointTraj.joint_names.size() - 1;
   }
 
   // unknown joint
   else
   {
     return -1;
-  }
-}
-
-void HekTeleop::stopJoint(const string &strJointName)
-{
-  MapJointTraj::iterator  p;
-  ssize_t                 i;
-
-  // if in old and not zero velocity
-  if( ((p = m_mapPrevTraj.find(strJointName)) != m_mapPrevTraj.end()) &&
-      m_msgPrevJointTrajPoint.velocities[p->second] != 0.0 )
-  {
-    if( (i = addJointToTrajectoryPoint(strJointName)) >= 0 )
-    {
-      m_msgJointTrajPoint.velocities[i] = 0.0;
-    }
-  }
-}
-
-void HekTeleop::addJoint(const string &strJointName, double pos, double vel)
-{
-  MapJointTraj::iterator  p;
-  ssize_t                 i;
-
-  // no previous joint trajectory point
-  if( (p = m_mapPrevTraj.find(strJointName)) == m_mapPrevTraj.end() )
-  {
-    if( (i = addJointToTrajectoryPoint(strJointName)) >= 0 )
-    {
-      m_msgJointTrajPoint.positions[i]  = pos;
-      m_msgJointTrajPoint.velocities[i] = vel;
-    }
-  }
-
-  else
-  {
-    i = p->second;
-
-    // previous joint trajectory point is different
-    if( (pos != m_msgPrevJointTrajPoint.positions[i]) ||
-        (vel != m_msgJointTrajPoint.velocities[i]) )
-    {
-      if( (i = addJointToTrajectoryPoint(strJointName)) >= 0 )
-      {
-        m_msgJointTrajPoint.positions[i]  = pos;
-        m_msgJointTrajPoint.velocities[i] = vel;
-      }
-    }
   }
 }
 
