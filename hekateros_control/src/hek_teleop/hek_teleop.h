@@ -233,13 +233,13 @@ namespace hekateros_control
       LEDPatShoulder  = XBOX360_LED_PAT_1_ON,       ///< isolated shoulder move
       LEDPatElbow     = XBOX360_LED_PAT_2_ON        ///< isolated elbow move
     };
-
     /*!
      * \brief First person state.
      */
     struct FirstPersonState
     {
       bool    m_bNewGoal;   ///< [do not] have a new goal
+      bool    m_bNewWristPitch; ///< wrist pitch does [not] have new direction
       double  m_goalSign;   ///< goal sign
       struct
       {
@@ -389,24 +389,25 @@ namespace hekateros_control
     int               m_rumbleRight;    ///< saved previous right rumble speed 
     FirstPersonState  m_fpState;        ///< first person state data
 
-    MapJointState     m_mapCurPos;    ///< joint name to current joint position
-    MapJointState     m_mapCurVel;    ///< joint name to current joint velocity
-    MapJointTraj      m_mapTraj;      ///< joint name to traj. point index
-    MapJointTraj      m_mapPrevTraj;  ///< joint name to previous traj pt index
+    MapJointState     m_mapCurPos;      ///< current joint position by name
+    MapJointState     m_mapCurVel;      ///< current joint velocity by name
+    MapJointState     m_mapGoalPos;     ///< goal joint position by name
+    MapJointState     m_mapGoalVel;     ///< goal joint velocity by name
+    MapJointTraj      m_mapTraj;        ///< working traj. pt. index by name
 
     // messages
     hekateros_control::HekRobotStatusExtended m_msgRobotStatus;
-                                          ///< current robot extended status msg
+                                        ///< current extended robot status msg
     hekateros_control::HekJointStateExtended  m_msgJointState;
-                                          ///< current extended joint state msg
-    trajectory_msgs::JointTrajectory          m_msgJointTraj;
-                                          ///< working joint trajectory msg
+                                        ///< current extended joint state msg
+    trajectory_msgs::JointTrajectoryPoint     m_msgActiveJointTrajPoint;
+                                        ///< active joint trajectory point msg
     trajectory_msgs::JointTrajectoryPoint     m_msgJointTrajPoint;
-                                          ///< working joint trajectory point
-    trajectory_msgs::JointTrajectoryPoint     m_msgPrevJointTrajPoint;
-                                          ///< previous joint trajectory point
+                                        ///< working joint trajectory point msg
+    trajectory_msgs::JointTrajectory          m_msgJointTraj;
+                                        ///< working joint trajectory msg
     hid::ConnStatus                           m_msgConnStatus;
-                                          ///< saved last connection status 
+                                        ///< saved last connection status msg
 
 
     //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -746,6 +747,38 @@ namespace hekateros_control
      */
     void driveLEDsFigure8Pattern();
 
+    /*!
+     * \brief Checks if the joint is in the active trajectory.
+     *
+     * \param strJointName    Joint name.
+     *
+     * \return Returns true or false.
+     */
+    bool hasActiveJoint(const std::string strJointName)
+    {
+      return m_mapGoalPos.find(strJointName) != m_mapGoalPos.end()? true: false;
+    }
+
+    /*!
+     * \brief Checks if there exists an active trajectory.
+     *
+     * \return Returns true or false.
+     */
+    bool hasActiveTrajectory()
+    {
+      return m_mapGoalPos.size() > 0? true: false;
+    }
+
+    /*!
+     * \brief Checks if there exists a non-zero, working trajectory.
+     *
+     * \return Returns true or false.
+     */
+    bool hasWorkingTrajectory()
+    {
+      return m_msgJointTraj.joint_names.size() > 0? true: false;
+    }
+
     /*
      * \brief Conditionally stop a joint's trajectory.
      *
@@ -761,10 +794,11 @@ namespace hekateros_control
     ssize_t stopJoint(const std::string &strJointName);
 
     /*
-     * \brief Conditionally add a joint's trajectory.
+     * \brief Conditionally set a joint's trajectory to the working trajectory
+     * point.
      *
      * If the joint has not been included in the current joint trajectory point
-     * or that joint's goal position or velocity differs, then the new values
+     * or that joint's goal position or velocity differ, then the new values
      * are added/replaced with the new values.
      *
      * \param strJointName    Joint name.
@@ -774,10 +808,10 @@ namespace hekateros_control
      * \return If added, returns the relevant index \h_ge 0 of the joint in
      * the trajectory point. Otherwise, -1 is returned.
      */
-    ssize_t addJoint(const std::string &strJointName, double pos, double vel);
+    ssize_t setJoint(const std::string &strJointName, double pos, double vel);
 
     /*!
-     * \brief Add a joint to the current joint trajectory point.
+     * \brief Add a joint to the working joint trajectory point.
      *
      * The joint is only added if it does not exist in point.
      * 
@@ -793,14 +827,14 @@ namespace hekateros_control
     ssize_t addJointToTrajectoryPoint(const std::string &strJointName);
 
     /*!
-     * \brief Clear joint trajectory.
+     * \brief Clear working joint trajectory point.
      */
-    void clearJointTrajectory();
+    void clearWorkingTrajectory();
     
     /*!
-     * \brief Clear previous saved joint trajectory.
+     * \brief Clear active joint trajectory point.
      */
-    void clearPrevJointTrajectory();
+    void clearActiveTrajectory();
   };
 
 } // namespace hekateros_control
