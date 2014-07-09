@@ -570,11 +570,13 @@ bool HekaterosControl::stop(Stop::Request  &req,
 {
   const char *svc = "stop";
 
+  int n;
+
   ROS_DEBUG("%s", svc);
 
-  m_robot.freeze();
+  n = m_robot.stop(req.joint_names);
 
-  ROS_INFO("Robot stopped (position frozen).");
+  ROS_INFO("Stopped %d joints.", n);
 
   return true;
 }

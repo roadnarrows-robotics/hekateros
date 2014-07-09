@@ -492,7 +492,7 @@ namespace hekateros_control
                       hekateros_control::SetRobotMode::Response &rsp);
 
     /*!
-     * \brief Stop (freeze) robot service callback.
+     * \brief Stop a set of joints robot service callback.
      *
      * \param req   Service request.
      * \param rsp   Service response.

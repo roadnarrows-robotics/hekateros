@@ -1,3 +1,4 @@
 # Hekateros hekateros_control/Stop service
 
+string[]  joint_names   # joint names
 ---
