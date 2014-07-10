@@ -239,6 +239,7 @@ namespace hekateros_control
       LEDPatShoulder  = XBOX360_LED_PAT_3_ON,       ///< isolated shoulder move
       LEDPatElbow     = XBOX360_LED_PAT_1_ON        ///< isolated elbow move
     };
+
     /*!
      * \brief First person state.
      */
