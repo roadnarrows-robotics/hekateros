@@ -164,8 +164,11 @@ namespace hekateros_control
     /*! map of ROS subscriptions type */
     typedef std::map<std::string, ros::Subscriber> MapSubscriptions;
 
-    /*! map of joint names to joint state datum */
-    typedef std::map<std::string, double> MapJointState;
+    /*! map of doubles */
+    typedef std::map<std::string, double> MapDouble;
+
+    /*! map of booleans */
+    typedef std::map<std::string, bool> MapBool;
 
     /*! map of joint names to joint trajectory point indices */
     typedef std::map<std::string, int> MapJointTraj;
@@ -204,18 +207,21 @@ namespace hekateros_control
       ButtonIdToggleMode    = rnr::Xbox360FeatIdCenterX,  ///< toggle op mode
       ButtonIdStart         = rnr::Xbox360FeatIdStart,    ///< start teleop
 
-      ButtonIdPrevJoint     = rnr::Xbox360FeatIdPadLeft,  ///< previous joint
-      ButtonIdNextJoint     = rnr::Xbox360FeatIdPadRight, ///< next joint
+      ButtonIdPrevJoint     = rnr::Xbox360FeatIdPadDown,  ///< previous joint
+      ButtonIdNextJoint     = rnr::Xbox360FeatIdPadUp,    ///< next joint
 
-      ButtonIdMoveJoints    = rnr::Xbox360FeatIdLeftJoyY, ///< move fp/shldr
-      ButtonIdRotBase       = rnr::Xbox360FeatIdRightJoyX,///< rotate base
+      ButtonIdFineTune1     = rnr::Xbox360FeatIdLeftStickClick,///< fine tune
+      ButtonIdFineTune2     = rnr::Xbox360FeatIdRightStickClick,///< fine tune
+
+      ButtonIdMoveJoints    = rnr::Xbox360FeatIdLeftJoyY, ///< move fp/shldr/elb
+      ButtonIdRotBase       = rnr::Xbox360FeatIdLeftJoyX, ///< rotate base
       ButtonIdPitchWrist    = rnr::Xbox360FeatIdRightJoyY,///< pitch wrist
 
       ButtonIdRotWristCw    = rnr::Xbox360FeatIdLeftBump, ///< rotate wrist CW
       ButtonIdRotWristCcw   = rnr::Xbox360FeatIdRightBump,///< rotate wrist CCW
 
-      ButtonIdOpenGripper   = rnr::Xbox360FeatIdLeftTrigger, ///< open gripper
-      ButtonIdCloseGripper  = rnr::Xbox360FeatIdRightTrigger ///< close gripper
+      ButtonIdOpenGripper   = rnr::Xbox360FeatIdRightTrigger,///< open gripper
+      ButtonIdCloseGripper  = rnr::Xbox360FeatIdLeftTrigger  ///< close gripper
     };
 
     /*! teleop button state type */
@@ -230,8 +236,8 @@ namespace hekateros_control
       LEDPatOn        = XBOX360_LED_PAT_ALL_BLINK,  ///< default xbox on pattern
       LEDPatPaused    = XBOX360_LED_PAT_4_ON,       ///< pause teleop pattern
       LEDPatReady     = XBOX360_LED_PAT_ALL_SPIN,   ///< spin, first-person mode
-      LEDPatShoulder  = XBOX360_LED_PAT_1_ON,       ///< isolated shoulder move
-      LEDPatElbow     = XBOX360_LED_PAT_2_ON        ///< isolated elbow move
+      LEDPatShoulder  = XBOX360_LED_PAT_3_ON,       ///< isolated shoulder move
+      LEDPatElbow     = XBOX360_LED_PAT_1_ON        ///< isolated elbow move
     };
     /*!
      * \brief First person state.
@@ -239,7 +245,6 @@ namespace hekateros_control
     struct FirstPersonState
     {
       bool    m_bNewGoal;   ///< [do not] have a new goal
-      bool    m_bNewWristPitch; ///< wrist pitch does [not] have new direction
       double  m_goalSign;   ///< goal sign
       struct
       {
@@ -388,11 +393,13 @@ namespace hekateros_control
     int               m_rumbleLeft;     ///< saved previous left rumble speed 
     int               m_rumbleRight;    ///< saved previous right rumble speed 
     FirstPersonState  m_fpState;        ///< first person state data
-
-    MapJointState     m_mapCurPos;      ///< current joint position by name
-    MapJointState     m_mapCurVel;      ///< current joint velocity by name
-    MapJointState     m_mapGoalPos;     ///< goal joint position by name
-    MapJointState     m_mapGoalVel;     ///< goal joint velocity by name
+    bool              m_bPreemptMove;   ///< preempt teleoperation move
+    double            m_fMoveTuning;    ///< movement fine/course tuning
+    MapDouble         m_mapCurPos;      ///< current joint position by name
+    MapDouble         m_mapCurVel;      ///< current joint velocity by name
+    MapDouble         m_mapGoalPos;     ///< goal joint position by name
+    MapDouble         m_mapGoalVel;     ///< goal joint velocity by name
+    MapBool           m_mapTeleop;      ///< joints being teleoperated
     MapJointTraj      m_mapTraj;        ///< working traj. pt. index by name
 
     // messages
@@ -477,6 +484,13 @@ namespace hekateros_control
      * \param mode    Auto or manual mode.
      */
     void setRobotMode(hekateros::HekRobotMode mode);
+
+    /*!
+     * \brief Stop robot joints client service.
+     *
+     * \param vecJointNames Vector of joint names.
+     */
+    void stop(const std::vector<std::string> &vecJointNames);
 
 
     //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -609,6 +623,13 @@ namespace hekateros_control
     void buttonNextJoint(ButtonState &buttonState);
 
     /*!
+     * \brief Execute fine tune manual movements button action.
+     *
+     * \param buttonState   New button state.
+     */
+    void buttonFineTune(ButtonState &buttonState);
+
+    /*!
      * \brief Execute emergency stop button action.
      *
      * \param buttonState   New button state.
@@ -626,6 +647,7 @@ namespace hekateros_control
       {
         gotoBalancedPos();
         m_fpState.m_bNewGoal = true;
+        m_bPreemptMove = true;
       }
     }
 
@@ -640,6 +662,7 @@ namespace hekateros_control
       {
         gotoParkedPos();
         m_fpState.m_bNewGoal = true;
+        m_bPreemptMove = true;
       }
     }
 
@@ -654,6 +677,7 @@ namespace hekateros_control
       {
         gotoZeroPt();
         m_fpState.m_bNewGoal = true;
+        m_bPreemptMove = true;
       }
     }
 
@@ -780,18 +804,11 @@ namespace hekateros_control
     }
 
     /*
-     * \brief Conditionally stop a joint's trajectory.
+     * \brief Stop all unteleoperated joints.
      *
-     * If the joint has been included in the current joint trajectory point and
-     * that joint is moving, then replace with a null (i.e. stop) point
-     * component.
-     *
-     * \param strJointName    Joint name.
-     *
-     * \return If stopped, returns the relevant index \h_ge 0 of the joint in
-     * the trajectory point. Otherwise, -1 is returned.
+     * If a joint was being actively being control and now its not, stop.
      */
-    ssize_t stopJoint(const std::string &strJointName);
+    void stopUnteleopJoints();
 
     /*
      * \brief Conditionally set a joint's trajectory to the working trajectory
@@ -835,6 +852,11 @@ namespace hekateros_control
      * \brief Clear active joint trajectory point.
      */
     void clearActiveTrajectory();
+    
+    /*!
+     * \brief Reset joint teleoperation active state.
+     */
+    void resetActiveTeleop();
   };
 
 } // namespace hekateros_control
