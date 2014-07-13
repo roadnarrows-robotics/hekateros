@@ -1367,8 +1367,8 @@ void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  pos = degToRad(25.0);
-  vel = (double)(joy) / XBOX360_JOY_MAX * 40.0;
+  pos = degToRad(45.0);
+  vel = (double)(joy) / XBOX360_JOY_MAX * 15.0;
   vel *= m_fMoveTuning;
 
   if( vel < 0.0 )
