@@ -988,7 +988,7 @@ void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  pos = m_mapCurPos[JointNameGrip] - degToRad(30.0);
+  pos = m_mapCurPos[JointNameGrip] - degToRad(40.0);
   vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
             scale;
   vel *= m_fMoveTuning;
@@ -1025,7 +1025,7 @@ void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  pos = m_mapCurPos[JointNameGrip] + degToRad(30.0);
+  pos = m_mapCurPos[JointNameGrip] + degToRad(40.0);
   vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
             scale;
   vel *= m_fMoveTuning;
