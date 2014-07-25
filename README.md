@@ -8,9 +8,6 @@ Here you will find a collection of [ROS](http://ros.org) packages for the Hekate
 To get up and running with a new Hekateros, check out the documentation in the Hekateros ROS Wiki:
 
 * [**Hekateros ROS Wiki - Home**](https://github.com/roadnarrows-robotics/hekateros/wiki)
- * [**Installation Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Installation-Guide)
- * [**Quick Start Guide**](https://github.com/roadnarrows-robotics/hekateros/wiki/ROS-Hekateros-Quick-Start-Guide)
-* [**Intro to the hekateros_control node**](https://github.com/roadnarrows-robotics/hekateros/wiki/Introduction-to-the-hekateros_control-node)
 
 Visit the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html) to get your very own!
 
