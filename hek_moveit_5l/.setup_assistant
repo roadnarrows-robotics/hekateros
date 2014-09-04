@@ -5,4 +5,4 @@ moveit_setup_assistant_config:
   SRDF:
     relative_path: config/hek_5L_1.0.srdf
   CONFIG:
-    generated_timestamp: 1390513520
+    generated_timestamp: 1409697502

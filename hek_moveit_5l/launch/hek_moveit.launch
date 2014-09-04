@@ -5,15 +5,20 @@
   </include>
 
   
-
+  <!--
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
     <param name="/use_gui" value="false"/>
+    <rosparam param="source_list">hekateros_control/joint_states</rosparam>
+  </node>
+  -->
+  
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen">
+    <remap from="joint_states" to="/hekateros_control/joint_states" />
   </node>
   
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
 
   <include file="$(find hek_moveit_5l)/launch/move_group.launch">
-    <arg name="allow_trajectory_execution" value="false"/>
+    <arg name="allow_trajectory_execution" value="true"/>
   </include>
 
   <include file="$(find hek_moveit_5l)/launch/moveit_rviz.launch">

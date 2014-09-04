@@ -20,8 +20,7 @@
   </include>
 
   <include ns="move_group" file="$(find hek_moveit_5l)/launch/trajectory_execution.launch" if="$(arg allow_trajectory_execution)">
-    <!-- <arg name="moveit_controller_manager" value="hek_5L_1.0" /> -->
-    <arg name="moveit_controller_manager" value="hek" /> 
+    <arg name="moveit_controller_manager" value="hek_5L_1.0" /> 
     <arg name="moveit_manage_controllers" value="true" />
   </include>
 
@@ -53,6 +52,8 @@
     <param name="planning_scene_monitor/publish_geometry_updates" value="$(arg publish_monitored_planning_scene)" />
     <param name="planning_scene_monitor/publish_state_updates" value="$(arg publish_monitored_planning_scene)" />
     <param name="planning_scene_monitor/publish_transforms_updates" value="$(arg publish_monitored_planning_scene)" />
+
+    <remap from="joint_states" to="/hekateros_control/joint_states" />
   </node>
   
 </launch>
