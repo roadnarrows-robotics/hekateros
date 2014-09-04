@@ -86,6 +86,7 @@
 #include "Hekateros/hekateros.h"
 #include "Hekateros/hekJoint.h"
 #include "Hekateros/hekTraj.h"
+#include "Hekateros/hekUtils.h"
 #include "Hekateros/hekRobot.h"
 
 //
@@ -108,12 +109,40 @@ const double ASFollowTrajectory::TolWaypoint = 0.01745; // ~1.0 degrees
 const double ASFollowTrajectory::TolGoal     = 0.00087; // ~0.05 degrees
 const int    ASFollowTrajectory::MaxIters    = 10;      // ~1 second
 
+// RDK
+// RDK TODO HACK. Need to get max r/s per each joint
+#define HACK_MAX_GEAR_RATIO 4.0   // gear ratios vary from 1.5 to 4.0
+#define HACK_MIN_SERVO_RPM  45.0  // MXs vary from 45.0 to 78.0
+#define HACK_MAX_RADS_PER_SEC \
+  ( (HACK_MIN_SERVO_RPM / HACK_MAX_GEAR_RATIO / 60.0) * M_TAU )
+
+// RDK TODO HACK
+inline double velPerCent(double velRadsPerSec)
+{
+  double vel = fabs(velRadsPerSec) / HACK_MAX_RADS_PER_SEC * 100.0;
+  
+  if( vel < 0.0 )
+  {
+    return 0.0;
+  }
+  else if( vel > 100.0 )
+  {
+    return 100.0;
+  }
+  else
+  {
+    return vel;
+  }
+}
+// RDK 
+
 void ASFollowTrajectory::execute_cb(
                                   const FollowJointTrajectoryGoalConstPtr &goal)
 {
-  JointTrajectory   jt;         // the joint trajectory path
-  ssize_t           iWaypoint;  // working waypoint index
-  int               rc;         // return code
+  JointTrajectory   jt;           // the joint trajectory path
+  ssize_t           numWaypoints; // number of  waypoints
+  ssize_t           iWaypoint;    // working waypoint index
+  int               rc;           // return code
 
   ROS_INFO("%s: Executing FollowJointTrajectory goal of %zu waypoints.",
       action_name_.c_str(), goal->trajectory.points.size());
@@ -125,8 +154,10 @@ void ASFollowTrajectory::execute_cb(
   // The joint trajectory path.
   jt = goal->trajectory;
 
+  numWaypoints = (ssize_t)jt.points.size();
+
   // No path. Is this an error or a null success?
-  if( jt.points.size() == 0 )
+  if( numWaypoints <= 0 )
   {
     ROS_ERROR("%s: No joint trajectory path.", action_name_.c_str());
     result_.error_code = FollowJointTrajectoryResult::INVALID_GOAL;
@@ -145,7 +176,7 @@ void ASFollowTrajectory::execute_cb(
   //
   // Follow joint trajectory path.
   //
-  while( (iWaypoint < jt.points.size()) && ros::ok() )
+  while( (iWaypoint < numWaypoints) && ros::ok() )
   {
     //
     // Action was preempted.
@@ -167,7 +198,7 @@ void ASFollowTrajectory::execute_cb(
       ++iWaypoint;  // index of next waypoint
 
       // no more waypoints
-      if( iWaypoint >= jt.points.size() )
+      if( iWaypoint >= numWaypoints )
       {
         break;
       }
@@ -176,7 +207,7 @@ void ASFollowTrajectory::execute_cb(
       {
         ROS_INFO("%s: Moving to trajectory waypoint %zd.",
             action_name_.c_str(), iWaypoint);
-        m_fTolerance  = iWaypoint < jt.points.size()-1? TolWaypoint: TolGoal;
+        m_fTolerance  = iWaypoint < numWaypoints-1? TolWaypoint: TolGoal;
         m_iterMonitor = 0;
         feedback_.desired = jt.points[iWaypoint];
       }
@@ -244,10 +275,12 @@ int ASFollowTrajectory::moveToWaypoint(JointTrajectory &jt, ssize_t iWaypoint)
   {
     pt.append(jt.joint_names[j],
               jt.points[iWaypoint].positions[j], 
-              jt.points[iWaypoint].velocities[j]);
-    ROS_DEBUG("%s: pos=%5.3f speed=%2.1f",  jt.joint_names[j].c_str(), 
-                                            jt.points[iWaypoint].positions[j], 
-                                            jt.points[iWaypoint].velocities[j]);
+              velPerCent(jt.points[iWaypoint].velocities[j]));
+    // RDK ROS_DEBUG
+    ROS_INFO("%s: pos=%5.3f speed=%2.1f",
+      jt.joint_names[j].c_str(), 
+      jt.points[iWaypoint].positions[j], 
+      velPerCent(jt.points[iWaypoint].velocities[j]));
   }
 
   //
@@ -258,21 +291,33 @@ int ASFollowTrajectory::moveToWaypoint(JointTrajectory &jt, ssize_t iWaypoint)
 
 void ASFollowTrajectory::monitorMove(JointTrajectory &jt, ssize_t iWaypoint)
 {
-  HekRobot           &robot(node_.getRobot());  // hekateros
-  HekJointStatePoint  jointCurState;            // current joint state point
-  string              jointName;                // joint name
-  double              jointWpPos;               // joint waypoint position
-  double              jointWpVel;               // joint waypoint velocity
-  double              jointCurPos;              // joint current position
-  double              jointCurVel;              // joint current velocity
-  double              jointDist;                // joint distance
-  double              waypointDist;             // current waypoint distance
-  int                 j;                        // working index
+  HekRobot             &robot(node_.getRobot());  // hekateros
+  HekJointStatePoint    jointCurState;            // current joint state point
+  string                jointName;                // joint name
+  double                jointWpPos;               // joint waypoint position
+  double                jointWpVel;               // joint waypoint velocity
+  double                jointCurPos;              // joint current position
+  double                jointCurVel;              // joint current velocity
+  double                jointDistPos;             // joint position distance
+  double                jointDistVel;             // joint velocity distance
+  double                waypointDist;             // current waypoint distance
+  size_t                j;                        // working index
 
   robot.getJointState(jointCurState);
 
   m_fWaypointDist = 1000.0;    // make large
   waypointDist    = 0.0;        
+
+  feedback_.joint_names.clear();
+  feedback_.desired.positions.clear();
+  feedback_.desired.velocities.clear();
+  feedback_.desired.accelerations.clear();
+  feedback_.actual.positions.clear();
+  feedback_.actual.velocities.clear();
+  feedback_.actual.accelerations.clear();
+  feedback_.error.positions.clear();
+  feedback_.error.velocities.clear();
+  feedback_.error.accelerations.clear();
 
   // 
   // Calculate distance from current position to target waypoint.
@@ -292,25 +337,32 @@ void ASFollowTrajectory::monitorMove(JointTrajectory &jt, ssize_t iWaypoint)
       jointCurPos = jointCurState[jointName].m_fPosition;
       jointCurVel = jointCurState[jointName].m_fVelocity;
 
-      jointDist = fabs(jointWpPos - jointCurPos);
+      jointDistPos = fabs(jointWpPos - jointCurPos);
+      jointDistVel = jointWpVel - jointCurVel;
 
-      if( jointDist > waypointDist )
+      if( jointDistPos > waypointDist )
       {
-        waypointDist = jointDist;
+        waypointDist = jointDistPos;
       }
 
-      feedback_.actual.positions[j]  = jointCurPos;
-      feedback_.actual.velocities[j] = jointCurVel;
-      feedback_.error.positions[j]   = jointDist;
-      feedback_.error.velocities[j]  = jointWpVel - jointCurVel;
     }
     else
     {
-      feedback_.actual.positions[j]  = jointWpPos;
-      feedback_.actual.velocities[j] = jointWpVel;
-      feedback_.error.positions[j]   = 0.0;
-      feedback_.error.velocities[j]  = 0.0;
+      jointDistPos = 0.0;
+      jointDistVel = 0.0;
     }
+
+    // add point to feedback
+    feedback_.joint_names.push_back(jointName);
+    feedback_.desired.positions.push_back(jointWpPos);
+    feedback_.desired.velocities.push_back(jointWpVel);
+    feedback_.desired.accelerations.push_back(0.0);
+    feedback_.actual.positions.push_back(jointCurPos);
+    feedback_.actual.velocities.push_back(jointCurVel);
+    feedback_.actual.accelerations.push_back(0.0);
+    feedback_.error.positions.push_back(jointDistPos);
+    feedback_.error.velocities.push_back(jointDistVel);
+    feedback_.error.accelerations.push_back(0.0);
   }
 
   publishFeedback(iWaypoint);
@@ -318,8 +370,11 @@ void ASFollowTrajectory::monitorMove(JointTrajectory &jt, ssize_t iWaypoint)
   m_fWaypointDist = waypointDist;
 
   ++m_iterMonitor;
-}
 
+  // RDK ROS_DEBUG
+  ROS_INFO("Monitoring waypoint %zd: iter=%d, dist=%lf\n",
+      iWaypoint, m_iterMonitor, m_fWaypointDist);
+}
 
 bool ASFollowTrajectory::failedWaypoint(JointTrajectory &jt, ssize_t iWaypoint)
 {
