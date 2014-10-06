@@ -18,7 +18,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <run_depend>hekateros_4l_moveit</run_depend>
+  <run_depend>hek_moveit_5l</run_depend>
   <run_depend>hekateros_apps</run_depend>
   <run_depend>hekateros_control</run_depend>
   <run_depend>hekateros_desc</run_depend>
