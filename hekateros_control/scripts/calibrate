@@ -1,0 +1,118 @@
+#! /usr/bin/env python
+## 
+## Calibrate the Hekateros arm via an action server request
+##
+
+import time
+import sys
+
+import roslib; roslib.load_manifest('hekateros_control')
+import rospy
+
+from actionlib_msgs.msg import GoalStatus
+from hekateros_control.ACCalibrate import *
+
+CalibStateFailed  = -1
+CalibStateIdle    =  0
+CalibStateRunning =  1
+CalibStateSuccess =  3
+
+#
+## \brief Simple calibration client wrapper class.
+#
+class CalibClient:
+  def __init__(self):
+    self.m_ac     = None
+    self.m_state  = CalibStateIdle
+
+  #
+  ## \brief (Cancel) calibration callback.
+  #
+  def calibrate(self):
+    rospy.loginfo("Calibrating Hekateros")
+
+    # create calibration action client, if not already created
+    if self.m_ac is None:
+      self.m_ac = ACCalibrate()
+
+    self.m_state  = CalibStateRunning
+
+    # start calibration
+    if not self.m_ac.exec_calib(self.monitor, timeout=1, force_recalib=True):
+      rospy.logerror("Could not execute calibration. " \
+                     "Is the hekateros_control node running?")
+      self.cancel()
+      
+  #
+  ## \brief Cancel calibration, setting data and widget state accordingly.
+  #
+  def cancel(self):
+      self.m_ac.cancel()
+      self.m_state = CalibStateFailed
+      rospy.logerror("Calibration preempted.")
+
+  #
+  ## \brief Monitor the calibration feedback callback.
+  #
+  def monitor(self, feedback):
+    rospy.logdebug(feedback)
+
+  #
+  ## \brief Check for calibration complete.
+  #
+  def is_done(self):
+    if self.m_state != CalibStateRunning:
+      return True
+    status = self.m_ac.get_action_state()
+    #rospy.loginfo(status)
+    # executing
+    if    status == GoalStatus.PENDING or status == GoalStatus.ACTIVE or \
+          status == GoalStatus.PREEMPTING or status == GoalStatus.RECALLING:
+      return False
+    # finished with abort or error
+    elif  status == GoalStatus.PREEMPTED or status == GoalStatus.REJECTED or \
+          status == GoalStatus.RECALLED or status == GoalStatus.ABORTED or \
+          status == GoalStatus.REJECTED:
+      self.m_state = CalibStateFailed
+      return True
+    # finished with success
+    elif  status == GoalStatus.SUCCEEDED:
+      self.m_state = CalibStateSuccess
+      return True
+    # unknown
+    else:
+      rospy.logerror("Unknown status %d" % (status))
+      self.m_state = CalibStateFailed
+      return True
+
+if __name__ == '__main__':
+  rospy.init_node("calibrate")
+  calib_client = CalibClient()
+  calib_client.calibrate()
+  while not calib_client.is_done():
+    sys.stderr.write(".")
+    time.sleep(1)
+  sys.stderr.write("\n")
+  if calib_client.m_state == CalibStateSuccess:
+    rospy.loginfo("Calibration sequence complete!")
+  else:
+    rospy.loginfo("Calibration sequence failed.")
+
+"""
+def feedback_h(fb):
+    rospy.logdebug(fb)
+
+if __name__ == '__main__':
+    rospy.init_node("calibrate_ac")
+
+    calib_client = calibrate_ac()
+    calib_client.exec_calib(feedback_h)
+
+    seq = 0
+    while calib_client.get_action_state()<3: # everyone <3's action states! 
+        sys.stderr.write(".")
+        time.sleep(2)
+
+    sys.stderr.write("\n")
+    rospy.loginfo("Calibration sequence complete!")
+"""

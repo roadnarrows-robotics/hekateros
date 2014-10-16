@@ -106,10 +106,10 @@ add_dependencies(hek_teleop hekateros_control hek_control_gencpp)
 
 install(
   PROGRAMS 
-    scripts/calibrate_arm
+    scripts/calibrate
     scripts/hek_panel
-    scripts/hek_pyteleop
+    #scripts/hek_pyteleop
     #scripts/hek_teleop_viewer
-    scripts/joint_trajectory_demo 
+    #scripts/joint_trajectory_demo 
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
