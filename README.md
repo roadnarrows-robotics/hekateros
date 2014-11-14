@@ -11,7 +11,8 @@ default [Graboid Gripper](http://www.roadnarrows-store.com/roadnarrows-graboid-s
 
 ## Documentation
 To get up and running with a new Hekateros, check out the documentation in the Hekateros ROS Wiki:
-
 * [**Hekateros ROS Wiki - Home**](https://github.com/roadnarrows-robotics/hekateros/wiki)
 
-Visit the [RoadNarrows Store](http://www.roadnarrows-store.com/hekateros-arm.html) to get your very own!
+## Store
+Visit the RoadNarrows store to purchase you very own!
+* [**RoadNarrows Store**](http://www.roadnarrows-store.com/hekateros-arm.html)
