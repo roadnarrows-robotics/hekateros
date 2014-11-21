@@ -325,7 +325,9 @@ int main(int argc, char *argv[])
   while( (rc = hek.connect(OptsDevDynabus, OptsBaudDynabus,
                            OptsDevArduino, OptsBaudArduino)) != HEK_OK )
   {
-    ROS_ERROR_STREAM(strNodeName << ": Failed to connect to Hekateros.");
+    ROS_ERROR_STREAM(strNodeName <<
+                    ": Failed to connect to Hekateros. Error code=" <<
+                      rc);
     sleep(5);
     //return APP_EC_INIT;
   }

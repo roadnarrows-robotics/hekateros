@@ -101,6 +101,7 @@
 #include "hekateros_control/IsDescLoaded.h"
 #include "hekateros_control/OpenGripper.h"
 #include "hekateros_control/Release.h"
+#include "hekateros_control/ReloadConfig.h"
 #include "hekateros_control/ResetEStop.h"
 #include "hekateros_control/SetRobotMode.h"
 #include "hekateros_control/Stop.h"
@@ -186,8 +187,8 @@ namespace hekateros_control
                 const std::string &strDevArduino,
                 int                nBaudRateArduino)
     {
-      m_robot.connect(strDevDynabus, nBaudRateDynabus,
-                      strDevArduino, nBaudRateArduino);
+      return m_robot.connect(strDevDynabus, nBaudRateDynabus,
+                             strDevArduino, nBaudRateArduino);
     }
 
     /*!
@@ -197,7 +198,7 @@ namespace hekateros_control
      */
     int disconnect()
     {
-      m_robot.disconnect();
+      return m_robot.disconnect();
     }
 
     /*!
@@ -467,6 +468,18 @@ namespace hekateros_control
      */
     bool release(hekateros_control::Release::Request  &req,
                  hekateros_control::Release::Response &rsp);
+
+    /*!
+     * \brief Reload reloadable configuration and reset operational parameters
+     * service callback.
+     *
+     * \param req   Service request.
+     * \param rsp   Service response.
+     *
+     * \return Returns true on success, false on failure.
+     */
+    bool reloadConfig(Release::Request  &req,
+                      Release::Response &rsp);
 
     /*!
      * \brief Release robot's emergency stop condition service callback.

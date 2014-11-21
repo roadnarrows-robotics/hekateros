@@ -101,6 +101,7 @@
 #include "hekateros_control/IsDescLoaded.h"
 #include "hekateros_control/OpenGripper.h"
 #include "hekateros_control/Release.h"
+#include "hekateros_control/ReloadConfig.h"
 #include "hekateros_control/ResetEStop.h"
 #include "hekateros_control/SetRobotMode.h"
 #include "hekateros_control/Stop.h"
@@ -256,6 +257,11 @@ void HekaterosControl::advertiseServices()
   strSvc = "release";
   m_services[strSvc] = m_nh.advertiseService(strSvc,
                                           &HekaterosControl::release,
+                                          &(*this));
+
+  strSvc = "reload_config";
+  m_services[strSvc] = m_nh.advertiseService(strSvc,
+                                          &HekaterosControl::reloadConfig,
                                           &(*this));
 
   strSvc = "reset_estop";
@@ -537,6 +543,20 @@ bool HekaterosControl::release(Release::Request  &req,
   return true;
 }
 
+bool HekaterosControl::reloadConfig(Release::Request  &req,
+                                    Release::Response &rsp)
+{
+  const char *svc = "reload_config";
+
+  ROS_DEBUG("%s", svc);
+
+  m_robot.reload();
+
+  ROS_INFO("Robot configuration reloaded.");
+
+  return true;
+}
+
 bool HekaterosControl::resetEStop(ResetEStop::Request  &req,
                                   ResetEStop::Response &rsp)
 {
@@ -813,15 +833,18 @@ void HekaterosControl::execJointCmd(const trajectory_msgs::JointTrajectory &jt)
 
   HekJointTrajectoryPoint pt;
 
+  ROS_INFO("Move");
+
   // load trajectory point
   for(int j=0; j<jt.joint_names.size(); ++j)
   {
     pt.append(jt.joint_names[j],
               jt.points[0].positions[j], 
               jt.points[0].velocities[j]);
-    ROS_INFO("%s: pos=%5.3f speed=%2.1f", jt.joint_names[j].c_str(), 
-                                          jt.points[0].positions[j], 
-                                          jt.points[0].velocities[j]);
+    ROS_INFO(" %-12s: pos=%7.3f vel=%7.3f",
+        jt.joint_names[j].c_str(), 
+        jt.points[0].positions[j], 
+        jt.points[0].velocities[j]);
   }
 
   m_robot.moveArm(pt);

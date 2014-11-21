@@ -5,7 +5,7 @@ Header    header              # standard header
 
 string[]       name           # joint name
 float64[]      position       # joint position (radians)
-float64[]      velocity       # joint velocity (percent of maximum)
+float64[]      velocity       # joint velocity (radians/second)
 float64[]      effort         # joint torque load (unitless scale)
 
 # Hekateros extensions

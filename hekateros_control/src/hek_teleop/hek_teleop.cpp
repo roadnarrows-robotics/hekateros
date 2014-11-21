@@ -966,7 +966,7 @@ void HekTeleop::buttonEStop(ButtonState &buttonState)
 void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
 {
   static int    deadzone  = 10;
-  static double scale     = 15.0;
+  static double maxvel    = degToRad(30.0);
 
   int     trigger = buttonState[ButtonIdCloseGripper];
   int     i;
@@ -990,7 +990,7 @@ void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
   // goal position and velocity
   pos = m_mapCurPos[JointNameGrip] - degToRad(40.0);
   vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
-            scale;
+            maxvel;
   vel *= m_fMoveTuning;
 
   // new joint trajectory point component
@@ -1003,7 +1003,7 @@ void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
 void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
 {
   static int    deadzone  = 10;
-  static double scale     = 15.0;
+  static double maxvel    = degToRad(30.0);
 
   int     trigger = buttonState[ButtonIdOpenGripper];
   int     i;
@@ -1027,7 +1027,7 @@ void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
   // goal position and velocity
   pos = m_mapCurPos[JointNameGrip] + degToRad(40.0);
   vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
-            scale;
+            maxvel;
   vel *= m_fMoveTuning;
 
   // new joint trajectory point component
@@ -1068,7 +1068,7 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
   //
   static double UPPER_ARM = 406.27;   // upper arm (shoulder - elbow) 
   static double LOWER_ARM = 401.60;   // lower arm (elbow - wrist)
-  static double V_MAX     = 4.0;      // maximum velocity scale
+  static double V_MAX     = degToRad(30.0);      // maximum velocity scale
   static double EPSILON   = 0.7;      // tolerance in L1 angle space
 
   int       i, j, k;
@@ -1145,9 +1145,9 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
                                   m_fpState.m_goalJoint.beta;
 
     // minimum movement on new goal
-    setJoint(JointNameShoulder,   m_fpState.m_goalJoint.alpha, 1.0);
-    setJoint(JointNameElbow,      m_fpState.m_goalJoint.beta,  1.0);
-    setJoint(JointNameWristPitch, m_fpState.m_goalJoint.gamma, 2.0);
+    setJoint(JointNameShoulder,   m_fpState.m_goalJoint.alpha, degToRad(2.5));
+    setJoint(JointNameElbow,      m_fpState.m_goalJoint.beta,  degToRad(2.5));
+    setJoint(JointNameWristPitch, m_fpState.m_goalJoint.gamma, degToRad(5.0));
 
     m_fpState.m_bNewGoal = false;
 
@@ -1253,7 +1253,7 @@ void HekTeleop::buttonMoveShoulder(int joy)
 
   // goal position and velocity
   pos = degToRad(40.0);
-  vel = (double)(joy) / XBOX360_JOY_MAX * 7.5;
+  vel = (double)(joy) / XBOX360_JOY_MAX * degToRad(30.0);
   vel *= m_fMoveTuning;
 
   if( vel < 0.0 )
@@ -1291,7 +1291,7 @@ void HekTeleop::buttonMoveElbow(int joy)
 
   // goal position and velocity
   pos = degToRad(40.0);
-  vel = (double)(joy) / XBOX360_JOY_MAX * 7.5;
+  vel = (double)(joy) / XBOX360_JOY_MAX * degToRad(30.0);
   vel *= m_fMoveTuning;
 
   if( vel < 0.0 )
@@ -1330,7 +1330,7 @@ void HekTeleop::buttonRotateBase(ButtonState &buttonState)
 
   // goal position and velocity
   pos = degToRad(45.0);
-  vel = (double)(-joy) / XBOX360_JOY_MAX * 7.5;
+  vel = (double)(-joy) / XBOX360_JOY_MAX * degToRad(30.0);
   vel *= m_fMoveTuning;
 
   if( vel < 0.0 )
@@ -1368,7 +1368,7 @@ void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
 
   // goal position and velocity
   pos = degToRad(45.0);
-  vel = (double)(joy) / XBOX360_JOY_MAX * 15.0;
+  vel = (double)(joy) / XBOX360_JOY_MAX * degToRad(30.0);
   vel *= m_fMoveTuning;
 
   if( vel < 0.0 )
@@ -1409,7 +1409,7 @@ void HekTeleop::buttonRotateWristCw(ButtonState &buttonState)
 
   // goal position and velocity
   pos = m_mapCurPos[JointNameWristRot] - degToRad(360.0);
-  vel = 20.0;
+  vel = degToRad(30.0);
   vel *= m_fMoveTuning;
 
   // new joint trajectory point component
@@ -1441,7 +1441,7 @@ void HekTeleop::buttonRotateWristCcw(ButtonState &buttonState)
 
   // goal position and velocity
   pos = m_mapCurPos[JointNameWristRot] + degToRad(360.0);
-  vel = 20.0;
+  vel = degToRad(30.0);
   vel *= m_fMoveTuning;
 
   // new joint trajectory point component

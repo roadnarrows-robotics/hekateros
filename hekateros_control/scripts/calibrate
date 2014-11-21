@@ -39,7 +39,7 @@ class CalibClient:
 
     # start calibration
     if not self.m_ac.exec_calib(self.monitor, timeout=1, force_recalib=True):
-      rospy.logerror("Could not execute calibration. " \
+      rospy.logerr("Could not execute calibration. " \
                      "Is the hekateros_control node running?")
       self.cancel()
       
@@ -49,7 +49,7 @@ class CalibClient:
   def cancel(self):
       self.m_ac.cancel()
       self.m_state = CalibStateFailed
-      rospy.logerror("Calibration preempted.")
+      rospy.logerr("Calibration preempted.")
 
   #
   ## \brief Monitor the calibration feedback callback.
@@ -81,7 +81,7 @@ class CalibClient:
       return True
     # unknown
     else:
-      rospy.logerror("Unknown status %d" % (status))
+      rospy.logerr("Unknown status %d" % (status))
       self.m_state = CalibStateFailed
       return True
 

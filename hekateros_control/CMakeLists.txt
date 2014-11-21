@@ -17,7 +17,9 @@ find_package(catkin
 find_package(Boost REQUIRED COMPONENTS system)
 
 set(rnr_DIR /usr/local/lib/cmake/rnr)
-find_package(rnr)
+find_package(rnr
+  REQUIRED
+)
 
 catkin_python_setup()
 
@@ -48,6 +50,7 @@ add_service_files(
     IsDescLoaded.srv
     OpenGripper.srv
     Release.srv
+    ReloadConfig.srv
     ResetEStop.srv 
     SetRobotMode.srv
     Stop.srv
@@ -108,6 +111,7 @@ install(
   PROGRAMS 
     scripts/calibrate
     scripts/hek_panel
+    scripts/reload_config
     #scripts/hek_pyteleop
     #scripts/hek_teleop_viewer
     #scripts/joint_trajectory_demo 

@@ -1,0 +1,60 @@
+#! /usr/bin/env python
+
+###############################################################################
+#
+# Package:  RoadNarrows Robotics Hekateros Robotic Manipulator Package
+#
+# Link:     https://github.com/roadnarrows-robotics/hekateros
+#
+# ROS Node: reload_config
+#
+# File: reload_config
+#
+## \file 
+##
+## $LastChangedDate$
+## $Rev$
+##
+## \brief Reload Hekateros configuration service.
+##
+## \author Robin Knight (robin.knight@roadnarrows.com)
+##  
+## \par Copyright:
+##   (C) 2014.  RoadNarrows LLC.\n
+##   (http://www.roadnarrows.com)\n
+##   All Rights Reserved
+##
+# @EulaBegin@
+# @EulaEnd@
+#
+###############################################################################
+
+import roslib; roslib.load_manifest('hekateros_control')
+import rospy
+
+from hekateros_control.srv import ReloadConfig
+
+#
+## \brief Reload configuration.
+#
+def reloadConfig():
+  try:
+    rospy.wait_for_service("hekateros_control/reload_config", timeout=1)
+  except rospy.ROSException, e:
+    rospy.logerr('reload_config: ' + e.message + '.')
+    return
+  try:
+    reload_config = rospy.ServiceProxy('hekateros_control/reload_config',
+                          ReloadConfig)
+    reload_config()
+  except rospy.ServiceException, e:
+    rospy.logerr("reload_config request failed: %s." % (e.message))
+    return
+  rospy.loginfo("Hekateros configuration reloaded.")
+
+#
+## Main
+#
+if __name__ == '__main__':
+  rospy.init_node("reload_config")
+  reloadConfig();
