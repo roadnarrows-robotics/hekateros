@@ -1,5 +1,12 @@
-uint8 force_recalib
+### Hekateros hekateros_control/Calibrate action
+
+# Goal/Result/Feedback
+
+uint8         force_recalib   # do [not] force recalibration of all joints
+---  
+HekOpState    op              # arm calibration state
+                              #   UNCALIBRATED, CALIBRATING, CALIBRATED
 ---
-HekOpState op
----
-HekJointStateExtended joint
+string[]      name            # joint name
+HekOpState[]  op              # joint operation state:
+                              #   UNCALIBRATED, CALIBRATING, CALIBRATED

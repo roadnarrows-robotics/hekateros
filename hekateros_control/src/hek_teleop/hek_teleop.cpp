@@ -966,10 +966,11 @@ void HekTeleop::buttonEStop(ButtonState &buttonState)
 void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
 {
   static int    deadzone  = 10;
-  static double maxvel    = degToRad(30.0);
+  static double dpos      = degToRad(40.0);
+  static double maxvel    = degToRad(90.0);
 
   int     trigger = buttonState[ButtonIdCloseGripper];
-  int     i;
+  double  r;
   double  pos;
   double  vel;
 
@@ -988,10 +989,9 @@ void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  pos = m_mapCurPos[JointNameGrip] - degToRad(40.0);
-  vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
-            maxvel;
-  vel *= m_fMoveTuning;
+  r   = (double)(trigger-deadzone) / (double)(XBOX360_TRIGGER_MAX-deadzone);
+  pos = m_mapCurPos[JointNameGrip] - dpos;
+  vel = m_fMoveTuning * r * maxvel;
 
   // new joint trajectory point component
   if( setJoint(JointNameGrip, pos, vel) >= 0 )
@@ -1003,10 +1003,11 @@ void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
 void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
 {
   static int    deadzone  = 10;
-  static double maxvel    = degToRad(30.0);
+  static double dpos      = degToRad(40.0);
+  static double maxvel    = degToRad(90.0);
 
   int     trigger = buttonState[ButtonIdOpenGripper];
-  int     i;
+  double  r;
   double  pos;
   double  vel;
 
@@ -1025,10 +1026,9 @@ void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  pos = m_mapCurPos[JointNameGrip] + degToRad(40.0);
-  vel = (double)(trigger-deadzone)/(double)(XBOX360_TRIGGER_MAX-deadzone) *
-            maxvel;
-  vel *= m_fMoveTuning;
+  r   = (double)(trigger-deadzone) / (double)(XBOX360_TRIGGER_MAX-deadzone);
+  pos = m_mapCurPos[JointNameGrip] - dpos;
+  vel = m_fMoveTuning * r * maxvel;
 
   // new joint trajectory point component
   if( setJoint(JointNameGrip, pos, vel) >= 0 )
@@ -1066,9 +1066,9 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
   // The Upper and lower arm lengths (mm) are for the large Hakateros.
   // Need to dynamically find these values from the robot.
   //
-  static double UPPER_ARM = 406.27;   // upper arm (shoulder - elbow) 
-  static double LOWER_ARM = 401.60;   // lower arm (elbow - wrist)
-  static double V_MAX     = degToRad(30.0);      // maximum velocity scale
+  static double UPPER_ARM = 461.0;    // upper arm (shoulder - elbow) 
+  static double LOWER_ARM = 405.0;    // lower arm (elbow - wrist)
+  static double V_MAX     = degToRad(60.0); // maximum velocity scale
   static double EPSILON   = 0.7;      // tolerance in L1 angle space
 
   int       i, j, k;
@@ -1236,7 +1236,10 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
 
 void HekTeleop::buttonMoveShoulder(int joy)
 {
-  int     i;        // joint index
+  static double dpos      = degToRad(40.0);
+  static double maxvel    = degToRad(60.0);
+
+  double  r;        // joy ratio
   double  pos;      // delta joint position
   double  vel;      // joint velocity
 
@@ -1252,14 +1255,13 @@ void HekTeleop::buttonMoveShoulder(int joy)
   }
 
   // goal position and velocity
-  pos = degToRad(40.0);
-  vel = (double)(joy) / XBOX360_JOY_MAX * degToRad(30.0);
-  vel *= m_fMoveTuning;
+  r   = (double)(joy) / (double)XBOX360_JOY_MAX;
+  pos = dpos;
+  vel = m_fMoveTuning * r * maxvel;
 
   if( vel < 0.0 )
   {
     pos = -pos;
-    vel = -vel;
   }
 
   pos = m_mapCurPos[JointNameShoulder] + pos;
@@ -1274,7 +1276,10 @@ void HekTeleop::buttonMoveShoulder(int joy)
 
 void HekTeleop::buttonMoveElbow(int joy)
 {
-  int     i;        // joint index
+  static double dpos      = degToRad(40.0);
+  static double maxvel    = degToRad(60.0);
+
+  double  r;        // joy ratio
   double  pos;      // delta joint position
   double  vel;      // joint velocity
 
@@ -1290,14 +1295,13 @@ void HekTeleop::buttonMoveElbow(int joy)
   }
 
   // goal position and velocity
-  pos = degToRad(40.0);
-  vel = (double)(joy) / XBOX360_JOY_MAX * degToRad(30.0);
-  vel *= m_fMoveTuning;
+  r   = (double)(joy) / (double)XBOX360_JOY_MAX;
+  pos = dpos;
+  vel = m_fMoveTuning * r * maxvel;
 
   if( vel < 0.0 )
   {
     pos = -pos;
-    vel = -vel;
   }
 
   pos = m_mapCurPos[JointNameElbow] + pos;
@@ -1312,8 +1316,11 @@ void HekTeleop::buttonMoveElbow(int joy)
 
 void HekTeleop::buttonRotateBase(ButtonState &buttonState)
 {
+  static double dpos      = degToRad(60.0);
+  static double maxvel    = degToRad(120.0);
+
   int     joy = buttonState[ButtonIdRotBase];
-  int     i;        // joint index
+  double  r;        // joy ratio
   double  pos;      // delta joint position
   double  vel;      // joint velocity
 
@@ -1329,14 +1336,13 @@ void HekTeleop::buttonRotateBase(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  pos = degToRad(45.0);
-  vel = (double)(-joy) / XBOX360_JOY_MAX * degToRad(30.0);
-  vel *= m_fMoveTuning;
+  r   = (double)(-joy) / (double)XBOX360_JOY_MAX;
+  pos = dpos;
+  vel = m_fMoveTuning * r * maxvel;
 
   if( vel < 0.0 )
   {
     pos = -pos;
-    vel = -vel;
   }
 
   pos = m_mapCurPos[JointNameBaseRot] + pos;
@@ -1350,8 +1356,11 @@ void HekTeleop::buttonRotateBase(ButtonState &buttonState)
 
 void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
 {
+  static double dpos      = degToRad(40.0);
+  static double maxvel    = degToRad(60.0);
+
   int     joy = buttonState[ButtonIdPitchWrist];
-  int     i;        // joint index
+  double  r;        // joy ratio
   double  pos;      // delta joint position
   double  vel;      // joint velocity
 
@@ -1367,14 +1376,13 @@ void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  pos = degToRad(45.0);
-  vel = (double)(joy) / XBOX360_JOY_MAX * degToRad(30.0);
-  vel *= m_fMoveTuning;
+  r   = (double)(joy) / (double)XBOX360_JOY_MAX;
+  pos = dpos;
+  vel = m_fMoveTuning * r * maxvel;
 
   if( vel < 0.0 )
   {
     pos = -pos;
-    vel = -vel;
   }
 
   pos = m_mapCurPos[JointNameWristPitch] + pos;
@@ -1389,7 +1397,9 @@ void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
 
 void HekTeleop::buttonRotateWristCw(ButtonState &buttonState)
 {
-  int     i;
+  static double dpos      = degToRad(360.0);
+  static double maxvel    = degToRad(120.0);
+
   double  pos;
   double  vel;
 
@@ -1408,9 +1418,8 @@ void HekTeleop::buttonRotateWristCw(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  pos = m_mapCurPos[JointNameWristRot] - degToRad(360.0);
-  vel = degToRad(30.0);
-  vel *= m_fMoveTuning;
+  pos = m_mapCurPos[JointNameWristRot] - dpos;
+  vel = m_fMoveTuning * maxvel;
 
   // new joint trajectory point component
   if( setJoint(JointNameWristRot, pos, vel) >= 0 )
@@ -1421,7 +1430,9 @@ void HekTeleop::buttonRotateWristCw(ButtonState &buttonState)
 
 void HekTeleop::buttonRotateWristCcw(ButtonState &buttonState)
 {
-  int     i;
+  static double dpos      = degToRad(360.0);
+  static double maxvel    = degToRad(120.0);
+
   double  pos;
   double  vel;
 
@@ -1440,9 +1451,8 @@ void HekTeleop::buttonRotateWristCcw(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  pos = m_mapCurPos[JointNameWristRot] + degToRad(360.0);
-  vel = degToRad(30.0);
-  vel *= m_fMoveTuning;
+  pos = m_mapCurPos[JointNameWristRot] + dpos;
+  vel = m_fMoveTuning * maxvel;
 
   // new joint trajectory point component
   if( setJoint(JointNameWristRot, pos, vel) >= 0 )

@@ -1,7 +1,33 @@
 #! /usr/bin/env python
-## 
-## Calibrate the Hekateros arm via an action server request
+ 
+###############################################################################
+#
+# Package:  RoadNarrows Robotics Hekateros Robotic Manipulator Package
+#
+# Link:     https://github.com/roadnarrows-robotics/hekateros
+#
+# ROS Node: calibrate
+#
+# File: calibrate
+#
+## \file 
 ##
+## $LastChangedDate$
+## $Rev$
+##
+## \brief Calibrate the Hekateros arm via an action server.
+##
+## \author Robin Knight (robin.knight@roadnarrows.com)
+##  
+## \par Copyright:
+##   (C) 2014.  RoadNarrows LLC.\n
+##   (http://www.roadnarrows.com)\n
+##   All Rights Reserved
+##
+# @EulaBegin@
+# @EulaEnd@
+#
+###############################################################################
 
 import time
 import sys
@@ -12,18 +38,27 @@ import rospy
 from actionlib_msgs.msg import GoalStatus
 from hekateros_control.ACCalibrate import *
 
-CalibStateFailed  = -1
-CalibStateIdle    =  0
-CalibStateRunning =  1
-CalibStateSuccess =  3
+# Calibration action state
+CalibStateFailed  = -1        # failed calibration action
+CalibStateIdle    =  0        # no on-going calibration action
+CalibStateRunning =  1        # calibration action running
+CalibStateSuccess =  3        # calibration action success
+
+# Progress characters
+ProgressChars = ['-', '/', '|', '\\']
 
 #
 ## \brief Simple calibration client wrapper class.
 #
 class CalibClient:
   def __init__(self):
-    self.m_ac     = None
-    self.m_state  = CalibStateIdle
+    self.m_ac         = None            # action client
+    self.m_state      = CalibStateIdle  # calibration action state
+    self.m_joiName    = ""              # joint of interest name
+    self.m_joiState   = ""              # joint of interest calibration state
+    self.m_numCalib   = 0               # number of calibrated joints
+    self.m_numJoints  = 0               # number of joints to calibrate
+    self.m_idxProg    = 0               # progress index
 
   #
   ## \brief (Cancel) calibration callback.
@@ -49,13 +84,28 @@ class CalibClient:
   def cancel(self):
       self.m_ac.cancel()
       self.m_state = CalibStateFailed
+      self.clear_progress_bar()
+      sys.stderr.write("%80s\r" % (""))
       rospy.logerr("Calibration preempted.")
 
   #
   ## \brief Monitor the calibration feedback callback.
   #
   def monitor(self, feedback):
-    rospy.logdebug(feedback)
+    self.m_joiName    = ""
+    self.m_joiState   = ""
+    self.m_numCalib   = 0
+    self.m_numJoints  = len(feedback.name)
+    self.m_idxProg    = (self.m_idxProg+1) % len(ProgressChars)
+    for i in range(0, self.m_numJoints):
+      name    = feedback.name[i]
+      opstate = feedback.op[i]
+      if opstate.calib_state == HekOpState.CALIBRATING:
+        self.m_joiName  = name
+        self.m_joiState = "calibrating"
+      elif opstate.calib_state == HekOpState.CALIBRATED:
+        self.m_numCalib += 1
+    self.show_progress_bar()
 
   #
   ## \brief Check for calibration complete.
@@ -85,34 +135,33 @@ class CalibClient:
       self.m_state = CalibStateFailed
       return True
 
+  #
+  ## \brief Show ascii progress bar.
+  #
+  def show_progress_bar(self):
+    sys.stderr.write("%2d/%-2d %15s %-20s %s\r" % \
+        (self.m_numCalib+1, self.m_numJoints, self.m_joiName, self.m_joiState,
+          ProgressChars[self.m_idxProg]))
+
+  #
+  ## \brief Clear ascii progress bar.
+  #
+  def clear_progress_bar(self):
+    sys.stderr.write("%80s\r" % (""))
+
+
 if __name__ == '__main__':
   rospy.init_node("calibrate")
   calib_client = CalibClient()
   calib_client.calibrate()
   while not calib_client.is_done():
-    sys.stderr.write(".")
     time.sleep(1)
+  calib_client.clear_progress_bar()
   sys.stderr.write("\n")
   if calib_client.m_state == CalibStateSuccess:
     rospy.loginfo("Calibration sequence complete!")
+    ec = 0
   else:
     rospy.loginfo("Calibration sequence failed.")
-
-"""
-def feedback_h(fb):
-    rospy.logdebug(fb)
-
-if __name__ == '__main__':
-    rospy.init_node("calibrate_ac")
-
-    calib_client = calibrate_ac()
-    calib_client.exec_calib(feedback_h)
-
-    seq = 0
-    while calib_client.get_action_state()<3: # everyone <3's action states! 
-        sys.stderr.write(".")
-        time.sleep(2)
-
-    sys.stderr.write("\n")
-    rospy.loginfo("Calibration sequence complete!")
-"""
+    ec = 4
+  sys.exit(ec)

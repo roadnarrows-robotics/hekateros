@@ -101,6 +101,7 @@ void ASCalibrate::execute_cb(const CalibrateGoalConstPtr &goal)
 {
   HekRobot           &robot(node_.getRobot());
   HekJointStatePoint  state;
+  HekOpState          opstate;
   int                 rc;
 
   ROS_INFO("%s: Executing calibrate action - please standby.",
@@ -140,7 +141,12 @@ void ASCalibrate::execute_cb(const CalibrateGoalConstPtr &goal)
     else
     {
       robot.getJointState(state);
-      node_.updateExtendedJointStateMsg(state, feedback_.joint);
+      for(int n=0; n<state.getNumPoints(); ++n)
+      {
+        feedback_.name.push_back(state[n].m_strName);
+        opstate.calib_state = state[n].m_eOpState;
+        feedback_.op.push_back(opstate);
+      }
       as_.publishFeedback(feedback_);
       r.sleep();
     }

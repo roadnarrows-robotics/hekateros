@@ -26,6 +26,7 @@ catkin_python_setup()
 add_message_files(
   DIRECTORY msg
   FILES 
+    Gpio.msg 
     HekOpState.msg 
     ProductInfo.msg 
     HekJointStateExtended.msg 
@@ -39,6 +40,7 @@ add_service_files(
     Calibrate.srv 
     ClearAlarms.srv 
     CloseGripper.srv 
+    ConfigGpio.srv 
     EStop.srv 
     Freeze.srv 
     GetProductInfo.srv 
@@ -49,11 +51,13 @@ add_service_files(
     IsCalibrated.srv 
     IsDescLoaded.srv
     OpenGripper.srv
+    ReadGpio.srv 
     Release.srv
     ReloadConfig.srv
     ResetEStop.srv 
     SetRobotMode.srv
     Stop.srv
+    WriteGpio.srv
 )
 
 add_action_files(

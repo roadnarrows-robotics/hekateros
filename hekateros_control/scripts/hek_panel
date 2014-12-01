@@ -133,12 +133,15 @@ class window(Frame):
     # intialize window data
     kw = self.initData(kw)
 
+    # initialize parent object frame
     Frame.__init__(self, master=master, cnf=cnf, **kw)
-    self.master.title("Hekateros Control Panel")
-    self.grid(row=0, column=0, padx=5, pady=5)
 
-    # craete and show widgets
+    # window title
+    self.master.title("Hekateros Control Panel")
+
+    # create and show widgets
     self.createWidgets()
+    self.grid(row=0, column=0, padx=5, pady=5)
 
   #
   ## \brief Initialize class state data.
@@ -190,7 +193,7 @@ class window(Frame):
         'encoder':
           {'hdr0': 'Encoder',   'hdr1': '(ticks)  ',  'width': 12,  'align': E},
         'velocity':
-          {'hdr0': 'Velocity',  'hdr1': '(%)    ',    'width': 10,  'align': E},
+          {'hdr0': 'Velocity',  'hdr1': '(deg/sec)',   'width': 10,  'align': E},
         'speed':
           {'hdr0': 'Speed',     'hdr1': '(raw) ',     'width': 6,   'align': E},
         'effort':
@@ -243,9 +246,10 @@ class window(Frame):
     # top heading
     w = Label(self)
     w['font']   = ('Helvetica', 16)
-    w['text']   = 'Hekateros Control Panel'
+    w['text']   = "Hekateros Control Panel"
     w['anchor'] = CENTER
     w.grid(row=0, column=1, sticky=E+W)
+    self.m_wTopHeading = w
 
     # hek logo
     w = Label(self)
@@ -993,6 +997,10 @@ class window(Frame):
   ## \brief (Cancel) calibration callback.
   #
   def calibrate(self):
+    # create calibration action client, if not already created
+    if self.m_calibState['ac'] is None:
+      self.m_calibState['ac'] = ACCalibrate()
+
     # not calibrating - so start calibration
     if not self.m_calibState['calibrating']:
       if self.m_config['warn_on_calib']:
@@ -1002,16 +1010,14 @@ class window(Frame):
 For best calibration, place the Hekateros near the zero point.
 Make sure the workspace is clear of obstructions.""")
         if not dlg.m_result:
+          #self.calibrate_cleanup()
           return
+
       self.m_calibState['calibrating'] = True
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate_cancel']
       self.m_wBttn['calibrate']['text'] = "Cancel\nCalibrate"
       self.showInfo("Calibrating Hekateros.")
       self.update_idletasks()
-
-      # create calibration action client, if not already created
-      if self.m_calibState['ac'] is None:
-        self.m_calibState['ac'] = ACCalibrate()
 
       # start calibration
       if not self.m_calibState['ac'].exec_calib(self.calibrate_monitor,
@@ -1029,30 +1035,41 @@ Make sure the workspace is clear of obstructions.""")
     else:
       self.calibrate_cancel()
       self.showInfo("Calibration canceled.")
+
+    #self.calibrate_cleanup()
       
   #
   ## \brief Cancel calibration, setting data and widget state accordingly.
   #
   def calibrate_cancel(self):
-      self.m_calibState['ac'].cancel()
-      self.m_calibState['calibrating'] = False
-      self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate']
-      self.m_wBttn['calibrate']['text'] = "Calibrate"
-      if self.m_calibState['id'] != 0:
-        self.m_calibState['id'] = 0
-      self.showError("Calibration preempted.")
-      self.update_idletasks()
+    self.m_calibState['ac'].cancel()
+    self.m_calibState['calibrating'] = False
+    self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate']
+    self.m_wBttn['calibrate']['text'] = "Calibrate"
+    if self.m_calibState['id'] != 0:
+      self.m_calibState['id'] = 0
+    self.showError("Calibration preempted.")
+    self.update_idletasks()
 
   #
   ## \brief Check if calibration is complete.
   #
   def calibrate_check_for_done(self):
     state = self.m_calibState['ac'].get_action_state()
-    if state == GoalStatus.PENDING or \
-       state == GoalStatus.ACTIVE or \
-       state == GoalStatus.PREEMPTING or \
-       state == GoalStatus.RECALLING:
+    # acting
+    if  state == GoalStatus.PENDING or state == GoalStatus.ACTIVE or \
+        state == GoalStatus.PREEMPTING or state == GoalStatus.RECALLING:
       self.m_calibState['id'] = self.after(100, self.calibrate_check_for_done)
+    # finished with abort or error
+    elif  state == GoalStatus.PREEMPTED or state == GoalStatus.REJECTED or \
+          state == GoalStatus.RECALLED or state == GoalStatus.ABORTED or \
+          state == GoalStatus.REJECTED:
+        self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate']
+        self.m_wBttn['calibrate']['text'] = "Calibrate"
+        self.m_calibState['calibrating'] = False
+        self.m_calibState['id'] = 0
+        self.showError("Calibration aborted.")
+    # done
     else:
       self.m_wBttn['calibrate']['image'] = self.m_icons['calibrate']
       self.m_wBttn['calibrate']['text'] = "Calibrate"
@@ -1066,11 +1083,19 @@ Make sure the workspace is clear of obstructions.""")
       self.update_idletasks()
 
   #
-  ## \brief monitor the calibration feedback
+  ## \brief Monitor the calibration feedback.
   #
   def calibrate_monitor(self, feedback):
-    if self.m_bHasJointPanel:
-      self.showJointStates(feedback.joint)
+    pass
+
+  #
+  ## \brief Calibration cleanup.
+  #
+  def calibrate_cleanup(self):
+    # delete calibration action client, may be needed by other calib scripts
+    if self.m_calibState['ac'] is not None:
+      del self.m_calibState['ac']
+      self.m_calibState['ac'] = None
   
   #
   ## \brief Go to parked position callback.
@@ -1175,13 +1200,11 @@ Make sure the workspace is clear of obstructions.""")
       jointTrajectory.joint_names.append(name)
       pos = self.m_robotJoint[name]['position']['raw']
       jointTrajPoint.positions.append(pos)
-      jointTrajPoint.velocities.append(10.0)
+      jointTrajPoint.velocities.append(degToRad(10.0))
       jointTrajPoint.accelerations.append(0.0)
     dlg = MoveDlg(master=self, image='HekaterosInMotion.png',
                                 trajectory=jointTrajectory)
-    if not dlg.m_result:
-      return
-    else:
+    if dlg.m_result:
       self.moveRobot(jointTrajectory)
   
   #
@@ -1324,6 +1347,15 @@ The arm may fall if not in a stable position.""")
   ## \brief Show about dialog callback.
   #
   def about(self):
+    prodInfo = self.getProductInfo()
+    dlg = AboutDlg(master=self, info=prodInfo, app_ver=appVersion)
+  
+  #
+  ## \brief Get product information.
+  ## 
+  ## \return Returns product information on success, None on failure.
+  #
+  def getProductInfo(self):
     prodInfo = None
     try:
       rospy.wait_for_service("hekateros_control/get_product_info", timeout=1)
@@ -1338,8 +1370,30 @@ The arm may fall if not in a stable position.""")
         prodInfo = rsp.i
       except rospy.ServiceException, e:
         self.showError("Get product info request failed: %s." % (e.message))
-    dlg = AboutDlg(master=self, info=prodInfo, app_ver=appVersion)
-  
+    return prodInfo
+
+  #
+  ## \brief Get Hekateros name.
+  ## 
+  ## \return Returns name.
+  #
+  def getHekaterosName(self):
+    name = "hekateros"
+    try:
+      rospy.wait_for_service("hekateros_control/get_product_info", timeout=1)
+    except rospy.ROSException, e:
+      rospy.logerr("Get product info: %s." % (e.message))
+    else:
+      try:
+        get_product_info = rospy.ServiceProxy(
+                                          'hekateros_control/get_product_info',
+                                          GetProductInfo)
+        rsp = get_product_info()
+        name = rsp.i.hostname
+      except rospy.ServiceException, e:
+        rospy.logerr("Get product info request failed: %s." % (e.message))
+    return name
+
   #
   ## \brief Update robot status.
   ##
@@ -1493,7 +1547,7 @@ The arm may fall if not in a stable position.""")
       val = joint.velocity[i]
       if self.m_robotJoint[name][key]['raw'] != val:
         self.m_robotJoint[name][key]['raw'] = val
-        vel, fg = self.toVelocity(joint.velocity[i])
+        vel, fg = self.toDeg(val, "%.1f")
         self.showEntry(self.m_robotJoint[name][key]['w'],
                      self.m_robotJoint[name][key]['var'], vel, fg)
 
@@ -1639,11 +1693,11 @@ The arm may fall if not in a stable position.""")
     w['state'] = 'readonly'
 
   #
-  ## \brief map alignment value to justify equivalent.
+  ## \brief Map alignment value to justify equivalent.
   ##
-  ## \param align   Alignment
+  ## \param align   Alignment.
   ## 
-  ## \return jusity
+  ## \return Tk justify.
   #
   def alignToJustify(self, align):
     if align == W:
@@ -1653,6 +1707,13 @@ The arm may fall if not in a stable position.""")
     else:
       return CENTER
 
+  #
+  ## \brief Map robot mode for display.
+  ## 
+  ## \param mode    Robot mode.
+  ## 
+  ## \return string, color
+  #
   def toRobotMode(self, mode):
     if mode == RobotMode.MANUAL:
       return ("Manual", fgColors['warning'])
@@ -1661,6 +1722,13 @@ The arm may fall if not in a stable position.""")
     else:
       return (repr(mode), fgColors['error'])
 
+  #
+  ## \brief Map calibration state for display.
+  ##
+  ## \param tristate    Tri-state value.
+  ## 
+  ## \return string, color
+  #
   def toCalib(self, tristate):
     if tristate == TriState.FALSE:
       return ("Uncalibrated", fgColors['error'])
@@ -1669,6 +1737,13 @@ The arm may fall if not in a stable position.""")
     else:
       return (repr(tristate), fgColors['error'])
 
+  #
+  ## \brief Map powered motors state for display.
+  ##
+  ## \param tristate    Tri-state value.
+  ## 
+  ## \return string, color
+  #
   def toMotorsPowered(self, tristate):
     if tristate == TriState.FALSE:
       return ("Unpowered", fgColors['normal'])
@@ -1677,6 +1752,13 @@ The arm may fall if not in a stable position.""")
     else:
       return (repr(tristate), fgColors['error'])
 
+  #
+  ## \brief Map joint calibration state for display.
+  ##
+  ## \param opstate     Calibration operation state.
+  ## 
+  ## \return string, color
+  #
   def toJointState(self, opstate):
       if opstate == HekOpState.UNCALIBRATED:
         return ("uncalibrated", fgColors['error'])
@@ -1687,13 +1769,25 @@ The arm may fall if not in a stable position.""")
       else:
         return (repr(opstate), fgColors['error'])
 
-  def toDeg(self, rad):
+  #
+  ## \brief Map radians to degrees for display.
+  ##
+  ## \param rad    Radians.
+  ## \param fmt    Format.
+  ## 
+  ## \return string, color
+  #
+  def toDeg(self, rad, fmt="%.2f"):
     deg = math.degrees(rad)
-    return "%.2f" % (deg), fgColors['normal']
+    return fmt % (deg), fgColors['normal']
 
-  def toVelocity(self, percent):
-    return "%.1f" % (percent), fgColors['normal']
-
+  #
+  ## \brief Map servo effort for display.
+  ##
+  ## \param effor   Servo effort (raw).
+  ## 
+  ## \return string, color
+  #
   def toEffort(self, effort):
     absraw = math.fabs(effort)
     raw    = int(effort)
@@ -1704,6 +1798,13 @@ The arm may fall if not in a stable position.""")
     else:
       return (raw, fgColors['error'])
 
+  #
+  ## \brief Map temperature for display.
+  ##
+  ## \param temp    Temperature (C).
+  ## 
+  ## \return string, color
+  #
   def toTemperatureColor(self, temp):
     raw = int(temp)
     if temp >= 75:
@@ -1713,6 +1814,13 @@ The arm may fall if not in a stable position.""")
     else:
       return (raw, fgColors['normal'])
 
+  #
+  ## \brief Map voltage for display.
+  ##
+  ## \param volts   Voltage.
+  ## 
+  ## \return string, color
+  #
   def toVoltage(self, volts):
     if volts >= 10.5 and volts <= 13.0:
       fg = fgColors['normal']
@@ -1722,6 +1830,13 @@ The arm may fall if not in a stable position.""")
       fg = fgColors['error']
     return "%.1f" % (volts), fg
 
+  #
+  ## \brief Map alarms for display.
+  ##
+  ## \param alarms    Alarm bits.
+  ## 
+  ## \return string, color
+  #
   def toAlarms(self, alarms):
     if alarms == ServoHealth.ALARM_NONE:
       return (alarmStrings[ServoHealth.ALARM_NONE], fgColors['ok'])
@@ -1733,6 +1848,18 @@ The arm may fall if not in a stable position.""")
           text += sep + alarmStrings[bit]
           sep = ','
     return (text, fgColors['error'])
+
+  #
+  ## \brief Final window initializations.
+  ##
+  ## Both the window data and widgets, along with ROS node application, have
+  ## been fully initialized.
+  #
+  def finalInits(self):
+    hekName   = self.getHekaterosName()
+    rosMaster = whichROSMaster()
+    self.master.title("Hekateros Control Panel - %s" % (hekName))
+    self.m_wTopHeading['text'] = "Hekateros Control Panel - %s" % (hekName)
 
 
 # ------------------------------------------------------------------------------
@@ -1838,6 +1965,7 @@ Options and arguments:
   def initRobot(self):
     self.m_win.showInfo("Initializing interface to Hekateros.")
 
+    # initialize ROS node, connecting with ROS master
     rospy.init_node("hek_panel")
 
     # subscribe to extended robot status data
@@ -1893,6 +2021,9 @@ Options and arguments:
 
     # initialize robot interface
     self.initRobot()
+
+    # do any final initializations
+    self.m_win.finalInits()
 
     # go for it
     self.m_win.mainloop()

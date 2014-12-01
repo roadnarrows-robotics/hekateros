@@ -83,6 +83,7 @@
 #include "industrial_msgs/RobotStatus.h"
 #include "hekateros_control/HekJointStateExtended.h"
 #include "hekateros_control/HekRobotStatusExtended.h"
+#include "hekateros_control/Gpio.h"
 
 //
 // ROS generatated hekateros services.
@@ -90,6 +91,7 @@
 #include "hekateros_control/Calibrate.h"
 #include "hekateros_control/ClearAlarms.h"
 #include "hekateros_control/CloseGripper.h"
+#include "hekateros_control/ConfigGpio.h"
 #include "hekateros_control/EStop.h"
 #include "hekateros_control/Freeze.h"
 #include "hekateros_control/GetProductInfo.h"
@@ -100,11 +102,13 @@
 #include "hekateros_control/IsCalibrated.h"
 #include "hekateros_control/IsDescLoaded.h"
 #include "hekateros_control/OpenGripper.h"
+#include "hekateros_control/ReadGpio.h"
 #include "hekateros_control/Release.h"
 #include "hekateros_control/ReloadConfig.h"
 #include "hekateros_control/ResetEStop.h"
 #include "hekateros_control/SetRobotMode.h"
 #include "hekateros_control/Stop.h"
+#include "hekateros_control/WriteGpio.h"
 
 //
 // ROS generated action servers.
@@ -204,6 +208,11 @@ void HekaterosControl::advertiseServices()
                                           &HekaterosControl::closeGripper,
                                           &(*this));
  
+  strSvc = "config_gpio";
+  m_services[strSvc] = m_nh.advertiseService(strSvc,
+                                          &HekaterosControl::configGpio,
+                                          &(*this));
+ 
   strSvc = "estop";
   m_services[strSvc] = m_nh.advertiseService(strSvc,
                                           &HekaterosControl::estop,
@@ -254,6 +263,11 @@ void HekaterosControl::advertiseServices()
                                           &HekaterosControl::openGripper,
                                           &(*this));
  
+  strSvc = "read_gpio";
+  m_services[strSvc] = m_nh.advertiseService(strSvc,
+                                          &HekaterosControl::readGpio,
+                                          &(*this));
+
   strSvc = "release";
   m_services[strSvc] = m_nh.advertiseService(strSvc,
                                           &HekaterosControl::release,
@@ -277,6 +291,11 @@ void HekaterosControl::advertiseServices()
   strSvc = "stop";
   m_services[strSvc] = m_nh.advertiseService(strSvc,
                                           &HekaterosControl::stop,
+                                          &(*this));
+
+  strSvc = "write_gpio";
+  m_services[strSvc] = m_nh.advertiseService(strSvc,
+                                          &HekaterosControl::writeGpio,
                                           &(*this));
 }
 
@@ -335,6 +354,28 @@ bool HekaterosControl::closeGripper(CloseGripper::Request  &req,
   }
 }
 
+bool HekaterosControl::configGpio(ConfigGpio::Request  &req,
+                                  ConfigGpio::Response &rsp)
+{
+  const char *svc = "config_gpio";
+  int         rc;
+
+  ROS_DEBUG("%s", svc);
+
+  // RDK rc = m_robot.x();
+
+  if( rc == HEK_OK )
+  {
+    ROS_INFO("Configured GPIO.");
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("%s failed. %s(rc=%d).", svc, getStrError(rc), rc);
+    return false;
+  }
+}
+
 bool HekaterosControl::estop(EStop::Request  &req,
                              EStop::Response &rsp)
 {
@@ -369,6 +410,7 @@ bool HekaterosControl::getProductInfo(GetProductInfo::Request  &req,
   const char *svc = "get_product_info";
 
   int   nMajor, nMinor, nRev;
+  char *s;
 
   ROS_DEBUG("%s", svc);
 
@@ -389,6 +431,13 @@ bool HekaterosControl::getProductInfo(GetProductInfo::Request  &req,
   rsp.i.product_id      = m_robot.getProdId();
   rsp.i.product_name    = m_robot.getProdName();
   rsp.i.desc            = m_robot.getFullProdBrief();
+
+  if( (s = getenv("HOSTNAME")) == NULL )
+  {
+    s = "hekateros";
+  }
+
+  rsp.i.hostname  = s;
 
   return true;
 }
@@ -529,6 +578,28 @@ bool HekaterosControl::openGripper(OpenGripper::Request  &req,
   }
 }
 
+bool HekaterosControl::readGpio(ReadGpio::Request  &req,
+                                ReadGpio::Response &rsp)
+{
+  const char *svc = "read_gpio";
+  int         rc;
+
+  ROS_DEBUG("%s", svc);
+
+  // RDK rc = m_robot.x();
+
+  if( rc == HEK_OK )
+  {
+    ROS_INFO("Read GPIO.");
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("%s failed. %s(rc=%d).", svc, getStrError(rc), rc);
+    return false;
+  }
+}
+
 bool HekaterosControl::release(Release::Request  &req,
                                Release::Response &rsp)
 {
@@ -599,6 +670,28 @@ bool HekaterosControl::stop(Stop::Request  &req,
   ROS_INFO("Stopped %d joints.", n);
 
   return true;
+}
+
+bool HekaterosControl::writeGpio(WriteGpio::Request  &req,
+                                 WriteGpio::Response &rsp)
+{
+  const char *svc = "write_gpio";
+  int         rc;
+
+  ROS_DEBUG("%s", svc);
+
+  // RDK rc = m_robot.x();
+
+  if( rc == HEK_OK )
+  {
+    ROS_INFO("Wrote GPIO.");
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("%s failed. %s(rc=%d).", svc, getStrError(rc), rc);
+    return false;
+  }
 }
 
 

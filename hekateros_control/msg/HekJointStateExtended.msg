@@ -14,7 +14,7 @@ uint8[]        slave_servo_id   # slave servo id
 int32[]        odometer_pos     # joint odometer position (encoder ticks)
 int32[]        encoder_pos      # servo encoder position
 int32[]        raw_speed        # servo raw speed (unitless scale)
-HekOpState[]   op_state         # servo operation state:
+HekOpState[]   op_state         # joint operation state:
                                 #   UNCALIBRATED, CALIBRATING, CALIBRATED
 industrial_msgs/TriState[] opt_switch1  # optical limit switch 1 state:
                                         #   ON OFF

@@ -130,3 +130,16 @@ def degToRad(deg):
 #
 def radToDeg(rad):
   return rad / math.pi * 180.0
+
+#
+## Connected Hekateros
+#
+def whichROSMaster():
+  rosmaster = os.getenv('ROS_MASTER_URI')
+  if len(rosmaster) == 0:
+    return 'localhost'
+  parts = rosmaster.split(':')
+  if len(parts) < 2:
+    return 'localhost'
+  host = parts[1]
+  return host.strip('/')

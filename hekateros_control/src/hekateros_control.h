@@ -83,6 +83,7 @@
 #include "industrial_msgs/RobotStatus.h"
 #include "hekateros_control/HekJointStateExtended.h"
 #include "hekateros_control/HekRobotStatusExtended.h"
+#include "hekateros_control/Gpio.h"
 
 //
 // ROS generatated hekateros services.
@@ -90,6 +91,7 @@
 #include "hekateros_control/Calibrate.h"
 #include "hekateros_control/ClearAlarms.h"
 #include "hekateros_control/CloseGripper.h"
+#include "hekateros_control/ConfigGpio.h"
 #include "hekateros_control/EStop.h"
 #include "hekateros_control/Freeze.h"
 #include "hekateros_control/GetProductInfo.h"
@@ -100,11 +102,13 @@
 #include "hekateros_control/IsCalibrated.h"
 #include "hekateros_control/IsDescLoaded.h"
 #include "hekateros_control/OpenGripper.h"
+#include "hekateros_control/ReadGpio.h"
 #include "hekateros_control/Release.h"
 #include "hekateros_control/ReloadConfig.h"
 #include "hekateros_control/ResetEStop.h"
 #include "hekateros_control/SetRobotMode.h"
 #include "hekateros_control/Stop.h"
+#include "hekateros_control/WriteGpio.h"
 
 //
 // ROS generated action servers.
@@ -349,6 +353,17 @@ namespace hekateros_control
                       hekateros_control::CloseGripper::Response &rsp);
 
     /*!
+     * \brief Configure GPIO pins.
+     *
+     * \param req   Service request.
+     * \param rsp   Service response.
+     *
+     * \return Returns true on success, false on failure.
+     */
+    bool configGpio(hekateros_control::ConfigGpio::Request  &req,
+                    hekateros_control::ConfigGpio::Response &rsp);
+
+    /*!
      * \brief Emergency stop robot service callback.
      *
      * \param req   Service request.
@@ -459,6 +474,17 @@ namespace hekateros_control
                      hekateros_control::OpenGripper::Response &rsp);
 
     /*!
+     * \brief Read GPIO pin states.
+     *
+     * \param req   Service request.
+     * \param rsp   Service response.
+     *
+     * \return Returns true on success, false on failure.
+     */
+    bool readGpio(hekateros_control::ReadGpio::Request  &req,
+                  hekateros_control::ReadGpio::Response &rsp);
+
+    /*!
      * \brief Release drive power to robot motors service callback.
      *
      * \param req   Service request.
@@ -513,6 +539,17 @@ namespace hekateros_control
      */
     bool stop(hekateros_control::Stop::Request  &req,
               hekateros_control::Stop::Response &rsp);
+
+    /*!
+     * \brief Write GPIO pin states.
+     *
+     * \param req   Service request.
+     * \param rsp   Service response.
+     *
+     * \return Returns true on success, false on failure.
+     */
+    bool writeGpio(hekateros_control::WriteGpio::Request  &req,
+                   hekateros_control::WriteGpio::Response &rsp);
 
 
     // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .

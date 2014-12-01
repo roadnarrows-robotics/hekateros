@@ -103,10 +103,17 @@ namespace hekateros_control
   class ASFollowTrajectory
   {
   public:
-    // Monitoring tuning. Position tolerances are in radians.
-    static const double TolWaypoint;  ///< intermediate waypoint position
-    static const double TolGoal;      ///< final goal position
-    static const int    MaxIters;     ///< maximum iterations w/o motion
+    static const double MaxSecs = 10.0; ///< maximum seconds to reach a waypoint
+
+    /*!
+     * \brief Trajectory execution states.
+     */
+    enum ExecState
+    {
+      ExecStateStartMove,     ///< start move to next waypoint
+      ExecStateMonitorMove,   ///< monitor move
+      ExecStateTerminate      ///< terminate 
+    };
 
     /*!
      * \brief Initialization constructor.
@@ -117,6 +124,7 @@ namespace hekateros_control
     ASFollowTrajectory(std::string name, HekaterosControl &node) :
       action_name_(name),       // action name
       node_(node),              // hekateros node
+      m_robot(node.getRobot()),
       as_(node.getNodeHandle(), // simple action server
           name,                       // action name
           boost::bind(&ASFollowTrajectory::execute_cb, this, _1),
@@ -168,60 +176,66 @@ namespace hekateros_control
     void preempt_cb();
 
   protected:
-    std::string       action_name_;         ///< action name
-    HekaterosControl &node_;                ///< hekateros control node instance
+    std::string       action_name_; ///< action name
+    HekaterosControl &node_;        ///< hekateros control node instance
     actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction>
                                       as_;  ///< action simple server
     control_msgs::FollowJointTrajectoryFeedback feedback_;
-                                            ///< progress feedback
-    control_msgs::FollowJointTrajectoryResult   result_;
-                                            ///< action results
+                                    ///< progress feedback
+    control_msgs::FollowJointTrajectoryResult result_;
+                                    ///< action results
 
-    double  m_fTolerance;                   ///< waypoint tolerance
-    double  m_fWaypointDist;                ///< current waypoint distance
-    int     m_iterMonitor;                  ///< monitoring iteration count
-
-    /*!
-     * \brief Move to next waypoint.
-     *
-     * \param jt        Joint trajectory path.
-     * \param iWaypoint Current waypoint along the trajectoy path.
-     *
-     * \return Returns HEK_OK on success, \h_lt 0 on failure.
-     */
-    int moveToWaypoint(trajectory_msgs::JointTrajectory &jt, ssize_t iWaypoint);
+    hekateros::HekRobot &m_robot;         ///< hekateros robot
+    hekateros::HekNorm  m_eNorm;          ///< waypoint distance norm
+    double              m_fEpsilon;       ///< waypoint distance epsilon
+    trajectory_msgs::JointTrajectory m_traj; ///< goal trajectory
+    ExecState           m_eState;         ///< execution state
+    bool                m_bTrajCompleted; ///< trajectory [not] completed to end
+    int                 m_nMaxIters;      ///< maximum iterations per waypoint
+    int                 m_iterMonitor;    ///< monitoring iteration count
 
     /*!
-     * \brief Monitor and provide feedback of current waypoint move.
+     * \brief Start move to next waypoint or endpoint.
      *
-     * \param jt        Joint trajectory path.
      * \param iWaypoint Current waypoint along the trajectoy path.
+     *
+     * \return Returns next execution state.
      */
-    void monitorMove(trajectory_msgs::JointTrajectory &jt, ssize_t iWaypoint);
+    ExecState startMoveToPoint(size_t iWaypoint);
 
     /*!
-     * \brief Test if current move is at the target waypoint.
+     * \brief Monitor move to intermediate waypoint.
      *
-     * \param jt        Joint trajectory path.
      * \param iWaypoint Current waypoint along the trajectoy path.
      *
-     * \return Returns true or false.
+     * \return Returns next execution state.
      */
-    bool atWaypoint(trajectory_msgs::JointTrajectory &jt, ssize_t iWaypoint)
-    {
-      return fabs(m_fWaypointDist) < m_fTolerance;
-    }
+    ExecState monitorMoveToWaypoint(size_t iWaypoint);
+
+    /*!
+     * \brief Monitor move to endpoint (last waypoint).
+     *
+     * \param iWaypoint Current waypoint along the trajectoy path.
+     *
+     * \return Returns next execution state.
+     */
+    ExecState monitorMoveToEndpoint(size_t iWaypoint);
+
+    /*!
+     * \brief Measure waypoint move from current position and provide feedback.
+     *
+     * \param iWaypoint Current waypoint along the trajectoy path.
+     *
+     * \return Distance from waypoint.
+     */
+    double measureMove(size_t iWaypoint);
 
     /*!
      * \brief Test if current move to the the target waypoint failed.
      *
-     * \param jt        Joint trajectory path.
-     * \param iWaypoint Current waypoint along the trajectoy path.
-     *
      * \return Returns true or false.
      */
-    bool failedWaypoint(trajectory_msgs::JointTrajectory &jt,
-                        ssize_t iWaypoint);
+    bool failedWaypoint();
 
     /*!
      * \brief Publish feedback.
@@ -229,6 +243,24 @@ namespace hekateros_control
      * \param iWaypoint Current waypoint along the trajectoy path.
      */
     void publishFeedback(ssize_t iWaypoint);
+
+    /*!
+     * \brief Clear feedback data.
+     */
+    void clearFeedback();
+
+    /*!
+     * \brief Add point to feedback.
+     *
+     * \param jointName     Joint name.
+     * \param jointWpPos    Joint waypoint position (radians).
+     * \param jointWpVel    Joint waypoint velocity (radians/second).
+     * \param jointCurPos   Joint current position (radians).
+     * \param jointCurVel   Joint current velocity (radians/second).
+     */
+    void addFeedbackPoint(const std::string &jointName,
+                          const double jointWpPos,  const double jointWpVel,
+                          const double jointCurPos, const double jointCurVel);
   };
 
 } // namespace hekateros_control

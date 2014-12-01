@@ -1,0 +1,5 @@
+# Hekateros hekateros_control/ReadGpio service
+
+uint8[] pin     # pin states (s) to read
+---
+Gpio[] gpio     # resulting pin state(s)

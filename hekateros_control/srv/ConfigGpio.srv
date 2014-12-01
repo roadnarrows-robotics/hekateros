@@ -1,0 +1,4 @@
+# Hekateros hekateros_control/ConfigGpio service
+
+Gpio[] gpio     # configure GPIO pin directions(s)
+---

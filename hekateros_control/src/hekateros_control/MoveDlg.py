@@ -163,8 +163,10 @@ class MoveDlg(Toplevel):
     row   = 0
 
     # left column of labels
-    for text in [' ', 'Position(deg):', 'Velocity(%max):', 'Group Velocity:']:
-      w = Label(wframe, width=width, padx=padx, pady=pady, anchor=W, text=text)
+    for text in [' ', 'Position(deg):', 'Velocity(deg/sec):',
+                  'Group Velocity:']:
+      w = Label(wframe, width=width+2, padx=padx, pady=pady, anchor=W,
+          text=text)
       w.grid(row=row, column=0, sticky=W+S)
       row += 1
 
@@ -194,10 +196,10 @@ class MoveDlg(Toplevel):
       # joint velocity
       row += 1
       var = DoubleVar()
-      var.set(round10th(trajPoint.velocities[i]))
+      var.set(round10th(radToDeg(trajPoint.velocities[i])))
       startGroupV = var.get()
       w = Spinbox(wframe, justify=RIGHT, textvar=var,
-                        increment=0.1, from_=0.0, to=100.0)
+                        increment=1.0, from_=-250.0, to=250.0)
       w['width'] = 7
       w.grid(row=row, column=col, padx=1, pady=0, sticky=W)
       d = {'var': var, 'w': w}
@@ -222,7 +224,7 @@ class MoveDlg(Toplevel):
     self.m_varGroupVel = DoubleVar()
     self.m_varGroupVel.set(round10th(startGroupV))
     w = Scale(wframe, variable=self.m_varGroupVel,
-                        from_=0.0, to=100.0, resolution=1.0,
+                        from_=-250.0, to=250.0, resolution=1.0,
                         orient=HORIZONTAL, command=self.setGroupV)
     w['width']  = 10
     w['length'] = length
@@ -266,12 +268,8 @@ class MoveDlg(Toplevel):
       pos = self.m_vals[name]['position']['var'].get()
       pos = degToRad(pos)
       vel = self.m_vals[name]['velocity']['var'].get()
-      if vel < 0.0:
-        vel = 0.0
-      elif vel > 100.0:
-        vel = 100.0
       trajPoint.positions[i]  = pos
-      trajPoint.velocities[i] = vel
+      trajPoint.velocities[i] = degToRad(vel)
       i += 1
     self.m_result = True
     self.close()
