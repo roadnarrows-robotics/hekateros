@@ -409,8 +409,8 @@ bool HekaterosControl::getProductInfo(GetProductInfo::Request  &req,
 {
   const char *svc = "get_product_info";
 
-  int   nMajor, nMinor, nRev;
-  char *s;
+  int         nMajor, nMinor, nRev;
+  const char *s;
 
   ROS_DEBUG("%s", svc);
 
