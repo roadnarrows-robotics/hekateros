@@ -1027,7 +1027,7 @@ void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
 
   // goal position and velocity
   r   = (double)(trigger-deadzone) / (double)(XBOX360_TRIGGER_MAX-deadzone);
-  pos = m_mapCurPos[JointNameGrip] - dpos;
+  pos = m_mapCurPos[JointNameGrip] + dpos;
   vel = m_fMoveTuning * r * maxvel;
 
   // new joint trajectory point component
