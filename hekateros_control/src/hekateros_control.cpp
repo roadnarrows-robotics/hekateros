@@ -61,6 +61,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+
 #include <string>
 #include <map>
 
@@ -409,8 +410,8 @@ bool HekaterosControl::getProductInfo(GetProductInfo::Request  &req,
 {
   const char *svc = "get_product_info";
 
-  int         nMajor, nMinor, nRev;
-  const char *s;
+  int   nMajor, nMinor, nRev;
+  char  s[128];
 
   ROS_DEBUG("%s", svc);
 
@@ -432,10 +433,11 @@ bool HekaterosControl::getProductInfo(GetProductInfo::Request  &req,
   rsp.i.product_name    = m_robot.getProdName();
   rsp.i.desc            = m_robot.getFullProdBrief();
 
-  if( (s = getenv("HOSTNAME")) == NULL )
+  if( gethostname(s, sizeof(s)) < 0 )
   {
-    s = "hekateros";
+    strcpy(s, "hekateros");
   }
+  s[sizeof(s)-1] = 0;
 
   rsp.i.hostname  = s;
 
