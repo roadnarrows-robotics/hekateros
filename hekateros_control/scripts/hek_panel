@@ -81,7 +81,7 @@ from hekateros_control.ACCalibrate import *
 # ------------------------------------------------------------------------------
 
 ## \brief Application version. Update as needed. 
-appVersion = '1.1.1'
+appVersion = '1.2.0'
 
 ## \brief Image search paths.
 imagePath = [
@@ -1200,12 +1200,12 @@ Make sure the workspace is clear of obstructions.""")
       jointTrajectory.joint_names.append(name)
       pos = self.m_robotJoint[name]['position']['raw']
       jointTrajPoint.positions.append(pos)
-      jointTrajPoint.velocities.append(degToRad(10.0))
+      jointTrajPoint.velocities.append(degToRad(0.0))
       jointTrajPoint.accelerations.append(0.0)
     dlg = MoveDlg(master=self, image='HekaterosInMotion.png',
                                 trajectory=jointTrajectory)
     if dlg.m_result:
-      self.moveRobot(jointTrajectory)
+      self.moveRobot(dlg.m_resultTraj)
   
   #
   ## \brief Move robot along trajectory.

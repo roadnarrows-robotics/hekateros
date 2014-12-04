@@ -120,10 +120,11 @@ class MoveDlg(Toplevel):
       del kw['image']
     else:
       self.m_icons['image'] = None
-    self.m_result = False
     self.m_trajectory = kw['trajectory']
     self.m_vals = { }
     del kw['trajectory']
+    self.m_resultTraj  = None
+    self.m_result = False
     return kw
 
   #
@@ -262,16 +263,21 @@ class MoveDlg(Toplevel):
   ## \brief Destroy window callback.
   #
   def ok(self):
-    i = 0
-    trajPoint = self.m_trajectory.points[0]
+    self.m_resultTraj = trajectory_msgs.msg.JointTrajectory()
+    trajPoint = trajectory_msgs.msg.JointTrajectoryPoint()  
     for name in self.m_trajectory.joint_names:
-      pos = self.m_vals[name]['position']['var'].get()
-      pos = degToRad(pos)
-      vel = self.m_vals[name]['velocity']['var'].get()
-      trajPoint.positions[i]  = pos
-      trajPoint.velocities[i] = degToRad(vel)
-      i += 1
-    self.m_result = True
+      pos = degToRad(self.m_vals[name]['position']['var'].get())
+      vel = degToRad(self.m_vals[name]['velocity']['var'].get())
+      if vel != 0.0:
+        self.m_resultTraj.joint_names.append(name)
+        trajPoint.positions.append(pos)
+        trajPoint.velocities.append(vel)
+        trajPoint.accelerations.append(0.0)
+    if len(self.m_resultTraj.joint_names) > 0:
+      self.m_resultTraj.points.append(trajPoint)
+      self.m_result = True
+    else:
+      self.m_result = False
     self.close()
 
   #
