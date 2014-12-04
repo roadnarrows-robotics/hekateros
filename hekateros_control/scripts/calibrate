@@ -35,7 +35,11 @@ import sys
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
 
+import actionlib
 from actionlib_msgs.msg import GoalStatus
+
+from hekateros_control.msg import HekOpState
+
 from hekateros_control.ACCalibrate import *
 
 # Calibration action state
@@ -56,8 +60,6 @@ class CalibClient:
     self.m_state      = CalibStateIdle  # calibration action state
     self.m_joiName    = ""              # joint of interest name
     self.m_joiState   = ""              # joint of interest calibration state
-    self.m_numCalib   = 0               # number of calibrated joints
-    self.m_numJoints  = 0               # number of joints to calibrate
     self.m_idxProg    = 0               # progress index
 
   #
@@ -94,18 +96,19 @@ class CalibClient:
   def monitor(self, feedback):
     self.m_joiName    = ""
     self.m_joiState   = ""
-    self.m_numCalib   = 0
-    self.m_numJoints  = len(feedback.name)
     self.m_idxProg    = (self.m_idxProg+1) % len(ProgressChars)
-    for i in range(0, self.m_numJoints):
+    numCalib          = 0
+    numJoints         = len(feedback.name)
+    for i in range(0, numJoints):
       name    = feedback.name[i]
       opstate = feedback.op[i]
       if opstate.calib_state == HekOpState.CALIBRATING:
         self.m_joiName  = name
         self.m_joiState = "calibrating"
       elif opstate.calib_state == HekOpState.CALIBRATED:
-        self.m_numCalib += 1
-    self.show_progress_bar()
+        numCalib += 1
+    self.clear_progress_bar()
+    self.show_progress_bar(numCalib, numJoints)
 
   #
   ## \brief Check for calibration complete.
@@ -138,10 +141,11 @@ class CalibClient:
   #
   ## \brief Show ascii progress bar.
   #
-  def show_progress_bar(self):
-    sys.stderr.write("%2d/%-2d %15s %-20s %s\r" % \
-        (self.m_numCalib+1, self.m_numJoints, self.m_joiName, self.m_joiState,
-          ProgressChars[self.m_idxProg]))
+  def show_progress_bar(self, numCalib, numJoints):
+    sys.stderr.write("%2d/%-2d %s %s %s\r" % \
+        (numCalib+1, numJoints,
+          ProgressChars[self.m_idxProg],
+          self.m_joiName, self.m_joiState))
 
   #
   ## \brief Clear ascii progress bar.
@@ -164,4 +168,5 @@ if __name__ == '__main__':
   else:
     rospy.loginfo("Calibration sequence failed.")
     ec = 4
+  time.sleep(1) # ros stuff could still be cleaning up
   sys.exit(ec)

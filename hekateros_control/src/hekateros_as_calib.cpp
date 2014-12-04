@@ -141,6 +141,8 @@ void ASCalibrate::execute_cb(const CalibrateGoalConstPtr &goal)
     else
     {
       robot.getJointState(state);
+      feedback_.name.clear();
+      feedback_.op.clear();
       for(int n=0; n<state.getNumPoints(); ++n)
       {
         feedback_.name.push_back(state[n].m_strName);
