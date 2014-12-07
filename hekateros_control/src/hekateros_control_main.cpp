@@ -61,6 +61,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string>
+#include <sstream>
 
 //
 // ROS 
@@ -266,7 +267,8 @@ static void sigHandler(int sig)
 int main(int argc, char *argv[])
 {
   string  strNodeName;    // ROS-given node name
-  double  hz = 30;        // ROS loop rate
+  double  hz = 30.0;      // ROS loop rate
+  int     nMaxTries = 5;  // maximum tries
   int     rc;             // return code
 
   // 
@@ -313,23 +315,51 @@ int main(int argc, char *argv[])
   //
   if( (rc = hek.configure(OptsCfgFile)) != HEK_OK )
   {
-    ROS_FATAL_STREAM(strNodeName
+    stringstream ss;
+    ss  << strNodeName
         << ": Failed to load configuration file "
-        << OptsCfgFile);
+        << OptsCfgFile;
+    ROS_FATAL("%s", ss.str().c_str());
+    LOGERROR("%s", ss.str().c_str());
     return APP_EC_INIT;
   }
 
   //
   // Connect to the Hekateros.
   //
-  while( (rc = hek.connect(OptsDevDynabus, OptsBaudDynabus,
-                           OptsDevArduino, OptsBaudArduino)) != HEK_OK )
+  for(int i = 0; i < nMaxTries; ++i)
   {
-    ROS_ERROR_STREAM(strNodeName <<
-                    ": Failed to connect to Hekateros. Error code=" <<
-                      rc);
-    sleep(5);
-    //return APP_EC_INIT;
+    if( (rc = hek.connect(OptsDevDynabus, OptsBaudDynabus,
+                          OptsDevArduino, OptsBaudArduino)) == HEK_OK )
+    {
+      stringstream ss;
+      ss  << strNodeName << ": Connected to Hekateros.";  
+      ROS_INFO("%s", ss.str().c_str());
+      LOGDIAG1("%s", ss.str().c_str());
+      break;
+    }
+    else
+    {
+      stringstream ss;
+      ss  << strNodeName
+          << ": Failed to connect to Hekateros. Error code="
+          << rc;
+      ROS_ERROR("%s", ss.str().c_str());
+      LOGERROR("%s", ss.str().c_str());
+      sleep(5);
+    }
+  }
+
+  if( rc != HEK_OK )
+  {
+    stringstream ss;
+    ss  << strNodeName.c_str()
+        << "Failed to connect to Hekateros after "
+        << nMaxTries
+        << " tries - giving up.";
+    ROS_FATAL("%s", ss.str().c_str());
+    LOGERROR("%s", ss.str().c_str());
+    return APP_EC_INIT;
   }
 
   //
