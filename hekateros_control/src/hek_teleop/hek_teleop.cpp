@@ -1161,7 +1161,7 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
   {
     A = UPPER_ARM;
     B = LOWER_ARM;
-    D = 10.0;       // distance used to calculate joint velocities (mm)
+    D = 200.0;      // distance used to calculate joint velocities (mm)
 
     double delta  = abs(m_fpState.m_goalJoint.alpha - alpha) +
                     abs(m_fpState.m_goalJoint.beta - beta) +
@@ -1530,7 +1530,7 @@ void HekTeleop::stopUnteleopJoints()
     if( (p != m_mapGoalPos.end()) && (q != m_mapGoalVel.end()) )
     {
       // non-zero velocity
-      if( q->second > 0.0 )
+      if( fabs(q->second) > 0.0 )
       {
         vecJointNames.push_back(iter->first);
       }
