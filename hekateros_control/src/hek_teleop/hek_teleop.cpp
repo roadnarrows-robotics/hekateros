@@ -1068,7 +1068,7 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
   //
   static double UPPER_ARM = 461.0;    // upper arm (shoulder - elbow) 
   static double LOWER_ARM = 405.0;    // lower arm (elbow - wrist)
-  static double V_MAX     = degToRad(60.0); // maximum velocity scale
+  static double V_MAX     = degToRad(40.0); // maximum velocity scale
   static double EPSILON   = 0.7;      // tolerance in L1 angle space
 
   int       i, j, k;
@@ -1114,7 +1114,7 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
 
     A = UPPER_ARM;
     B = LOWER_ARM;
-    D = goal_sign * 200.0;  // distance to move in mm
+    D = goal_sign * 400.0;  // distance to move in mm
 
     dir = alpha + beta + gamma;
 
