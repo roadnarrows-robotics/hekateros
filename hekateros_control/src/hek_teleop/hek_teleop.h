@@ -180,6 +180,7 @@ namespace hekateros_control
     {
       TeleopStateUninit,    ///< not initialized
       TeleopStatePaused,    ///< paused
+      TeleopStateUncalib,   ///< ready, but uncalibrated
       TeleopStateReady      ///< ready and running
     };
 
@@ -199,9 +200,12 @@ namespace hekateros_control
     enum ButtonId
     {
       ButtonIdGotoBalPos    = rnr::Xbox360FeatIdAButton,  ///< goto balance pos
+      ButtonIdFreeze        = rnr::Xbox360FeatIdAButton,  ///< freeze arm syn
       ButtonIdEStop         = rnr::Xbox360FeatIdBButton,  ///< emergency stop
       ButtonIdGotoParkedPos = rnr::Xbox360FeatIdXButton,  ///< goto parked pos
+      ButtonIdRelease       = rnr::Xbox360FeatIdXButton,  ///< release arm syn
       ButtonIdGotoZeroPt    = rnr::Xbox360FeatIdYButton,  ///< goto zero point
+      ButtonIdCalibrate     = rnr::Xbox360FeatIdYButton,  ///< calibrate syn
 
       ButtonIdPause         = rnr::Xbox360FeatIdBack,     ///< pause teleop
       ButtonIdToggleMode    = rnr::Xbox360FeatIdCenterX,  ///< toggle op mode
@@ -237,7 +241,8 @@ namespace hekateros_control
       LEDPatPaused    = XBOX360_LED_PAT_4_ON,       ///< pause teleop pattern
       LEDPatReady     = XBOX360_LED_PAT_ALL_SPIN,   ///< spin, first-person mode
       LEDPatShoulder  = XBOX360_LED_PAT_3_ON,       ///< isolated shoulder move
-      LEDPatElbow     = XBOX360_LED_PAT_1_ON        ///< isolated elbow move
+      LEDPatElbow     = XBOX360_LED_PAT_1_ON,       ///< isolated elbow move
+      LEDPatUncalib   = XBOX360_LED_PAT_2_ON        ///< uncalibrated pattern
     };
 
     /*!
@@ -330,21 +335,14 @@ namespace hekateros_control
      *
      * \return Returns true or false.
      */
-    bool canMove()
-    {
-      if((m_eState == TeleopStateReady) &&
-         (m_msgRobotStatus.is_calibrated.val ==
-                                       industrial_msgs::TriState::TRUE) &&
-         (m_msgRobotStatus.e_stopped.val == industrial_msgs::TriState::FALSE) &&
-         (m_msgRobotStatus.in_error.val == industrial_msgs::TriState::FALSE))
-      {
-        return true;
-      }
-      else
-      {
-        return false;
-      }
-    }
+    bool canMove();
+
+    /*!
+     * \brief Test if robot can be calibrated.
+     *
+     * \return Returns true or false.
+     */
+    bool canCalibrate();
 
     /*!
      * \brief Get bound node handle.
@@ -460,6 +458,11 @@ namespace hekateros_control
     void freeze();
 
     /*!
+     * \brief Release (motors undriven) robot client service.
+     */
+    void release();
+
+    /*!
      * \brief Move robot to balanced position client service.
      */
     void gotoBalancedPos();
@@ -473,6 +476,11 @@ namespace hekateros_control
      * \brief Move robot to zero point position client service.
      */
     void gotoZeroPt();
+
+    /*!
+     * \brief Calibrate robot client action server.
+     */
+    void calibrate();
 
     /*!
      * \brief Reset emergency stop client service.
@@ -584,9 +592,29 @@ namespace hekateros_control
     /*!
      * \brief Execute all button actions.
      *
+     * All states.
+     *
      * \param buttonState   New button state.
      */
     void execAllButtonActions(ButtonState &buttonState);
+
+    /*!
+     * \brief Execute move button actions.
+     *
+     * In ready state.
+     *
+     * \param buttonState   New button state.
+     */
+    void execMoveButtonActions(ButtonState &buttonState);
+
+    /*!
+     * \brief Execute calibrate button actions.
+     *
+     * In uncalib state.
+     *
+     * \param buttonState   New button state.
+     */
+    void execCalibButtonActions(ButtonState &buttonState);
 
     /*!
      * \brief Execute start button action.
@@ -642,45 +670,42 @@ namespace hekateros_control
      *
      * \param buttonState   New button state.
      */
-    void buttonGotoBalancedPos(ButtonState &buttonState)
-    {
-      if( buttonOffToOn(ButtonIdGotoBalPos, buttonState) )
-      {
-        gotoBalancedPos();
-        m_fpState.m_bNewGoal = true;
-        m_bPreemptMove = true;
-      }
-    }
+    void buttonGotoBalancedPos(ButtonState &buttonState);
 
     /*!
      * \brief Execute move to parked position button action.
      *
      * \param buttonState   New button state.
      */
-    void buttonGotoParkedPos(ButtonState &buttonState)
-    {
-      if( buttonOffToOn(ButtonIdGotoParkedPos, buttonState) )
-      {
-        gotoParkedPos();
-        m_fpState.m_bNewGoal = true;
-        m_bPreemptMove = true;
-      }
-    }
+    void buttonGotoParkedPos(ButtonState &buttonState);
 
     /*!
      * \brief Execute move to zero point button action.
      *
      * \param buttonState   New button state.
      */
-    void buttonGotoZeroPt(ButtonState &buttonState)
-    {
-      if( buttonOffToOn(ButtonIdGotoZeroPt, buttonState) )
-      {
-        gotoZeroPt();
-        m_fpState.m_bNewGoal = true;
-        m_bPreemptMove = true;
-      }
-    }
+    void buttonGotoZeroPt(ButtonState &buttonState);
+
+    /*!
+     * \brief Execute calibrateion action.
+     *
+     * \param buttonState   New button state.
+     */
+    void buttonCalibrate(ButtonState &buttonState);
+
+    /*!
+     * \brief Execute arm release.
+     *
+     * \param buttonState   New button state.
+     */
+    void buttonReleaseArm(ButtonState &buttonState);
+
+    /*!
+     * \brief Execute arm freeze.
+     *
+     * \param buttonState   New button state.
+     */
+    void buttonFreezeArm(ButtonState &buttonState);
 
     /*!
      * \brief Execute close gripper button action.
@@ -758,19 +783,29 @@ namespace hekateros_control
     //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
     /*!
-     * \brief Go to pause teleoperation state.
+     * \brief Go to teleoperation pause state.
      */
-    void pause();
+    void gotoPause();
 
     /*!
-     * \brief Go to ready to teleoperate state.
+     * \brief Go to teleoperation ready state.
      */
-    void ready();
+    void gotoReady();
+
+    /*!
+     * \brief Go to teleoperation uncalibrated state.
+     */
+    void gotoUncalib();
 
     /*!
      * \brief Drive Xbox360 LEDs into a figure 8 pattern.
      */
     void driveLEDsFigure8Pattern();
+
+    /*!
+     * \brief Drive Xbox360 LEDs into a rigth flash pattern.
+     */
+    void driveLEDsRightFlashPattern();
 
     /*!
      * \brief Checks if the joint is in the active trajectory.

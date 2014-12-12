@@ -256,6 +256,10 @@ void HekTeleop::clientServices()
   m_clientServices[strSvc] =
       m_nh.serviceClient<hekateros_control::Freeze>(strSvc);
 
+  strSvc = "/hekateros_control/release";
+  m_clientServices[strSvc] =
+      m_nh.serviceClient<hekateros_control::Release>(strSvc);
+
   strSvc = "/hekateros_control/stop";
   m_clientServices[strSvc] =
       m_nh.serviceClient<hekateros_control::Stop>(strSvc);
@@ -351,6 +355,20 @@ void HekTeleop::freeze()
   }
 }
 
+void HekTeleop::release()
+{
+  hekateros_control::Freeze svc;
+
+  if( m_clientServices["/hekateros_control/release"].call(svc) )
+  {
+    ROS_INFO("Robot released.");
+  }
+  else
+  {
+    ROS_ERROR("Failed to release robot.");
+  }
+}
+
 void HekTeleop::gotoBalancedPos()
 {
   hekateros_control::GotoBalancedPos svc;
@@ -391,6 +409,10 @@ void HekTeleop::gotoZeroPt()
   {
     ROS_ERROR("Failed to move.");
   }
+}
+
+void HekTeleop::calibrate()
+{
 }
 
 void HekTeleop::resetEStop()
@@ -538,6 +560,18 @@ void HekTeleop::cbRobotStatus(const HekRobotStatusExtended &msg)
   m_bRcvdRobotStatus  = true;
   m_bHasRobotComm     = m_bRcvdJointState;
   m_nWdRobotCounter   = 0;
+
+  // state auto-transitions
+  if( (m_msgRobotStatus.is_calibrated.val == TriState::FALSE) &&
+      (m_eState == TeleopStateReady) )
+  {
+    gotoUncalib();
+  }
+  else if( (m_msgRobotStatus.is_calibrated.val == TriState::TRUE) &&
+           (m_eState == TeleopStateUncalib) )
+  {
+    gotoReady();
+  }
 }
 
 void HekTeleop::cbJointState(const HekJointStateExtended &msg)
@@ -627,6 +661,7 @@ void HekTeleop::cbXboxBttnState(const hid::Controller360State &msg)
     switch( m_eState )
     {
       case TeleopStateReady:
+      case TeleopStateUncalib:
         execAllButtonActions(buttonState);
         break;
       case TeleopStatePaused:
@@ -634,7 +669,7 @@ void HekTeleop::cbXboxBttnState(const hid::Controller360State &msg)
         break;
       case TeleopStateUninit:
       default:
-        pause();
+        gotoPause();
         break;
     }
   }
@@ -677,9 +712,16 @@ void HekTeleop::commCheck()
   m_bHasFullComm = hasComm;
   
   // not really a communication check function, but convenient.
-  if( m_eState == TeleopStatePaused )
+  switch( m_eState )
   {
-    driveLEDsFigure8Pattern();
+    case TeleopStatePaused:
+      driveLEDsFigure8Pattern();
+      break;
+    case TeleopStateUncalib:
+      driveLEDsRightFlashPattern();
+      break;
+    default:
+      break;
   }
 }
 
@@ -702,6 +744,34 @@ void HekTeleop::putRobotInSafeMode(bool bHard)
   setLED(LEDPatOn);
 }
 
+bool HekTeleop::canMove()
+{
+  if( (m_eState == TeleopStateReady) &&
+      (m_msgRobotStatus.is_calibrated.val == industrial_msgs::TriState::TRUE) &&
+      (m_msgRobotStatus.e_stopped.val == industrial_msgs::TriState::FALSE) &&
+      (m_msgRobotStatus.in_error.val == industrial_msgs::TriState::FALSE) )
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool HekTeleop::canCalibrate()
+{
+  if( (m_eState == TeleopStateUncalib) &&
+      (m_msgRobotStatus.e_stopped.val == industrial_msgs::TriState::FALSE) &&
+      (m_msgRobotStatus.in_error.val == industrial_msgs::TriState::FALSE) )
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
 
 //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 // Xbox Actions
@@ -739,22 +809,40 @@ void HekTeleop::msgToState(const hid::Controller360State &msg,
 void HekTeleop::execAllButtonActions(ButtonState &buttonState)
 {
   //
+  // Teleoperation state change by button.
+  //
+  switch( m_eState )
+  {
+    case TeleopStateUncalib:
+    case TeleopStateReady:
+      buttonPause(buttonState);
+      break;
+    case TeleopStatePaused:
+      buttonStart(buttonState);
+      break;
+    case TeleopStateUninit:
+    default:
+      return;
+  }
+
+  //
   // Teleoperation state.
   //
-  if( m_eState == TeleopStateReady )
+  switch( m_eState )
   {
-    buttonPause(buttonState);
+    case TeleopStateReady:
+      execMoveButtonActions(buttonState);
+      break;
+    case TeleopStateUncalib:
+      execCalibButtonActions(buttonState);
+      break;
+    case TeleopStatePaused:
+      return;
   }
-  else if( m_eState == TeleopStatePaused )
-  {
-    buttonStart(buttonState);
-  }
+}
 
-  if( m_eState != TeleopStateReady )
-  {
-    return;
-  }
-
+void HekTeleop::execMoveButtonActions(ButtonState &buttonState)
+{
   // Emergency stop.
   buttonEStop(buttonState);
 
@@ -806,6 +894,20 @@ void HekTeleop::execAllButtonActions(ButtonState &buttonState)
   }
 }
 
+void HekTeleop::execCalibButtonActions(ButtonState &buttonState)
+{
+  // Emergency stop.
+  buttonEStop(buttonState);
+
+  buttonReleaseArm(buttonState);
+  buttonFreezeArm(buttonState);
+
+  if( canCalibrate() )
+  {
+    buttonCalibrate(buttonState);
+  }
+}
+
 void HekTeleop::buttonStart(ButtonState &buttonState)
 {
   if( buttonOffToOn(ButtonIdStart, buttonState) )
@@ -819,7 +921,14 @@ void HekTeleop::buttonStart(ButtonState &buttonState)
       resetEStop();
     }
 
-    ready();
+    if( m_msgRobotStatus.is_calibrated.val == TriState::TRUE )
+    {
+      gotoReady();
+    }
+    else
+    {
+      gotoUncalib();
+    }
   }
 }
 
@@ -831,7 +940,7 @@ void HekTeleop::buttonPause(ButtonState &buttonState)
 
     setRobotMode(HekRobotModeAuto);
 
-    pause();
+    gotoPause();
   }
 }
 
@@ -960,6 +1069,60 @@ void HekTeleop::buttonEStop(ButtonState &buttonState)
       clicks = 0;
       intvlCounter = 0;
       break;
+  }
+}
+
+void HekTeleop::buttonGotoBalancedPos(ButtonState &buttonState)
+{
+  if( buttonOffToOn(ButtonIdGotoBalPos, buttonState) )
+  {
+    gotoBalancedPos();
+    m_fpState.m_bNewGoal = true;
+    m_bPreemptMove = true;
+  }
+}
+
+void HekTeleop::buttonGotoParkedPos(ButtonState &buttonState)
+{
+  if( buttonOffToOn(ButtonIdGotoParkedPos, buttonState) )
+  {
+    gotoParkedPos();
+    m_fpState.m_bNewGoal = true;
+    m_bPreemptMove = true;
+  }
+}
+
+void HekTeleop::buttonGotoZeroPt(ButtonState &buttonState)
+{
+  if( buttonOffToOn(ButtonIdGotoZeroPt, buttonState) )
+  {
+    gotoZeroPt();
+    m_fpState.m_bNewGoal = true;
+    m_bPreemptMove = true;
+  }
+}
+
+void HekTeleop::buttonCalibrate(ButtonState &buttonState)
+{
+  if( buttonOffToOn(ButtonIdCalibrate, buttonState) )
+  {
+    gotoBalancedPos();
+  }
+}
+
+void HekTeleop::buttonReleaseArm(ButtonState &buttonState)
+{
+  if( HekTeleop::buttonOffToOn(ButtonIdRelease, buttonState) )
+  {
+    release();
+  }
+}
+
+void HekTeleop::buttonFreezeArm(ButtonState &buttonState)
+{
+  if( buttonOffToOn(ButtonIdFreeze, buttonState) )
+  {
+    freeze();
   }
 }
 
@@ -1466,7 +1629,7 @@ void HekTeleop::buttonRotateWristCcw(ButtonState &buttonState)
 // Support
 //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
-void HekTeleop::pause()
+void HekTeleop::gotoPause()
 {
   m_eState = TeleopStatePaused;
 
@@ -1474,12 +1637,19 @@ void HekTeleop::pause()
   setLED(LEDPatPaused);
 }
 
-void HekTeleop::ready()
+void HekTeleop::gotoReady()
 {
   m_eState = TeleopStateReady;
   m_fpState.m_bNewGoal = true;
 
   setLED(LEDPatReady);
+}
+
+void HekTeleop::gotoUncalib()
+{
+  m_eState = TeleopStateUncalib;
+
+  setLED(LEDPatUncalib);
 }
 
 void HekTeleop::driveLEDsFigure8Pattern()
@@ -1491,6 +1661,31 @@ void HekTeleop::driveLEDsFigure8Pattern()
   {
     XBOX360_LED_PAT_1_ON, XBOX360_LED_PAT_2_ON,
     XBOX360_LED_PAT_3_ON, XBOX360_LED_PAT_4_ON
+  };
+
+  // lazy init
+  if( nLEDTimeout < 0 )
+  {
+    nLEDTimeout = countsPerSecond(0.50);
+  }
+
+  // switch pattern
+  if( nLEDCounter++ >= nLEDTimeout )
+  {
+    iLED = (iLED + 1) % arraysize(LEDPat);
+    setLED(LEDPat[iLED]);
+    nLEDCounter = 0;
+  }
+}
+
+void HekTeleop::driveLEDsRightFlashPattern()
+{
+  static int nLEDTimeout = -1;
+  static int nLEDCounter = 0;
+  static int iLED = 0;
+  static int LEDPat[] =
+  {
+    XBOX360_LED_PAT_2_ON, XBOX360_LED_PAT_4_ON
   };
 
   // lazy init
