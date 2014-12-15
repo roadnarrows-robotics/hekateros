@@ -76,7 +76,6 @@
 // ROS
 //
 #include "ros/ros.h"
-#include "actionlib/server/simple_action_server.h"
 
 //
 // ROS generated core, industrial, and hekateros messages.
@@ -109,8 +108,10 @@
 #include "hekateros_control/Stop.h"
 
 //
-// ROS generated action servers.
+// ROS generated action clients.
 //
+#include "actionlib/client/simple_action_client.h"
+#include "hekateros_control/CalibrateAction.h"
 
 //
 // ROS generated HID messages.
@@ -153,6 +154,9 @@ using namespace hekateros;
 using namespace trajectory_msgs;
 using namespace industrial_msgs;
 using namespace hekateros_control;
+
+// types
+typedef actionlib::SimpleActionClient<CalibrateAction> CalibClient;
 
 //
 // All joints supported in current Hekaterors product line.
@@ -413,6 +417,32 @@ void HekTeleop::gotoZeroPt()
 
 void HekTeleop::calibrate()
 {
+  bool  bStatus;
+
+  CalibClient client("calibrate", true); // true -> don't need ros::spin()
+
+  ROS_INFO("Waiting for action server to start.");
+  bStatus = client.waitForServer();
+
+  if( bStatus )
+  {
+    ROS_INFO("Action server started, sending goal.");
+    CalibrateGoal goal;
+    goal.force_recalib = true;
+    client.sendGoal(goal);
+  }
+  else
+  {
+    ROS_ERROR("Action server failed to start.");
+    return;
+  }
+
+  client.waitForResult(ros::Duration(30.0));
+  client.cancelGoal();
+
+  if (client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+    printf("Yay! The dishes are now clean");
+  printf("Current State: %s\n", client.getState().toString().c_str());
 }
 
 void HekTeleop::resetEStop()
