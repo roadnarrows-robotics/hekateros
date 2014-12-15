@@ -89,7 +89,6 @@
 //
 // ROS generatated hekateros services.
 //
-#include "hekateros_control/Calibrate.h"
 #include "hekateros_control/ClearAlarms.h"
 #include "hekateros_control/CloseGripper.h"
 #include "hekateros_control/EStop.h"
@@ -111,6 +110,7 @@
 // ROS generated action clients.
 //
 #include "actionlib/client/simple_action_client.h"
+#include "actionlib/client/simple_client_goal_state.h"
 #include "hekateros_control/CalibrateAction.h"
 
 //
@@ -155,9 +155,6 @@ using namespace trajectory_msgs;
 using namespace industrial_msgs;
 using namespace hekateros_control;
 
-// types
-typedef actionlib::SimpleActionClient<CalibrateAction> CalibClient;
-
 //
 // All joints supported in current Hekaterors product line.
 //
@@ -168,12 +165,22 @@ static string JointNameWristPitch("wrist_pitch");
 static string JointNameWristRot("wrist_rot");
 static string JointNameGrip("grip");
 
+//
+// Lengths.
+//
+// RDK: TODO need to self discover these lengths. Current lengths are for the
+// 1.3 arm.
+//
+static double LEN_UPPER_ARM = 461.0;    // upper arm (shoulder to elbow) 
+static double LEN_LOWER_ARM = 405.0;    // lower arm (elbow to wrist)
+
 
 //------------------------------------------------------------------------------
 // HekTeleop Class
 //------------------------------------------------------------------------------
 
-HekTeleop::HekTeleop(ros::NodeHandle &nh, double hz) : m_nh(nh), m_hz(hz)
+HekTeleop::HekTeleop(ros::NodeHandle &nh, double hz) :
+    m_nh(nh), m_hz(hz), m_acCalib("/hekateros_control/calibrate_as", true)
 {
   m_eState            = TeleopStateUninit;
   m_eMode             = TeleopModeFirstPerson;
@@ -186,6 +193,7 @@ HekTeleop::HekTeleop(ros::NodeHandle &nh, double hz) : m_nh(nh), m_hz(hz)
   m_nWdRobotCounter   = 0;
   m_nWdRobotTimeout   = countsPerSecond(5.0);
   m_bHasFullComm      = false;
+  m_bIsCalibrating    = false;
 
   m_buttonState = map_list_of
       (ButtonIdGotoBalPos,    0)
@@ -338,6 +346,7 @@ void HekTeleop::estop()
   if( m_clientServices["/hekateros_control/estop"].call(svc) )
   {
     ROS_INFO("Robot emergency stopped.");
+    cancelCalibration();
   }
   else
   {
@@ -352,6 +361,7 @@ void HekTeleop::freeze()
   if( m_clientServices["/hekateros_control/freeze"].call(svc) )
   {
     ROS_INFO("Robot stopped.");
+    cancelCalibration();
   }
   else
   {
@@ -366,6 +376,7 @@ void HekTeleop::release()
   if( m_clientServices["/hekateros_control/release"].call(svc) )
   {
     ROS_INFO("Robot released.");
+    cancelCalibration();
   }
   else
   {
@@ -417,32 +428,75 @@ void HekTeleop::gotoZeroPt()
 
 void HekTeleop::calibrate()
 {
-  bool  bStatus;
+  CalibrateGoal goal;
 
-  CalibClient client("calibrate", true); // true -> don't need ros::spin()
+  ROS_INFO("Initiating calibration...");
 
-  ROS_INFO("Waiting for action server to start.");
-  bStatus = client.waitForServer();
+  ROS_INFO("  Waiting for calibration action server to start.");
 
-  if( bStatus )
+  if( m_acCalib.waitForServer() )
   {
-    ROS_INFO("Action server started, sending goal.");
-    CalibrateGoal goal;
-    goal.force_recalib = true;
-    client.sendGoal(goal);
+    ROS_INFO("Calibration action server started.");
   }
   else
   {
-    ROS_ERROR("Action server failed to start.");
+    ROS_ERROR("Failed to connect to calibration action server.");
     return;
   }
 
-  client.waitForResult(ros::Duration(30.0));
-  client.cancelGoal();
+  ROS_INFO("Sending calibration goal.");
+  goal.force_recalib = true;
 
-  if (client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-    printf("Yay! The dishes are now clean");
-  printf("Current State: %s\n", client.getState().toString().c_str());
+  m_acCalib.sendGoal(goal,
+           boost::bind(&HekTeleop::cbCalibDone, this, _1, _2),
+           boost::bind(&HekTeleop::cbCalibActive, this),
+           boost::bind(&HekTeleop::cbCalibFeedback, this, _1));
+}
+
+// Called once when the goal completes
+void HekTeleop::cbCalibDone(const actionlib::SimpleClientGoalState &state,
+                            const CalibrateResultConstPtr          &result)
+{
+  m_bIsCalibrating = false;
+
+  ROS_INFO("Finished in state [%s]", state.toString().c_str());
+  //ROS_INFO("Answer: %i", result->sequence.back());
+}
+
+// Called once when the goal becomes active
+void HekTeleop::cbCalibActive()
+{
+  ROS_INFO("Calibration goal just went active.");
+
+  m_bIsCalibrating = true;
+}
+
+// Called every time feedback is received for the goal
+void HekTeleop::cbCalibFeedback(const CalibrateFeedbackConstPtr &feedback)
+{
+  //ROS_DEBUG("Calibration feedback.");
+}
+
+void HekTeleop::cancelCalibration()
+{
+  if( isCalibrating() )
+  {
+    ROS_WARN("Canceled calibration.");
+    m_acCalib.cancelGoal();
+  }
+}
+
+bool HekTeleop::isCalibrating()
+{
+  if( !m_bIsCalibrating )
+  {
+    return false;
+  }
+
+  actionlib::SimpleClientGoalState state = m_acCalib.getState();
+
+  return  (state == actionlib::SimpleClientGoalState::PENDING) ||
+          (state == actionlib::SimpleClientGoalState::ACTIVE);
 }
 
 void HekTeleop::resetEStop()
@@ -1136,7 +1190,14 @@ void HekTeleop::buttonCalibrate(ButtonState &buttonState)
 {
   if( buttonOffToOn(ButtonIdCalibrate, buttonState) )
   {
-    gotoBalancedPos();
+    if( isCalibrating() )
+    {
+      cancelCalibration();
+    }
+    else
+    {
+      calibrate();
+    }
   }
 }
 
@@ -1189,7 +1250,7 @@ void HekTeleop::buttonCloseGripper(ButtonState &buttonState)
   // new joint trajectory point component
   if( setJoint(JointNameGrip, pos, vel) >= 0 )
   {
-    ROS_INFO_STREAM("Closing " << JointNameGrip << ".");
+    ROS_INFO("Closing %s at %.1lfdeg/s.", JointNameGrip.c_str(), radToDeg(vel));
   }
 }
 
@@ -1226,7 +1287,7 @@ void HekTeleop::buttonOpenGripper(ButtonState &buttonState)
   // new joint trajectory point component
   if( setJoint(JointNameGrip, pos, vel) >= 0 )
   {
-    ROS_INFO_STREAM("Opening " << JointNameGrip << ".");
+    ROS_INFO("Opening %s at %.1lfdeg/s.", JointNameGrip.c_str(), radToDeg(vel));
   }
 }
 
@@ -1344,7 +1405,7 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
 
     m_fpState.m_bNewGoal = false;
 
-    ROS_INFO_STREAM("Moving in first-person mode.");
+    ROS_INFO("Moving in first-person mode, reach at %.1lfmm.", reach());
   }
 
   //
@@ -1423,7 +1484,7 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
     setJoint(JointNameWristPitch, m_fpState.m_goalJoint.gamma,
                                   abs(shoulder_vel+elbow_vel));
 
-    ROS_INFO_STREAM("Moving in first-person mode.");
+    ROS_INFO("Moving in first-person mode, reach at %.1lfmm.", reach());
   }
 }
 
@@ -1463,7 +1524,8 @@ void HekTeleop::buttonMoveShoulder(int joy)
   if( setJoint(JointNameShoulder, pos, vel) >= 0 )
   {
     m_fpState.m_bNewGoal = true;
-    ROS_INFO_STREAM("Moving " << JointNameShoulder << ".");
+    ROS_INFO("Moving %s at %.1lfdeg/s.",
+        JointNameShoulder.c_str(), radToDeg(vel));
   }
 }
 
@@ -1503,19 +1565,22 @@ void HekTeleop::buttonMoveElbow(int joy)
   if( setJoint(JointNameElbow, pos, vel) >= 0 )
   {
     m_fpState.m_bNewGoal = true;
-    ROS_INFO_STREAM("Moving " << JointNameElbow << ".");
+    ROS_INFO("Moving %s at %.1lfdeg/s.",
+        JointNameElbow.c_str(), radToDeg(vel));
   }
 }
 
 void HekTeleop::buttonRotateBase(ButtonState &buttonState)
 {
-  static double dpos      = degToRad(60.0);
-  static double maxvel    = degToRad(120.0);
+  static double dpos      = degToRad(120.0);
+  static double minvel    = degToRad(2.0);
+  static double maxvel    = degToRad(100.0);
 
   int     joy = buttonState[ButtonIdRotBase];
-  double  r;        // joy ratio
-  double  pos;      // delta joint position
-  double  vel;      // joint velocity
+  double  ratioJoy;   // joy ratio
+  double  ratioReach; // reach ration
+  double  pos;        // delta joint position
+  double  vel;        // joint velocity
 
   if( joy == 0 )
   {
@@ -1529,9 +1594,21 @@ void HekTeleop::buttonRotateBase(ButtonState &buttonState)
   }
 
   // goal position and velocity
-  r   = (double)(-joy) / (double)XBOX360_JOY_MAX;
-  pos = dpos;
-  vel = m_fMoveTuning * r * maxvel;
+  ratioJoy    = (double)(-joy) / (double)XBOX360_JOY_MAX;
+  ratioReach  = (LEN_UPPER_ARM + LEN_LOWER_ARM - reach()) /
+                                (LEN_UPPER_ARM + LEN_LOWER_ARM);
+  pos         = dpos;
+  vel         = m_fMoveTuning * ratioJoy * ratioReach * maxvel;
+
+  // notch
+  if( (vel < 0.0) && (vel > minvel) )
+  {
+    vel = -minvel;
+  }
+  else if( (vel > 0.0) && (vel < minvel) )
+  {
+    vel = minvel;
+  }
 
   if( vel < 0.0 )
   {
@@ -1543,7 +1620,8 @@ void HekTeleop::buttonRotateBase(ButtonState &buttonState)
   // new joint trajectory point component
   if( setJoint(JointNameBaseRot, pos, vel) >= 0 )
   {
-    ROS_INFO_STREAM("Rotating " << JointNameBaseRot << ".");
+    ROS_INFO("Rotating %s at %.1lfdeg/s.",
+        JointNameBaseRot.c_str(), radToDeg(vel));
   }
 }
 
@@ -1584,7 +1662,7 @@ void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
   if( setJoint(JointNameWristPitch, pos, vel) >= 0 )
   {
     m_fpState.m_bNewGoal       = true;
-    ROS_INFO_STREAM("Pitching " << JointNameWristPitch << ".");
+    ROS_INFO("Pitching %s at %.1lfdeg/s.", JointNameWristPitch.c_str(), radToDeg(vel));
   }
 }
 
@@ -1617,7 +1695,8 @@ void HekTeleop::buttonRotateWristCw(ButtonState &buttonState)
   // new joint trajectory point component
   if( setJoint(JointNameWristRot, pos, vel) >= 0 )
   {
-    ROS_INFO_STREAM("Rotating " << JointNameWristRot << " CW.");
+    ROS_INFO("Rotating %s CW at %.1lfdeg/s.",
+        JointNameWristRot.c_str(), radToDeg(vel));
   }
 }
 
@@ -1650,7 +1729,7 @@ void HekTeleop::buttonRotateWristCcw(ButtonState &buttonState)
   // new joint trajectory point component
   if( setJoint(JointNameWristRot, pos, vel) >= 0 )
   {
-    ROS_INFO_STREAM("Rotating " << JointNameWristRot << " CCW.");
+    ROS_INFO("Rotating %s CCW at %.1lfdeg/s.", JointNameWristRot.c_str(), radToDeg(vel));
   }
 }
 
@@ -1715,7 +1794,7 @@ void HekTeleop::driveLEDsRightFlashPattern()
   static int iLED = 0;
   static int LEDPat[] =
   {
-    XBOX360_LED_PAT_2_ON, XBOX360_LED_PAT_4_ON
+    XBOX360_LED_PAT_2_ON, XBOX360_LED_PAT_ALL_OFF
   };
 
   // lazy init
@@ -1872,4 +1951,10 @@ void HekTeleop::resetActiveTeleop()
   }
 
   m_bPreemptMove = false;
+}
+
+double HekTeleop::reach()
+{
+  return  LEN_UPPER_ARM * sin(m_mapCurPos[JointNameShoulder]) +
+          LEN_LOWER_ARM * sin(m_mapCurPos[JointNameElbow]);
 }

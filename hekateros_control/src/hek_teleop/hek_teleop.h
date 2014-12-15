@@ -92,7 +92,6 @@
 //
 // ROS generatated hekateros services.
 //
-#include "hekateros_control/Calibrate.h"
 #include "hekateros_control/ClearAlarms.h"
 #include "hekateros_control/CloseGripper.h"
 #include "hekateros_control/EStop.h"
@@ -111,8 +110,10 @@
 #include "hekateros_control/Stop.h"
 
 //
-// ROS generated action servers.
+// ROS generated action clients.
 //
+#include "actionlib/client/simple_action_client.h"
+#include "hekateros_control/CalibrateAction.h"
 
 //
 // ROS generated HID messages.
@@ -172,6 +173,9 @@ namespace hekateros_control
 
     /*! map of joint names to joint trajectory point indices */
     typedef std::map<std::string, int> MapJointTraj;
+
+    /*! calibration action client */
+    typedef actionlib::SimpleActionClient<CalibrateAction> CalibClient;
 
     /*!
      * \brief Teleoperation state.
@@ -415,6 +419,10 @@ namespace hekateros_control
     hid::ConnStatus                           m_msgConnStatus;
                                         ///< saved last connection status msg
 
+    // action clients
+    CalibClient m_acCalib;              ///< calibration action client       
+    bool        m_bIsCalibrating;       ///< is [not] calibrating
+
 
     //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
     // Server Service callbacks
@@ -478,9 +486,48 @@ namespace hekateros_control
     void gotoZeroPt();
 
     /*!
-     * \brief Calibrate robot client action server.
+     * \brief Initiate robot calibration via action client.
      */
     void calibrate();
+
+    /*!
+     * \brief Calibration done action client callback.
+     *
+     * Called once when the goal completes [un]successfully.
+     * 
+     * \param state   End state of action.
+     * \param result  Calibration result.
+     */
+    void cbCalibDone(const actionlib::SimpleClientGoalState &state,
+                     const CalibrateResultConstPtr          &result);
+        
+    /*!
+     * \brief Calibration is active action client callback.
+     *
+     * Called once when the goal becomes active.
+     */
+    void cbCalibActive();
+
+    /*!
+     * \brief Calibration feedback action client callback.
+     *
+     * Called every time feedback is received for the goal.
+     *
+     * \param feedback  Calibration feedback.
+     */
+    void cbCalibFeedback(const CalibrateFeedbackConstPtr &feedback);
+
+    /*!
+     * \brief Cancel robot calibration.
+     */
+    void cancelCalibration();
+
+    /*!
+     * \brief Test if calibrating robot.
+     *
+     * \return Returns true or false.
+     */
+    bool isCalibrating();
 
     /*!
      * \brief Reset emergency stop client service.
@@ -893,6 +940,11 @@ namespace hekateros_control
      * \brief Reset joint teleoperation active state.
      */
     void resetActiveTeleop();
+
+    /*
+     * \brief Current arm reach in x-y plane (mm).
+     */
+    double reach();
   };
 
 } // namespace hekateros_control
