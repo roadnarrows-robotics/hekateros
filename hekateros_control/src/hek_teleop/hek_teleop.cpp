@@ -166,7 +166,7 @@ static string JointNameWristRot("wrist_rot");
 static string JointNameGrip("grip");
 
 //
-// Lengths.
+// Link lengths.
 //
 // RDK: TODO need to self discover these lengths. Current lengths are for the
 // 1.3 arm.
@@ -1366,8 +1366,8 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
   {
     m_fpState.m_goalSign = goal_sign;
 
-    A = UPPER_ARM;
-    B = LOWER_ARM;
+    A = LEN_UPPER_ARM;
+    B = LEN_LOWER_ARM;
     D = goal_sign * 400.0;  // distance to move in mm
 
     dir = alpha + beta + gamma;
@@ -1413,8 +1413,8 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
   //
   else
   {
-    A = UPPER_ARM;
-    B = LOWER_ARM;
+    A = LEN_UPPER_ARM;
+    B = LEN_LOWER_ARM;
     D = 200.0;      // distance used to calculate joint velocities (mm)
 
     double delta  = abs(m_fpState.m_goalJoint.alpha - alpha) +
@@ -1662,17 +1662,19 @@ void HekTeleop::buttonPitchWrist(ButtonState &buttonState)
   if( setJoint(JointNameWristPitch, pos, vel) >= 0 )
   {
     m_fpState.m_bNewGoal       = true;
-    ROS_INFO("Pitching %s at %.1lfdeg/s.", JointNameWristPitch.c_str(), radToDeg(vel));
+    ROS_INFO("Pitching %s at %.1lfdeg/s.",
+        JointNameWristPitch.c_str(), radToDeg(vel));
   }
 }
 
 void HekTeleop::buttonRotateWristCw(ButtonState &buttonState)
 {
-  static double dpos      = degToRad(360.0);
-  static double maxvel    = degToRad(120.0);
+  static double TuneDeltaPos  = degToRad(360.0);  
+  static double TuneMaxVel    = degToRad(120.0);
 
-  double  pos;
-  double  vel;
+  PosVel  goal; // new goal
+  //double  pos;
+  //double  vel;
 
   //
   // Two buttons control wrist rotation.
@@ -1683,21 +1685,26 @@ void HekTeleop::buttonRotateWristCw(ButtonState &buttonState)
   }
 
   // no joint
+  // if( nojoint(JointNameWristRot) )
   if( m_mapCurPos.find(JointNameWristRot) == m_mapCurPos.end() )
   {
     return;
   }
 
   // goal position and velocity
-  pos = m_mapCurPos[JointNameWristRot] - dpos;
-  vel = m_fMoveTuning * maxvel;
+  goal.m_fJointPos = m_mapCurPos[JointNameWristRot] - TuneDeltaPos;
+  goal.m_fJointVel = m_fMoveTuning * TuneMaxVel;
 
+  //if( isNewGoal(goal, degToRad(0.5), degToRad(5.0)) )
+  //{
   // new joint trajectory point component
-  if( setJoint(JointNameWristRot, pos, vel) >= 0 )
-  {
-    ROS_INFO("Rotating %s CW at %.1lfdeg/s.",
-        JointNameWristRot.c_str(), radToDeg(vel));
-  }
+    //if( setJoint(JointNameWristRot, goal) >= 0 )
+  if( setJoint(JointNameWristRot, goal.m_fJointPos, goal.m_fJointVel) >= 0 )
+    {
+      ROS_INFO("Rotating %s CW at %.1lfdeg/s.",
+        JointNameWristRot.c_str(), radToDeg(goal.m_fJointVel));
+    }
+  //}
 }
 
 void HekTeleop::buttonRotateWristCcw(ButtonState &buttonState)

@@ -144,9 +144,52 @@
 #include "Hekateros/hekRobot.h"
 #include "Hekateros/hekUtils.h"
 
-
 namespace hekateros_control
 {
+  //----------------------------------------------------------------------------
+  // Class PosVel
+  //----------------------------------------------------------------------------
+  class PosVel
+  {
+  public:
+    double  m_fJointPos;
+    double  m_fJointVel;
+
+    PosVel()
+    {
+      m_fJointPos = 0.0;
+      m_fJointVel = 0.0;
+    }
+
+    PosVel(const double fJointPos, const double fJointVel)
+    {
+      m_fJointPos = fJointPos;
+      m_fJointVel = fJointVel;
+    }
+
+    PosVel(const PosVel &src)
+    {
+      m_fJointPos = src.m_fJointPos;
+      m_fJointVel = src.m_fJointVel;
+    }
+
+    ~PosVel()
+    {
+    }
+
+    PosVel operator=(const PosVel &rhs)
+    {
+      m_fJointPos = rhs.m_fJointPos;
+      m_fJointVel = rhs.m_fJointVel;
+      return *this;
+    }
+  };
+
+
+  //----------------------------------------------------------------------------
+  // Class HekTeleop
+  //----------------------------------------------------------------------------
+ 
   /*!
    * \brief The class embodiment of the hek_teleop ROS node.
    */
@@ -164,6 +207,9 @@ namespace hekateros_control
 
     /*! map of ROS subscriptions type */
     typedef std::map<std::string, ros::Subscriber> MapSubscriptions;
+
+    /*! map of joint position-velocity tuples */
+    typedef std::map<std::string, PosVel> MapPosVel;
 
     /*! map of doubles */
     typedef std::map<std::string, double> MapDouble;
@@ -398,6 +444,8 @@ namespace hekateros_control
     FirstPersonState  m_fpState;        ///< first person state data
     bool              m_bPreemptMove;   ///< preempt teleoperation move
     double            m_fMoveTuning;    ///< movement fine/course tuning
+    MapPosVel         m_mapCur;
+    MapPosVel         m_mapGoal;
     MapDouble         m_mapCurPos;      ///< current joint position by name
     MapDouble         m_mapCurVel;      ///< current joint velocity by name
     MapDouble         m_mapGoalPos;     ///< goal joint position by name
