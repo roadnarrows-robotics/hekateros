@@ -444,14 +444,9 @@ namespace hekateros_control
     FirstPersonState  m_fpState;        ///< first person state data
     bool              m_bPreemptMove;   ///< preempt teleoperation move
     double            m_fMoveTuning;    ///< movement fine/course tuning
-    MapPosVel         m_mapCur;
-    MapPosVel         m_mapGoal;
-    MapDouble         m_mapCurPos;      ///< current joint position by name
-    MapDouble         m_mapCurVel;      ///< current joint velocity by name
-    MapDouble         m_mapGoalPos;     ///< goal joint position by name
-    MapDouble         m_mapGoalVel;     ///< goal joint velocity by name
-    MapBool           m_mapTeleop;      ///< joints being teleoperated
-    MapJointTraj      m_mapTraj;        ///< working traj. pt. index by name
+    MapPosVel         m_mapJointDyna;   ///< current joint dynamics
+    MapPosVel         m_mapJointGoal;   ///< current joint goals
+    MapBool           m_mapIsTeleop;    ///< joints being teleoperated
 
     // messages
     hekateros_control::HekRobotStatusExtended m_msgRobotStatus;
@@ -903,25 +898,58 @@ namespace hekateros_control
     void driveLEDsRightFlashPattern();
 
     /*!
-     * \brief Checks if the joint is in the active trajectory.
+     * \brief Checks if the joint is present.
      *
      * \param strJointName    Joint name.
      *
      * \return Returns true or false.
      */
-    bool hasActiveJoint(const std::string strJointName)
+    bool hasJoint(const std::string strJointName)
     {
-      return m_mapGoalPos.find(strJointName) != m_mapGoalPos.end()? true: false;
+      return m_mapJointDyna.find(strJointName) != m_mapJointDyna.end()?
+                                      true: false;
     }
 
     /*!
-     * \brief Checks if there exists an active trajectory.
+     * \brief Checks if the joint is being teleoperated.
+     *
+     * \param strJointName    Joint name.
+     *
+     * \return Returns true or false.
+     */
+    bool isTeleop(const std::string strJointName)
+    {
+      if( m_mapIsTeleop.find(strJointName) == m_mapIsTeleop.end() )
+      {
+        return false;
+      }
+      else
+      {
+        return m_mapIsTeleop[strJointName];
+      }
+    }
+
+    /*!
+     * \brief Checks if the joint has an active goal.
+     *
+     * \param strJointName    Joint name.
+     *
+     * \return Returns true or false.
+     */
+    bool hasJointWithGoal(const std::string strJointName)
+    {
+      return m_mapJointGoal.find(strJointName) != m_mapJointGoal.end()?
+                                                    true: false;
+    }
+
+    /*!
+     * \brief Checks if there exists an active goal.
      *
      * \return Returns true or false.
      */
     bool hasActiveTrajectory()
     {
-      return m_mapGoalPos.size() > 0? true: false;
+      return m_mapJointGoal.size() > 0? true: false;
     }
 
     /*!
@@ -934,45 +962,68 @@ namespace hekateros_control
       return m_msgJointTraj.joint_names.size() > 0? true: false;
     }
 
-    /*
+    /*!
      * \brief Stop all unteleoperated joints.
      *
      * If a joint was being actively being control and now its not, stop.
      */
     void stopUnteleopJoints();
 
-    /*
-     * \brief Conditionally set a joint's trajectory to the working trajectory
-     * point.
-     *
-     * If the joint has not been included in the current joint trajectory point
-     * or that joint's goal position or velocity differ, then the new values
-     * are added/replaced with the new values.
+    /*!
+     * \brief Test if the given goal is sufficiently different to warrant it
+     * as a new joint goal.
      *
      * \param strJointName    Joint name.
-     * \param pos             Joint goal position (radians).
-     * \param vel             Joint goal velocity (%).
+     * \param goal            Joint new goal position and velocity.
+     * \param fPosStepSize    The position step size specified in the specific
+     *                        joint goal setting function.
+     * \param fDeltaV         Delta velocity in which a new goal is true.
      *
-     * \return If added, returns the relevant index \h_ge 0 of the joint in
-     * the trajectory point. Otherwise, -1 is returned.
+     * \return Returns true or false.
      */
-    ssize_t setJoint(const std::string &strJointName, double pos, double vel);
+    bool isNewGoal(const std::string &strJointName,
+                   const PosVel      &goal,
+                   const double       fPosStepSize,
+                   const double       fDeltaV = hekateros::degToRad(5.0));
+
+    /*!
+     * \brief Add joint's goal to the working trajectory point.
+     *
+     * Overwrites any current joint goal.
+     *
+     * \param strJointName    Joint name.
+     * \param goal            Joint goal position and velocity.
+     */
+    void setJointGoal(const std::string &strJointName, const PosVel &goal);
+
+    /*!
+     * \brief Add joint's goal to the working trajectory point.
+     *
+     * Overwrites any current joint goal.
+     *
+     * \param strJointName    Joint name.
+     * \param fJointPos       Joint goal position (radians).
+     * \param fJointVel       Joint goal velocity (radians/second).
+     */
+    void setJointGoal(const std::string &strJointName,
+                      const double       fJointPos,
+                      const double       fJointVel)
+    {
+      PosVel  goal(fJointPos, fJointVel);
+
+      setJointGoal(strJointName, goal);
+    }
 
     /*!
      * \brief Add a joint to the working joint trajectory point.
      *
-     * The joint is only added if it does not exist in point.
-     * 
-     * The joint is initialized with the null goal trajectory. That is, the
-     * joint's goal position equals its current joint position, and with zero
-     * velocity and zero acceleration.
+     * Overwrites any current joint trajectory point.
      *
      * \param strJointName    Joint name.
-     * 
-     * \return Returns the index of the existing or added component to the
-     * trajectory point on success, -1 on failure.
+     * \param goal            Joint goal position and velocity.
      */
-    ssize_t addJointToTrajectoryPoint(const std::string &strJointName);
+    void addJointToTrajectoryPoint(const std::string &strJointName,
+                                   const PosVel      &goal);
 
     /*!
      * \brief Clear working joint trajectory point.
@@ -980,19 +1031,31 @@ namespace hekateros_control
     void clearWorkingTrajectory();
     
     /*!
-     * \brief Clear active joint trajectory point.
+     * \brief Clear all active goals.
      */
-    void clearActiveTrajectory();
+    void clearAllGoals();
     
     /*!
-     * \brief Reset joint teleoperation active state.
+     * \brief Reset joint teleoperation active state to un-teleoperated.
      */
     void resetActiveTeleop();
 
     /*
-     * \brief Current arm reach in x-y plane (mm).
+     * \brief Arm's current reach (mm).
      */
     double reach();
+
+    /*
+     * \brief Arm's current reach projected onto the x-y plane (mm).
+     */
+    double reachxy();
+
+    /*!
+     * \brief Set new first-person goal parameters.
+     *
+     * \param goal_sign Direction of movement.
+     */
+    void setFirstPersonGoalParams(int goal_sign);
   };
 
 } // namespace hekateros_control
