@@ -149,34 +149,62 @@ namespace hekateros_control
   //----------------------------------------------------------------------------
   // Class PosVel
   //----------------------------------------------------------------------------
+
+  /*!
+   * \brief Joint position,velocity 2-tuple container class.
+   */
   class PosVel
   {
   public:
-    double  m_fJointPos;
-    double  m_fJointVel;
+    double  m_fJointPos;    ///< joint position (radians)
+    double  m_fJointVel;    ///< joint velocity (radians/second)
 
+    /*!
+     * \brief Default constructor.
+     */
     PosVel()
     {
       m_fJointPos = 0.0;
       m_fJointVel = 0.0;
     }
 
+    /*!
+     * \brief Initializer constructor.
+     *
+     * \param fJointPos Joint position (radians).
+     * \param fJointVel Joint velocity (radians/second).
+     */
     PosVel(const double fJointPos, const double fJointVel)
     {
       m_fJointPos = fJointPos;
       m_fJointVel = fJointVel;
     }
 
+    /*!
+     * \brief Copy constructor.
+     *
+     * \param src   Source object.
+     */
     PosVel(const PosVel &src)
     {
       m_fJointPos = src.m_fJointPos;
       m_fJointVel = src.m_fJointVel;
     }
 
+    /*!
+     * \brief Destructor.
+     */
     ~PosVel()
     {
     }
 
+    /*!
+     * \brief Assignment operator.
+     *
+     * \param rhs   Right hand side object.
+     *
+     * \return This object.
+     */
     PosVel operator=(const PosVel &rhs)
     {
       m_fJointPos = rhs.m_fJointPos;
@@ -529,6 +557,30 @@ namespace hekateros_control
     void gotoZeroPt();
 
     /*!
+     * \brief Reset emergency stop client service.
+     */
+    void resetEStop();
+
+    /*!
+     * \brief Set robot mode client service.
+     *
+     * \param mode    Auto or manual mode.
+     */
+    void setRobotMode(hekateros::HekRobotMode mode);
+
+    /*!
+     * \brief Stop robot joints client service.
+     *
+     * \param vecJointNames Vector of joint names.
+     */
+    void stop(const std::vector<std::string> &vecJointNames);
+
+
+    //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+    // Action Clients (and related methods).
+    //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+
+    /*!
      * \brief Initiate robot calibration via action client.
      */
     void calibrate();
@@ -571,25 +623,6 @@ namespace hekateros_control
      * \return Returns true or false.
      */
     bool isCalibrating();
-
-    /*!
-     * \brief Reset emergency stop client service.
-     */
-    void resetEStop();
-
-    /*!
-     * \brief Set robot mode client service.
-     *
-     * \param mode    Auto or manual mode.
-     */
-    void setRobotMode(hekateros::HekRobotMode mode);
-
-    /*!
-     * \brief Stop robot joints client service.
-     *
-     * \param vecJointNames Vector of joint names.
-     */
-    void stop(const std::vector<std::string> &vecJointNames);
 
 
     //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -641,7 +674,7 @@ namespace hekateros_control
 
 
     //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
-    // Xbox Actions
+    // Xbox Button Actions
     //. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
     /*!
@@ -1053,9 +1086,28 @@ namespace hekateros_control
     /*!
      * \brief Set new first-person goal parameters.
      *
-     * \param goal_sign Direction of movement.
+     * Coupled with buttonMoveFirstPerson(), these method implement the 
+     * algorithm to follow a trajectory along line projected through the
+     * center of the wrist pitch in the plane defined by the shoulder and elbow
+     * links.
+     *
+     * \par Current Algorithm
+     * The current algorithm calculates a goal position a small distance away
+     * from the current tool zero point position. Then the angles and velocities
+     * are calculated to reach that goal and movement begins. Once the arm is
+     * sufficiently near the goal, a new close goal is calculated.
+     *
+     * Notice that drift from the ideal line will most likely occur since there
+     * will always be slight movement deviations.
+     *
+     * \par Future Better Algorithm
+     * Find a distant goal position and calculate a series of waypoints along
+     * the projected line to that goal. Then use simple inverse kinematics to
+     * move to each waypoint.
+     *
+     * \param goalSign  Direction of movement with 1 == forward, -1 == backward.
      */
-    void setFirstPersonGoalParams(int goal_sign);
+    void setFirstPersonGoalParams(double goalSign);
   };
 
 } // namespace hekateros_control

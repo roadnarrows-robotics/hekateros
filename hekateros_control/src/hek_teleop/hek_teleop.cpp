@@ -1361,17 +1361,17 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
   //
   // Fixed tuned parameters.
   //
-  static double V_MAX     = degToRad(40.0); // maximum velocity scale
-  static double EPSILON   = 0.7;            // tolerance in L1 angle space
-  static double TuneDist  = 100.0;          // target distance (mm)
+  static double TuneMaxVel  = degToRad(40.0); // maximum velocity scale
+  static double TuneEpsilon = degToRad(40.0); // tolerance in L1 angle space
+  static double TuneDist    = 100.0;          // near goal distance (mm)
 
-  static double ReachAtEnd = 0.0;         // reach at start of new goal
-
-  double    goal_sign;
+  double    goalSign;
   double    A, B, C, D;
   double    alpha, beta, gamma, theta;
-  double    dir;
+  double    delta;
   double    x0, y0;
+  double    xdelta, ydelta;
+  double    dir;
   double    xp, yp;
   double    b, c;
 
@@ -1389,9 +1389,9 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
     return;
   }
 
-  goal_sign = joy < 0.0? -1.0: 1.0;
+  goalSign = joy < 0.0? -1.0: 1.0;
 
-  if( goal_sign != m_fpState.m_goalSign )
+  if( goalSign != m_fpState.m_goalSign )
   {
     m_fpState.m_bNewGoal = true;
   }
@@ -1405,181 +1405,115 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
   //
   if( m_fpState.m_bNewGoal )
   {
-    setFirstPersonGoalParams(goal_sign);
-    //m_fpState.m_goalSign = goal_sign;
-
-    //A = LEN_UPPER_ARM;
-    //B = LEN_LOWER_ARM;
-    //D = goal_sign * TuneDist/2.0;  // distance to move in mm
-
-    //dir = alpha + beta + gamma;
-
-    //x0 = A * sin(alpha) + B * sin(alpha + beta);
-    //y0 = A * cos(alpha) + B * cos(alpha + beta);
-
-    //xp = x0 + D * sin(dir);
-    //yp = y0 + D * cos(dir);
-
-    // save cartesian target
-    //m_fpState.m_goalCart.x = xp;
-    //m_fpState.m_goalCart.y = yp;
-
-    //C = sqrt(xp*xp + yp*yp);
-    //if( C > (A + B) )
-    //{
-    //  C = A + B;
-    //}
-
-    //theta = atan2(xp, yp);
-    //b = acos((A*A+C*C-B*B)/(2*A*C));
-    //c = acos((A*A+B*B-C*C)/(2*A*B));
-
-    // save joint targets
-    //m_fpState.m_goalJoint.alpha = theta - b;
-    //m_fpState.m_goalJoint.beta  = M_PI - c;
-    //m_fpState.m_goalJoint.gamma = dir - 
-    //                              m_fpState.m_goalJoint.alpha -
-    //                              m_fpState.m_goalJoint.beta;
-
-    // minimum movement on new goal
-    //setJointGoal(JointNameShoulder, m_fpState.m_goalJoint.alpha, degToRad(2.5));
-
-    //setJointGoal(JointNameElbow, m_fpState.m_goalJoint.beta,  degToRad(2.5));
-
-    //if( !isTeleop(JointNameWristPitch) )
-    //{
-    //  setJointGoal(JointNameWristPitch, m_fpState.m_goalJoint.gamma,
-    //                                    degToRad(5.0));
-    //}
-#if 0 // RDK
-#endif // RDK
-
-
-//fprintf(stderr, "rdk: start start=%.1lfmm\n", ReachAtEnd);
-    //ROS_INFO("Start moving in first-person mode, reach at %.1lfmm.", reach());
-
+    setFirstPersonGoalParams(goalSign);
   }
 
   //
   // Same goal, calculate delta targets.
   //
-  //else
-  //{
-    A = LEN_UPPER_ARM;
-    B = LEN_LOWER_ARM;
-    D = TuneDist;       // distance used to calculate joint velocities (mm)
+  A = LEN_UPPER_ARM;
+  B = LEN_LOWER_ARM;
+  D = TuneDist;       // distance used to calculate joint velocities (mm)
 
-    double delta  = abs(m_fpState.m_goalJoint.alpha - alpha) +
-                    abs(m_fpState.m_goalJoint.beta - beta) +
-                    abs(m_fpState.m_goalJoint.gamma - gamma);
+  delta = abs(m_fpState.m_goalJoint.alpha - alpha) +
+          abs(m_fpState.m_goalJoint.beta - beta) +
+          abs(m_fpState.m_goalJoint.gamma - gamma);
 
-    if( !m_fpState.m_bNewGoal && delta < EPSILON )
-    {
-      //m_fpState.m_bNewGoal = true;
-      setFirstPersonGoalParams(goal_sign);
-    }
+  // sufficiently close, recalculate goal parameters
+  if( !m_fpState.m_bNewGoal && delta < TuneEpsilon )
+  {
+    setFirstPersonGoalParams(goalSign);
+  }
 
-    // current position
-    x0 = A * sin(alpha) + B * sin(alpha + beta);
-    y0 = A * cos(alpha) + B * cos(alpha + beta);
+  // current position
+  x0 = A * sin(alpha) + B * sin(alpha + beta);
+  y0 = A * cos(alpha) + B * cos(alpha + beta);
 
-    double curreach = sqrt(x0*x0 + y0*y0);
+  // calculate direction towards target
+  xdelta = m_fpState.m_goalCart.x - x0;
+  ydelta = m_fpState.m_goalCart.y - y0;
 
-    // calculate direction towards target
-    double xdelta = m_fpState.m_goalCart.x - x0;
-    double ydelta = m_fpState.m_goalCart.y - y0;
-    if( ydelta == 0.0 )
-    {
-      dir = M_PI/2.0;
-    }
-    else
-    {
-      dir = atan2(xdelta, ydelta);
-    }
+  if( ydelta == 0.0 )
+  {
+    dir = M_PI/2.0;
+  }
+  else
+  {
+    dir = atan2(xdelta, ydelta);
+  }
 
-    // target for calculating joint velocities
-    xp = x0 + D * sin(dir);
-    yp = y0 + D * cos(dir);
+  // target for calculating joint velocities
+  xp = x0 + D * sin(dir);
+  yp = y0 + D * cos(dir);
 
-    C = sqrt(xp*xp + yp*yp);
-    if( C > (A + B) )
-    {
-      C = A + B;
-    }
+  C = sqrt(xp*xp + yp*yp);
 
-    theta = atan2(xp, yp);
-    b = acos((A*A+C*C-B*B)/(2*A*C));
-    c = acos((A*A+B*B-C*C)/(2*A*B));
+  if( C > (A + B) )
+  {
+    C = A + B;
+  }
 
-    double alpha_target = theta - b;
-    double beta_target  = M_PI - c;
+  theta = atan2(xp, yp);
+  b = acos((A*A+C*C-B*B)/(2*A*C));
+  c = acos((A*A+B*B-C*C)/(2*A*B));
 
-    // ok, calculate velocities
-    double alpha_delta = alpha_target - alpha;
-    double beta_delta  = beta_target - beta;
-    if( abs(alpha_delta) > abs(beta_delta) )
-    {
-      beta_delta  = beta_delta/alpha_delta;
-      alpha_delta = 1.0;
-    }
-    else
-    {
-      alpha_delta = alpha_delta/beta_delta;
-      beta_delta = 1.0;
-    }
+  double alpha_target = theta - b;
+  double beta_target  = M_PI - c;
 
-    double scale        = (double)joy/(double)(XBOX360_JOY_MAX) * V_MAX;
-    double shoulder_vel = alpha_delta * scale * m_fMoveTuning;
-    double elbow_vel    = beta_delta * scale * m_fMoveTuning;
+  // ok, calculate velocities
+  double alpha_delta = alpha_target - alpha;
+  double beta_delta  = beta_target - beta;
 
-    double curgoalvel = fabs(m_mapJointGoal[JointNameShoulder].m_fJointVel) + 
-                        fabs(m_mapJointGoal[JointNameElbow].m_fJointVel);
-    double newgoalvel = fabs(shoulder_vel) + fabs(elbow_vel);
+  if( abs(alpha_delta) > abs(beta_delta) )
+  {
+    beta_delta  = beta_delta/alpha_delta;
+    alpha_delta = 1.0;
+  }
+  else
+  {
+    alpha_delta = alpha_delta/beta_delta;
+    beta_delta = 1.0;
+  }
 
-fprintf(stderr, "rdk: end=%.1lfmm, cur=%.1lfmm\n", ReachAtEnd, curreach);
-//fprintf(stderr, "rdk: gv=%.1lfd/s, cv=%.1lfd/s\n", radToDeg(curgoalvel), radToDeg(newgoalvel));
+  double scale        = (double)joy/(double)(XBOX360_JOY_MAX) * TuneMaxVel;
+  double shoulder_vel = alpha_delta * scale * m_fMoveTuning;
+  double elbow_vel    = beta_delta * scale * m_fMoveTuning;
 
-    // replace goal
-    //if( m_fpState.m_bNewGoal || curreach > ReachAtEnd - TuneDist * 0.5 )
-        //(fabs(newgoalvel-curgoalvel) > degToRad(5.0)) )
-    {
-      setJointGoal(JointNameShoulder, m_fpState.m_goalJoint.alpha,
-                                    shoulder_vel);
+  setJointGoal(JointNameShoulder, m_fpState.m_goalJoint.alpha, shoulder_vel);
 
-      setJointGoal(JointNameElbow, m_fpState.m_goalJoint.beta,
-                                 elbow_vel);
+  setJointGoal(JointNameElbow, m_fpState.m_goalJoint.beta, elbow_vel);
 
-      if( !isTeleop(JointNameWristPitch) )
-      {
-        setJointGoal(JointNameWristPitch, m_fpState.m_goalJoint.gamma,
+  // don't override any wrist pitch teleoperation
+  if( !isTeleop(JointNameWristPitch) )
+  {
+    setJointGoal(JointNameWristPitch, m_fpState.m_goalJoint.gamma,
                                         shoulder_vel+elbow_vel);
-      }
+  }
 
-      ROS_INFO("Moving in first-person mode, reach at %.1lfmm.", reach());
-    }
-  //}
+  ROS_INFO("Moving in first-person mode, reach at %.1lfmm.", reach());
 
   // mark as being actively teleoperated
   m_mapIsTeleop[JointNameShoulder]    = true;
   m_mapIsTeleop[JointNameElbow]       = true;
   m_mapIsTeleop[JointNameWristPitch]  = true;
 
+  // not a new goal anymore
   m_fpState.m_bNewGoal = false;
 }
 
-void HekTeleop::setFirstPersonGoalParams(int goal_sign)
+void HekTeleop::setFirstPersonGoalParams(double goalSign)
 {
-  static double TuneDist  = 100.0;          // target distance (mm)
+  static double TuneDist  = 100.0;  // near goal distance (mm)
 
   double alpha = m_mapJointDyna[JointNameShoulder].m_fJointPos;
   double beta  = m_mapJointDyna[JointNameElbow].m_fJointPos;
   double gamma = m_mapJointDyna[JointNameWristPitch].m_fJointPos;
 
-  m_fpState.m_goalSign = goal_sign;
+  m_fpState.m_goalSign = goalSign;
 
   double A = LEN_UPPER_ARM;
   double B = LEN_LOWER_ARM;
-  double D = goal_sign * TuneDist;  // distance to move in mm
+  double D = goalSign * TuneDist;  // distance to move in mm
 
   double dir = alpha + beta + gamma;
 
@@ -1717,15 +1651,17 @@ void HekTeleop::buttonMoveElbow(int joy)
 
 void HekTeleop::buttonRotateBase(ButtonState &buttonState)
 {
-  static string jointName(JointNameBaseRot);    // teloeoperated joint name
+  static string jointName(JointNameBaseRot);      // teloeoperated joint name
 
-  static double TunePosStep = degToRad(360.0);  // position goal step size
-  static double TuneMinVel  = degToRad(5.0);    // 
-  static double TuneMaxVel  = degToRad(120.0);  // maximum goal velocity
+  static double TunePosStep   = degToRad(360.0);  // position goal step size
+  static double TuneMinVel    = degToRad(5.0);    // absolute minimum velocity
+  static double TuneMinAtFull = degToRad(15.0);   // minimmum at full reach
+  static double TuneMaxVel    = degToRad(120.0);  // maximum goal velocity
 
   int     joy;        // joy stick
   double  ratioBttn;  // button value to maximum button value ratio
   double  ratioReach; // reach to maximum reach ratio
+  double  sign;       // sign of movement
   PosVel  goal;       // new potential goal
 
   // joy stick value
@@ -1748,10 +1684,14 @@ void HekTeleop::buttonRotateBase(ButtonState &buttonState)
   ratioReach  = (LEN_UPPER_ARM + LEN_LOWER_ARM - reachxy()) /
                                 (LEN_UPPER_ARM + LEN_LOWER_ARM);
 
-  // new goal velocity
-  goal.m_fJointVel = m_fMoveTuning * ratioBttn * ratioReach * TuneMaxVel;
+  sign = ratioBttn < 0.0? -1.0: 1.0;
 
-  // notch velocity to avoid moving too slow
+  // new goal velocity
+  goal.m_fJointVel = (sign * TuneMinAtFull + 
+                      ratioBttn * ratioReach * (TuneMaxVel - TuneMinAtFull)) *
+                      m_fMoveTuning;
+
+  // notch limit velocity to avoid moving too slow
   goal.m_fJointVel = notch(goal.m_fJointVel, -TuneMinVel, TuneMinVel);
 
   // new goal position
