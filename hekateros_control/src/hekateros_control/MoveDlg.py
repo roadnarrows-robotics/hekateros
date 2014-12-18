@@ -13,7 +13,7 @@
 ## $LastChangedDate$
 ## $Rev$
 ##
-## \brief Pan-Tilt move dialog.
+## \brief Hekateros move dialog.
 ##
 ## \author Daniel Packard (daniel@roadnarrows.com)
 ## \author Robin Knight (robin.knight@roadnarrows.com)
@@ -113,7 +113,7 @@ class MoveDlg(Toplevel):
       self.m_title = kw['title']
       del kw['title']
     else:
-      self.m_title = "Move Pan-Tilt To..."
+      self.m_title = "Move Hekateros To..."
     if kw.has_key('image'):
       imageLoader = ImageLoader(py_pkg='hekateros_control.images')
       self.m_icons['image'] = imageLoader.load(kw['image'])
