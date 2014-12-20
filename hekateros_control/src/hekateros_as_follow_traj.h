@@ -99,6 +99,16 @@ namespace hekateros_control
 {
   /*!
    * \brief Hekateros follow joint trajectory action server class.
+   *
+   * A trajectory is a series of waypoints defining the path for the Hekateros
+   * to follow. A waypoint contains two vectors of joint positions P and
+   * velocities V.  P specifies the waypoint location in joint space, while V
+   * specifies the target velocities _at_ the waypoint.
+   *
+   * From MoveIt!:
+   * \li The first waypoint is always the current arm location with V = 0.
+   * \li The endpoint (last waypoint) is the final destination and also has
+   * V = 0.
    */
   class ASFollowTrajectory
   {
@@ -176,58 +186,62 @@ namespace hekateros_control
     void preempt_cb();
 
   protected:
+    // action server base
     std::string       action_name_; ///< action name
     HekaterosControl &node_;        ///< hekateros control node instance
     actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction>
-                                      as_;  ///< action simple server
+                                      as_;  ///< simple action server
     control_msgs::FollowJointTrajectoryFeedback feedback_;
                                     ///< progress feedback
     control_msgs::FollowJointTrajectoryResult result_;
                                     ///< action results
 
+    // hekateros robot and parameters
     hekateros::HekRobot &m_robot;     ///< hekateros robot
     hekateros::HekNorm  m_eNorm;      ///< waypoint distance norm
     double              m_fEpsilon;   ///< waypoint distance epsilon
 
+    // goal trajectory
     trajectory_msgs::JointTrajectory m_traj;  ///< goal trajectory
     ssize_t       m_iNumWaypoints;            ///< number of goal waypoints
+    ssize_t       m_iEndpoint;                ///< endpoint index
 
-    ExecState     m_eState;         ///< execution state
-    bool          m_bTrajCompleted; ///< trajectory [not] completed to end
-    int           m_nMaxIters;      ///< maximum iterations per waypoint
-    int           m_iterMonitor;    ///< monitoring iteration count
-    double        m_fWorstJointDist; ///< worst joint distance
-    std::string   m_strWorstJointName; ///< worst joint name
+    // state
+    ExecState     m_eState;             ///< execution state
+    bool          m_bTrajCompleted;     ///< trajectory [not] completed to end
+    int           m_nMaxIters;          ///< maximum iterations per waypoint
+    int           m_iterMonitor;        ///< monitoring iteration count
+    double        m_fWorstJointDist;    ///< worst joint distance
+    std::string   m_strWorstJointName;  ///< worst joint name
 
     /*!
      * \brief Get the next significant waypoint.
      *
      * \param iWaypoint   Current waypoint along the trajectoy path.
-     * \param iEndpoint   Path endpoint.
      */
-    ssize_t nextWaypoint(ssize_t iWaypoint, ssize_t iEndpoint);
+    ssize_t nextWaypoint(ssize_t iWaypoint);
 
     /*!
-     * \brief Groom waypoint before issuing a move.
+     * \brief Groom waypoint before issuing a move to the waypoint.
      *
-     * Possible bizzare MoveIt! bug.
-     * The last waypoint which is the final destination has different position
-     * than its predecessor, but all velocities are 0. Try to fix-up by copying
-     * the previous velocities. Maybe this is fixed in a later version of ROS?
-     *
-     * Also Hekateros has a minimum effective velocity.
-     */
-    void groomWaypoint(ssize_t iWaypoint, bool bIsEndpoint);
-
-    /*!
-     * \brief Start move to next waypoint or endpoint.
+     * Hekateros Constraints:
+     * \li A minimum velocity is required for non-zero velocity joints in order
+     *      for movement to occur.
+     * \li A maximum velocity is required to protect the robot.
+     * \li Since the endpoint has V=0, fix-up so that the arm can get there!
      *
      * \param iWaypoint   Current waypoint along the trajectoy path.
-     * \param bIsEndpoint Current waypoint is [not] the endpoint.
+     */
+    void groomWaypoint(ssize_t iWaypoint);
+
+    /*!
+     * \brief Start move to current waypoint or endpoint.
+     *
+     * \param iWaypoint   Current waypoint along the trajectoy path.
      *
      * \return Returns next execution state.
      */
-    ExecState startMoveToPoint(ssize_t iWaypoint, bool bIsEndpoint);
+    ExecState startMoveToPoint(ssize_t iWaypoint);
 
     /*!
      * \brief Monitor move to intermediate waypoint.
@@ -248,20 +262,29 @@ namespace hekateros_control
     ExecState monitorMoveToEndpoint(ssize_t iWaypoint);
 
     /*!
+     * \brief Test if current move to the the target waypoint failed.
+     *
+     * \return Returns true or false.
+     */
+    bool failedWaypoint();
+
+    /*!
+     * \brief Measure waypoint distance from the current robot position.
+     *
+     * \param iWaypoint Current waypoint along the trajectoy path.
+     *
+     * \return Distance from waypoint.
+     */
+    double measureDist(ssize_t iWaypoint);
+
+    /*!
      * \brief Measure waypoint move from current position and provide feedback.
      *
      * \param iWaypoint Current waypoint along the trajectoy path.
      *
      * \return Distance from waypoint.
      */
-    double measureMove(ssize_t iWaypoint);
-
-    /*!
-     * \brief Test if current move to the the target waypoint failed.
-     *
-     * \return Returns true or false.
-     */
-    bool failedWaypoint();
+    double provideFeedback(ssize_t iWaypoint);
 
     /*!
      * \brief Publish feedback.

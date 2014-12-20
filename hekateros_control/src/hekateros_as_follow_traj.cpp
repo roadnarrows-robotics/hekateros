@@ -107,7 +107,7 @@ using namespace hekateros_control;
  *
  * \param eNorm   Norm.
  *
- * \return const char *
+ * \return Name string.
  */
 static const char *NormName(HekNorm eNorm)
 {
@@ -128,15 +128,17 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
                                                                           goal)
 {
   double    fHz = 10.0;   // feedback fequency
-  ssize_t   iEndpoint;    // end point (last point) index
+  double    fDistOrigin;  // distance from first waypoint to robot position
   ssize_t   iWaypoint;    // working waypoint index
-  bool      bIsEndpoint;  // working waypoint is [not] the end point
 
   ROS_INFO("--- Executing FollowJointTrajectory goal of %zu waypoints. ---",
       goal->trajectory.points.size());
 
   // get current trajectory parameters (can change, so alwas refetch) 
   m_robot.getTrajectoryParams(m_eNorm, m_fEpsilon);
+
+  ROS_INFO("  norm=%s, epsilon=%6.3lf(%7.2lf deg).",
+      NormName(m_eNorm), m_fEpsilon, radToDeg(m_fEpsilon));
 
   // the joint goal trajectory path
   m_traj = goal->trajectory;
@@ -147,7 +149,21 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
   // No path. Is this an error or a null success?
   if( m_iNumWaypoints == 0 )
   {
-    ROS_ERROR("%s: No joint trajectory path.", action_name_.c_str());
+    ROS_ERROR("No joint trajectory path.");
+    result_.error_code = FollowJointTrajectoryResult::INVALID_GOAL;
+    as_.setAborted(result_);
+    return;
+  }
+
+  // too far away
+  else if( (fDistOrigin = measureDist(0)) > m_fEpsilon )
+  {
+    ROS_ERROR("Starting waypoint is not at the current robot position.");
+    ROS_ERROR("%s distance from current position is %6.3lf(%7.2lf deg) > "
+              "epsilon=%6.3lf(%7.2lf deg).",
+              NormName(m_eNorm),
+              fDistOrigin, radToDeg(fDistOrigin),
+              m_fEpsilon,  radToDeg(m_fEpsilon));
     result_.error_code = FollowJointTrajectoryResult::INVALID_GOAL;
     as_.setAborted(result_);
     return;
@@ -156,9 +172,8 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
   m_nMaxIters       = (int)ceil(fHz * MaxSecs); // max iters to a waypoint
   m_eState          = ExecStateStartMove;   // initial execution state
   m_bTrajCompleted  = false;                // trajectory not completed to end
-  iEndpoint         = m_iNumWaypoints - 1;  // endpoint index
-  iWaypoint         = -1;                   // working waypoint index 
-  bIsEndpoint       = false;                // not the endpoint
+  m_iEndpoint       = m_iNumWaypoints - 1;  // endpoint index
+  iWaypoint         = 0;                    // skip first waypoint
 
   // control, monitor, and feedback rate
   ros::Rate ctl_rate(fHz);
@@ -171,16 +186,21 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
     {
       // Start move to next waypoint.
       case ExecStateStartMove:
-        iWaypoint     = nextWaypoint(iWaypoint, iEndpoint);
-        bIsEndpoint   = iWaypoint == iEndpoint? true: false;
+        iWaypoint     = nextWaypoint(iWaypoint);
         m_iterMonitor = 0;
-        m_eState = startMoveToPoint(iWaypoint, bIsEndpoint);
+        m_eState = startMoveToPoint(iWaypoint);
         break;
 
-      // Monitor move to waypoint.
+      // Monitor move to waypoint and provide feedback.
       case ExecStateMonitorMove:
-        m_eState = bIsEndpoint? monitorMoveToEndpoint(iWaypoint):
-                                monitorMoveToWaypoint(iWaypoint);
+        if( iWaypoint < m_iEndpoint )
+        {
+          m_eState = monitorMoveToWaypoint(iWaypoint);
+        }
+        else
+        {
+          m_eState = monitorMoveToEndpoint(iWaypoint);
+        }
         break;
 
       // Terminate trajectory action.
@@ -221,56 +241,92 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
   }
 }
 
-ssize_t ASFollowTrajectory::nextWaypoint(ssize_t iWaypoint, ssize_t iEndpoint)
+ssize_t ASFollowTrajectory::nextWaypoint(ssize_t iWaypoint)
 {
-  while( iWaypoint != iEndpoint )
+  while( iWaypoint != m_iEndpoint )
   {
     ++iWaypoint;
 
-   // the first waypoint or a waypoint sufficiently far away.
-   if( (iWaypoint == 0) || (measureMove(iWaypoint) >= m_fEpsilon) )
-   {
-     break;
-   }
-   else
-   {
-     if( iWaypoint != iEndpoint )
-     {
-       ROS_INFO("+ Skipping waypoint %zd of %zd.", iWaypoint, m_iNumWaypoints);
-     }
-   }
- }
+    // waypoint sufficiently far away.
+    if( measureDist(iWaypoint) >= m_fEpsilon )
+    {
+      break;
+    }
+    
+    if( iWaypoint != m_iEndpoint )
+    {
+      ROS_INFO("+ Skipping waypoint %zd of %zd.", iWaypoint, m_iNumWaypoints);
+    }
+  }
 
   return iWaypoint;
 }
 
-void ASFollowTrajectory::groomWaypoint(ssize_t iWaypoint, bool bIsEndpoint)
+void ASFollowTrajectory::groomWaypoint(ssize_t iWaypoint)
 {
-  static double TuneMinVel = degToRad(10.0); // minimum absolute velocity
+  static double TuneNonZeroV  = degToRad(0.2);    // non-zero velocity threshold
+  static double TuneMinVel    = degToRad(10.0);   // minimum absolute velocity
+  static double TuneMaxVel    = degToRad(150.0);  // maximum absolute velocity
 
-  size_t  j;      // working index
-  double  sign;   // velocity sign
+  size_t  len;        // vector length
+  size_t  j;          // working index
+  double  v;          // [absolute] joint velocity
+  double  fMinVel;    // V non-zero minimum
+  double  scale;      // V scaling
+  double  sign;       // velocity sign
 
-  for(j=0; j<m_traj.joint_names.size(); ++j)
+  len     = m_traj.joint_names.size();
+  fMinVel = TuneMinVel;
+
+  //
+  // Characterize velocity V
+  //
+  for(j=0; j<len; ++j)
   {
+    v = fabs(m_traj.points[iWaypoint].velocities[j]);
+
     // special endpoint case
-    if( bIsEndpoint && (iWaypoint > 0) &&
-        (m_traj.points[iWaypoint].velocities[j] == 0.0) )
+    if( (iWaypoint == m_iEndpoint) && (iWaypoint > 0) && (v < TuneNonZeroV) )
     {
+      // copy
       m_traj.points[iWaypoint].velocities[j] =
                                     m_traj.points[iWaypoint-1].velocities[j];
+      v = fabs(m_traj.points[iWaypoint].velocities[j]);
     }
-    if( fabs(m_traj.points[iWaypoint].velocities[j]) < TuneMinVel )
+
+    // test for new non-zero minimum
+    if( (v >= TuneNonZeroV) && (v < fMinVel) )
     {
-      sign = m_traj.points[iWaypoint].velocities[j] < 0.0? -1.0: 1.0;
-      m_traj.points[iWaypoint].velocities[j] = sign * TuneMinVel;
+      fMinVel = v;
     }
+  }
+
+  // 
+  // Scale up V to acceptable robot minimum velocities.
+  //
+  if( fMinVel < TuneMinVel )
+  {
+    scale = TuneMinVel / fMinVel;
+    for(j=0; j<len; ++j)
+    {
+      m_traj.points[iWaypoint].velocities[j] *= scale;
+    }
+  }
+  
+  //
+  // Finally cap V velocities at a maximum. Note that this can lead to
+  // trajectory distortions since the velocities in V are no longer in the
+  // original proportions. Should be okay.
+  //
+  for(j=0; j<len; ++j)
+  {
+    v = m_traj.points[iWaypoint].velocities[j];
+    m_traj.points[iWaypoint].velocities[j] = fcap(v, -TuneMaxVel, TuneMaxVel);
   }
 }
 
 ASFollowTrajectory::ExecState ASFollowTrajectory::startMoveToPoint(
-                                                        ssize_t iWaypoint,
-                                                        bool    bIsEndpoint)
+                                                        ssize_t iWaypoint)
 {
   HekJointTrajectoryPoint pt;   // hekateros joint point
   int                     j;    // working index
@@ -279,11 +335,11 @@ ASFollowTrajectory::ExecState ASFollowTrajectory::startMoveToPoint(
   ROS_INFO("+ Waypoint %zd of %zd", iWaypoint, m_iNumWaypoints);
 
   //
-  // Load next trajectory point.
+  // Load trajectory point.
   //
   for(j=0; j<m_traj.joint_names.size(); ++j)
   {
-    groomWaypoint(iWaypoint, bIsEndpoint);
+    groomWaypoint(iWaypoint);
 
     pt.append(m_traj.joint_names[j],
               m_traj.points[iWaypoint].positions[j], 
@@ -310,8 +366,7 @@ ASFollowTrajectory::ExecState ASFollowTrajectory::startMoveToPoint(
   }
   else
   {
-    ROS_ERROR("%s: Failed moving arm to trajectory waypoint %zd.",
-              action_name_.c_str(), iWaypoint);
+    ROS_ERROR("Failed moving arm to trajectory waypoint %zd.", iWaypoint);
     result_.error_code = FollowJointTrajectoryResult::INVALID_JOINTS;
     as_.setAborted(result_);
     return ExecStateTerminate;
@@ -339,20 +394,19 @@ ASFollowTrajectory::ExecState
   //
   if( failedWaypoint() )
   {
-    ROS_ERROR("%s: Failed to reach waypoint %zd.",
-          action_name_.c_str(), iWaypoint);
+    ROS_ERROR("Failed to reach waypoint %zd.", iWaypoint);
     result_.error_code = FollowJointTrajectoryResult::INVALID_GOAL;
     as_.setAborted(result_);
     return ExecStateTerminate;
   }
 
   // measure move and publish feedback
-  fDist = measureMove(iWaypoint);
+  fDist = provideFeedback(iWaypoint);
 
   //
-  // Successfully reach waypoint.
+  // Successfully reached waypoint.
   //
-  if( fabs(fDist) < m_fEpsilon )
+  if( fDist < m_fEpsilon )
   {
     ROS_INFO("  Reached waypoint %zd in %d iterations",
       iWaypoint, m_iterMonitor+1);
@@ -392,15 +446,17 @@ ASFollowTrajectory::ExecState
   //
   if( failedWaypoint() )
   {
-    ROS_ERROR("%s: Failed to reach waypoint %zd.",
-          action_name_.c_str(), iWaypoint);
+    ROS_ERROR("Failed to reach waypoint %zd.", iWaypoint);
     result_.error_code = FollowJointTrajectoryResult::INVALID_GOAL;
     as_.setAborted(result_);
     return ExecStateTerminate;
   }
 
+  // measure move and publish feedback
+  provideFeedback(iWaypoint);
+
   //
-  // Successfully reach waypoint.
+  // Successfully reached waypoint.
   //
   if( !m_robot.isInMotion() )
   {
@@ -418,7 +474,86 @@ ASFollowTrajectory::ExecState
   return ExecStateMonitorMove;
 }
 
-double ASFollowTrajectory::measureMove(ssize_t iWaypoint)
+bool ASFollowTrajectory::failedWaypoint()
+{
+  return  m_robot.isEStopped() ||
+          m_robot.isAlarmed() ||
+         !m_robot.areServosPowered() ||
+         (m_iterMonitor > m_nMaxIters);
+}
+
+double ASFollowTrajectory::measureDist(ssize_t iWaypoint)
+{
+  HekJointStatePoint    jointCurState;  // current joint state point
+  string                jointName;      // joint name
+  double                jointWpPos;     // joint waypoint position (radians)
+  double                jointWpVel;     // joint waypoint velocity (radians/sec)
+  double                jointCurPos;    // joint current position (radians)
+  double                jointCurVel;    // joint current velocity (radians/sec)
+  double                fJointDist;     // joint distance
+  double                fWaypointDist;  // waypoint distance
+  size_t                j;              // working index
+
+  m_robot.getJointState(jointCurState);
+
+  m_fWorstJointDist = 0.0;
+  m_strWorstJointName.clear();
+
+  fWaypointDist = 0.0;
+
+  // 
+  // Calculate distance from current position to target waypoint.
+  //
+  // Distance metric: Linf of joint positions.
+  // Alternerates:    L1 or L2 of joint positions, or zero point (end effector)
+  //                  attachment point) Euclidean distance.
+  //
+  for(j=0; j<m_traj.joint_names.size(); ++j)
+  {
+    jointName   = m_traj.joint_names[j];
+    jointWpPos  = m_traj.points[iWaypoint].positions[j]; 
+    jointWpVel  = m_traj.points[iWaypoint].velocities[j]; 
+
+    if( jointCurState.hasJoint(jointName) )
+    {
+      jointCurPos = jointCurState[jointName].m_fPosition;
+      jointCurVel = jointCurState[jointName].m_fVelocity;
+
+      fJointDist = fabs(jointWpPos - jointCurPos);
+
+      switch( m_eNorm )
+      {
+        case HekNormL2:
+          fWaypointDist += pow(fJointDist, 2.0);
+          break;
+        case HekNormL1:
+          fWaypointDist += fJointDist;
+          break;
+        case HekNormLinf:
+          if( fJointDist > fWaypointDist )
+          {
+            fWaypointDist = fJointDist;
+          }
+          break;
+      }
+
+      if( fJointDist > m_fWorstJointDist )
+      {
+        m_fWorstJointDist   = fJointDist;
+        m_strWorstJointName = jointName;
+      }
+    }
+  }
+
+  if( m_eNorm == HekNormL2 )
+  {
+    fWaypointDist = sqrt(fWaypointDist);
+  }
+
+  return fWaypointDist;
+}
+
+double ASFollowTrajectory::provideFeedback(ssize_t iWaypoint)
 {
   HekJointStatePoint    jointCurState;  // current joint state point
   string                jointName;      // joint name
@@ -498,14 +633,6 @@ double ASFollowTrajectory::measureMove(ssize_t iWaypoint)
   }
 
   return fWaypointDist;
-}
-
-bool ASFollowTrajectory::failedWaypoint()
-{
-  return  m_robot.isEStopped() ||
-          m_robot.isAlarmed() ||
-         !m_robot.areServosPowered() ||
-         (m_iterMonitor > m_nMaxIters);
 }
 
 void ASFollowTrajectory::publishFeedback(ssize_t iWaypoint)
