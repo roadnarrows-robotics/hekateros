@@ -667,6 +667,13 @@ bool HekaterosControl::stop(Stop::Request  &req,
 
   ROS_DEBUG("%s", svc);
 
+  ROS_INFO("Stop");
+
+  for(int i=0; i<req.joint_names.size(); ++i)
+  {
+    ROS_INFO(" %-12s", req.joint_names[i].c_str());
+  }
+
   n = m_robot.stop(req.joint_names);
 
   ROS_INFO("Stopped %d joints.", n);
@@ -936,10 +943,12 @@ void HekaterosControl::execJointCmd(const trajectory_msgs::JointTrajectory &jt)
     pt.append(jt.joint_names[j],
               jt.points[0].positions[j], 
               jt.points[0].velocities[j]);
-    ROS_INFO(" %-12s: pos=%7.3f vel=%7.3f",
+    ROS_INFO(" %-12s: pos=%7.3lf(%6.2lfdeg) vel=%7.3lf(%6.2lfdeg/s)",
         jt.joint_names[j].c_str(), 
         jt.points[0].positions[j], 
-        jt.points[0].velocities[j]);
+        radToDeg(jt.points[0].positions[j]), 
+        jt.points[0].velocities[j],
+        radToDeg(jt.points[0].velocities[j]));
   }
 
   m_robot.moveArm(pt);

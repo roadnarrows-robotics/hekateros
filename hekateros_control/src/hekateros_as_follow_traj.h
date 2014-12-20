@@ -185,23 +185,49 @@ namespace hekateros_control
     control_msgs::FollowJointTrajectoryResult result_;
                                     ///< action results
 
-    hekateros::HekRobot &m_robot;         ///< hekateros robot
-    hekateros::HekNorm  m_eNorm;          ///< waypoint distance norm
-    double              m_fEpsilon;       ///< waypoint distance epsilon
-    trajectory_msgs::JointTrajectory m_traj; ///< goal trajectory
-    ExecState           m_eState;         ///< execution state
-    bool                m_bTrajCompleted; ///< trajectory [not] completed to end
-    int                 m_nMaxIters;      ///< maximum iterations per waypoint
-    int                 m_iterMonitor;    ///< monitoring iteration count
+    hekateros::HekRobot &m_robot;     ///< hekateros robot
+    hekateros::HekNorm  m_eNorm;      ///< waypoint distance norm
+    double              m_fEpsilon;   ///< waypoint distance epsilon
+
+    trajectory_msgs::JointTrajectory m_traj;  ///< goal trajectory
+    ssize_t       m_iNumWaypoints;            ///< number of goal waypoints
+
+    ExecState     m_eState;         ///< execution state
+    bool          m_bTrajCompleted; ///< trajectory [not] completed to end
+    int           m_nMaxIters;      ///< maximum iterations per waypoint
+    int           m_iterMonitor;    ///< monitoring iteration count
+    double        m_fWorstJointDist; ///< worst joint distance
+    std::string   m_strWorstJointName; ///< worst joint name
+
+    /*!
+     * \brief Get the next significant waypoint.
+     *
+     * \param iWaypoint   Current waypoint along the trajectoy path.
+     * \param iEndpoint   Path endpoint.
+     */
+    ssize_t nextWaypoint(ssize_t iWaypoint, ssize_t iEndpoint);
+
+    /*!
+     * \brief Groom waypoint before issuing a move.
+     *
+     * Possible bizzare MoveIt! bug.
+     * The last waypoint which is the final destination has different position
+     * than its predecessor, but all velocities are 0. Try to fix-up by copying
+     * the previous velocities. Maybe this is fixed in a later version of ROS?
+     *
+     * Also Hekateros has a minimum effective velocity.
+     */
+    void groomWaypoint(ssize_t iWaypoint, bool bIsEndpoint);
 
     /*!
      * \brief Start move to next waypoint or endpoint.
      *
-     * \param iWaypoint Current waypoint along the trajectoy path.
+     * \param iWaypoint   Current waypoint along the trajectoy path.
+     * \param bIsEndpoint Current waypoint is [not] the endpoint.
      *
      * \return Returns next execution state.
      */
-    ExecState startMoveToPoint(size_t iWaypoint);
+    ExecState startMoveToPoint(ssize_t iWaypoint, bool bIsEndpoint);
 
     /*!
      * \brief Monitor move to intermediate waypoint.
@@ -210,7 +236,7 @@ namespace hekateros_control
      *
      * \return Returns next execution state.
      */
-    ExecState monitorMoveToWaypoint(size_t iWaypoint);
+    ExecState monitorMoveToWaypoint(ssize_t iWaypoint);
 
     /*!
      * \brief Monitor move to endpoint (last waypoint).
@@ -219,7 +245,7 @@ namespace hekateros_control
      *
      * \return Returns next execution state.
      */
-    ExecState monitorMoveToEndpoint(size_t iWaypoint);
+    ExecState monitorMoveToEndpoint(ssize_t iWaypoint);
 
     /*!
      * \brief Measure waypoint move from current position and provide feedback.
@@ -228,7 +254,7 @@ namespace hekateros_control
      *
      * \return Distance from waypoint.
      */
-    double measureMove(size_t iWaypoint);
+    double measureMove(ssize_t iWaypoint);
 
     /*!
      * \brief Test if current move to the the target waypoint failed.
