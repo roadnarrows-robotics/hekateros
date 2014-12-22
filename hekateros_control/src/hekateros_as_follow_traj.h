@@ -235,9 +235,9 @@ namespace hekateros_control
     void groomWaypoint(ssize_t iWaypoint);
 
     /*!
-     * \brief Start move to current waypoint or endpoint.
+     * \brief Start move to next waypoint or endpoint.
      *
-     * \param iWaypoint   Current waypoint along the trajectoy path.
+     * \param iWaypoint   Next waypoint along the trajectoy path.
      *
      * \return Returns next execution state.
      */

@@ -158,7 +158,7 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
   // too far away
   else if( (fDistOrigin = measureDist(0)) > m_fEpsilon )
   {
-    ROS_ERROR("Starting waypoint is not at the current robot position.");
+    ROS_ERROR("Starting waypoint is not near the current robot position.");
     ROS_ERROR("%s distance from current position is %6.3lf(%7.2lf deg) > "
               "epsilon=%6.3lf(%7.2lf deg).",
               NormName(m_eNorm),
@@ -188,7 +188,7 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
       case ExecStateStartMove:
         iWaypoint     = nextWaypoint(iWaypoint);
         m_iterMonitor = 0;
-        m_eState = startMoveToPoint(iWaypoint);
+        m_eState      = startMoveToPoint(iWaypoint);
         break;
 
       // Monitor move to waypoint and provide feedback.
@@ -205,7 +205,12 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
 
       // Terminate trajectory action.
       case ExecStateTerminate:
+        break;
+
+      // Oops.
       default:
+        ROS_ERROR("BUG: unknown state=%d.", m_eState);
+        m_eState = ExecStateTerminate;
         break;
     }
 
@@ -231,7 +236,8 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
   }
 
   //
-  // Failure. (Result and state set at point of error.)
+  // Failure.
+  // Note: The result error code and state are set at the point of error.
   //
   else
   {
@@ -243,7 +249,7 @@ void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
 
 ssize_t ASFollowTrajectory::nextWaypoint(ssize_t iWaypoint)
 {
-  while( iWaypoint != m_iEndpoint )
+  while( iWaypoint < m_iEndpoint )
   {
     ++iWaypoint;
 
@@ -253,7 +259,7 @@ ssize_t ASFollowTrajectory::nextWaypoint(ssize_t iWaypoint)
       break;
     }
     
-    if( iWaypoint != m_iEndpoint )
+    else if( iWaypoint < m_iEndpoint )
     {
       ROS_INFO("+ Skipping waypoint %zd of %zd.", iWaypoint, m_iNumWaypoints);
     }
@@ -265,15 +271,14 @@ ssize_t ASFollowTrajectory::nextWaypoint(ssize_t iWaypoint)
 void ASFollowTrajectory::groomWaypoint(ssize_t iWaypoint)
 {
   static double TuneNonZeroV  = degToRad(0.2);    // non-zero velocity threshold
-  static double TuneMinVel    = degToRad(10.0);   // minimum absolute velocity
+  static double TuneMinVel    = degToRad(5.0);    // minimum absolute velocity
   static double TuneMaxVel    = degToRad(150.0);  // maximum absolute velocity
 
   size_t  len;        // vector length
   size_t  j;          // working index
   double  v;          // [absolute] joint velocity
-  double  fMinVel;    // V non-zero minimum
+  double  fMinVel;    // V non-zero minimum element
   double  scale;      // V scaling
-  double  sign;       // velocity sign
 
   len     = m_traj.joint_names.size();
   fMinVel = TuneMinVel;
@@ -288,7 +293,7 @@ void ASFollowTrajectory::groomWaypoint(ssize_t iWaypoint)
     // special endpoint case
     if( (iWaypoint == m_iEndpoint) && (iWaypoint > 0) && (v < TuneNonZeroV) )
     {
-      // copy
+      // copy velocity from previous waypoint
       m_traj.points[iWaypoint].velocities[j] =
                                     m_traj.points[iWaypoint-1].velocities[j];
       v = fabs(m_traj.points[iWaypoint].velocities[j]);
@@ -314,9 +319,9 @@ void ASFollowTrajectory::groomWaypoint(ssize_t iWaypoint)
   }
   
   //
-  // Finally cap V velocities at a maximum. Note that this can lead to
+  // Finally cap V velocities at a maximum. Note that this can lead to slight
   // trajectory distortions since the velocities in V are no longer in the
-  // original proportions. Should be okay.
+  // original proportions. Should be okay though.
   //
   for(j=0; j<len; ++j)
   {
@@ -329,7 +334,7 @@ ASFollowTrajectory::ExecState ASFollowTrajectory::startMoveToPoint(
                                                         ssize_t iWaypoint)
 {
   HekJointTrajectoryPoint pt;   // hekateros joint point
-  int                     j;    // working index
+  size_t                  j;    // working index
   int                     rc;   // return code
 
   ROS_INFO("+ Waypoint %zd of %zd", iWaypoint, m_iNumWaypoints);
@@ -504,9 +509,9 @@ double ASFollowTrajectory::measureDist(ssize_t iWaypoint)
   // 
   // Calculate distance from current position to target waypoint.
   //
-  // Distance metric: Linf of joint positions.
-  // Alternerates:    L1 or L2 of joint positions, or zero point (end effector)
-  //                  attachment point) Euclidean distance.
+  // Distance metric: L1, L2, or Linf of joint positions.
+  // Alternerates:    L2 of zero point (end effector)
+  //                  attachment point) in Cartesian space. 
   //
   for(j=0; j<m_traj.joint_names.size(); ++j)
   {
@@ -692,6 +697,6 @@ void ASFollowTrajectory::addFeedbackPoint(const string &jointName,
 
 void ASFollowTrajectory::preempt_cb()
 {
-  ROS_WARN("Received preempt trajectory following request.");
+  ROS_WARN("Received trajectory following preempt.");
   m_robot.freeze();
 }

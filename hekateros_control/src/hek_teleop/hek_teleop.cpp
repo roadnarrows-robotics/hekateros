@@ -1389,7 +1389,7 @@ void HekTeleop::buttonMoveFirstPerson(int joy)
     return;
   }
 
-  goalSign = joy < 0.0? -1.0: 1.0;
+  goalSign = (double)signof(joy);
 
   if( goalSign != m_fpState.m_goalSign )
   {
