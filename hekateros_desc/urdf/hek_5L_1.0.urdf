@@ -85,13 +85,14 @@
     </visual>
   </link>
 
-  <joint name="base_rot" type="revolute">
+  <joint name="base_rot" type="continuous">
     <origin xyz="0 0 0.055" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <parent link="base_fixed"/>
     <child link="base"/>
 
-    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+    <!-- velocity 200 deg/sec [-->
+    <limit effort="30" velocity="3.491" />
   </joint>
 
   <joint name="shoulder" type="revolute">
@@ -100,7 +101,8 @@
     <parent link="base"/>
     <child link="upper_arm"/>
 
-    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+    <!-- velocity 80 deg/sec, range(deg) [-69.9.0, 112.9]-->
+    <limit effort="30" velocity="1.396" lower="-1.220" upper="1.970" />
   </joint>
 
   <joint name="elbow" type="revolute">
@@ -109,7 +111,8 @@
     <parent link="upper_arm"/>
     <child link="forearm"/>
 
-    <limit effort="30" velocity="1.0" lower="-2.3" upper="2.3" />
+    <!-- velocity 80 deg/sec, range(deg) [-131.0, 131.0]-->
+    <limit effort="30" velocity="1.396" lower="-2.286" upper="2.286" />
   </joint>
 
   <joint name="wrist_pitch" type="revolute">
@@ -118,7 +121,8 @@
     <parent link="forearm"/>
     <child link="wrist_link"/>
 
-    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+    <!-- velocity 80 deg/sec, range(deg) [-90.0, 90.9]-->
+    <limit effort="30" velocity="1.396" lower="-1.571" upper="1.571" />
   </joint>
 
   <joint name="wrist_rot" type="continuous">
@@ -127,7 +131,8 @@
     <parent link="wrist_link"/>
     <child link="tool_zero"/>
 
-    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+    <!-- velocity 100 deg/sec -->
+    <limit effort="30" velocity="1.745" lower="-1.57" upper="1.57" />
   </joint>
 
   <!-- EEF -->
@@ -179,7 +184,8 @@
     <parent link="gear_assembly"/>
     <child link="finger_R"/>
 
-    <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
+    <!-- velocity 80 deg/sec, range(deg) [-1.0, 59.9]-->
+    <limit effort="30" velocity="1.396" lower="-0.017" upper="1.045" />
   </joint>
 
   <joint name="grip_mimic" type="revolute">
