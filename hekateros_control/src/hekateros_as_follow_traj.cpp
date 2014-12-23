@@ -270,18 +270,21 @@ ssize_t ASFollowTrajectory::nextWaypoint(ssize_t iWaypoint)
 
 void ASFollowTrajectory::groomWaypoint(ssize_t iWaypoint)
 {
-  static double TuneNonZeroV  = degToRad(0.2);    // non-zero velocity threshold
+  static double TuneNonZeroVel= degToRad(0.2);    // non-zero velocity threshold
   static double TuneMinVel    = degToRad(5.0);    // minimum absolute velocity
+  static double TuneOptMaxVel = degToRad(80.0);   // optimal max abs velocity
   static double TuneMaxVel    = degToRad(150.0);  // maximum absolute velocity
 
   size_t  len;        // vector length
   size_t  j;          // working index
   double  v;          // [absolute] joint velocity
   double  fMinVel;    // V non-zero minimum element
+  double  fMaxVel;    // V non-zero maximum element
   double  scale;      // V scaling
 
   len     = m_traj.joint_names.size();
   fMinVel = TuneMinVel;
+  fMaxVel = 0.0;
 
   //
   // Characterize velocity V
@@ -291,7 +294,7 @@ void ASFollowTrajectory::groomWaypoint(ssize_t iWaypoint)
     v = fabs(m_traj.points[iWaypoint].velocities[j]);
 
     // special endpoint case
-    if( (iWaypoint == m_iEndpoint) && (iWaypoint > 0) && (v < TuneNonZeroV) )
+    if( (iWaypoint == m_iEndpoint) && (iWaypoint > 0) && (v < TuneNonZeroVel) )
     {
       // copy velocity from previous waypoint
       m_traj.points[iWaypoint].velocities[j] =
@@ -299,24 +302,44 @@ void ASFollowTrajectory::groomWaypoint(ssize_t iWaypoint)
       v = fabs(m_traj.points[iWaypoint].velocities[j]);
     }
 
-    // test for new non-zero minimum
-    if( (v >= TuneNonZeroV) && (v < fMinVel) )
+    // test for new non-zero minimum and maximum
+    if( v >= TuneNonZeroVel )
     {
-      fMinVel = v;
+      if( (v < fMinVel) )
+      {
+        fMinVel = v;
+      }
+      if( (v > fMaxVel) )
+      {
+        fMaxVel = v;
+      }
     }
   }
 
   // 
-  // Scale up V to acceptable robot minimum velocities.
+  // Scale up V to acceptable robot optimal velocities.
   //
-  if( fMinVel < TuneMinVel )
+  if( (fMaxVel >= TuneNonZeroVel) && (fMaxVel < TuneOptMaxVel) )
   {
-    scale = TuneMinVel / fMinVel;
+    scale = TuneOptMaxVel / fMaxVel;
     for(j=0; j<len; ++j)
     {
       m_traj.points[iWaypoint].velocities[j] *= scale;
     }
   }
+  
+  // 
+  // Scale up V to acceptable robot minimum velocities.
+  // Note: An alternative to scaling to optimal.
+  //
+  //if( fMinVel < TuneMinVel )
+  //{
+  //  scale = TuneMinVel / fMinVel;
+  //  for(j=0; j<len; ++j)
+  //  {
+  //    m_traj.points[iWaypoint].velocities[j] *= scale;
+  //  }
+  //}
   
   //
   // Finally cap V velocities at a maximum. Note that this can lead to slight
