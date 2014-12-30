@@ -3,20 +3,28 @@
   <!-- This argument must specify the list of .cfg files to process for benchmarking -->
   <arg name="cfg" />
 
+  <arg name="hek_model" default="5L" />
+  <arg name="hek_version" default="1.3" />
+  <arg name="hek_base" value="hek_$(arg hek_model)_$(arg hek_version)" />
+
   <!-- Load URDF -->
-  <include file="$(find hek_moveit_5l)/launch/planning_context.launch">
+  <include file="$(find hekateros_moveit)/launch/planning_context.launch">
     <arg name="load_robot_description" value="true"/>
+    <arg name="hek_model" value="$(arg hek_model)" />
+    <arg name="hek_version" value="$(arg hek_version)" />
   </include>
 
   <!-- Start the database -->
-  <include file="$(find hek_moveit_5l)/launch/warehouse.launch">
+  <include file="$(find hekateros_moveit)/launch/warehouse.launch">
     <arg name="moveit_warehouse_database_path" value="moveit_ompl_benchmark_warehouse"/>
+    <arg name="hek_model" value="$(arg hek_model)" />
+    <arg name="hek_version" value="$(arg hek_version)" />
   </include>  
 
   <!-- Start Benchmark Executable -->
   <node name="$(anon moveit_benchmark)" pkg="moveit_ros_benchmarks" type="moveit_run_benchmark" args="$(arg cfg) --benchmark-planners" respawn="false" output="screen">
-    <rosparam command="load" file="$(find hek_moveit_5l)/config/kinematics.yaml"/>
-    <rosparam command="load" file="$(find hek_moveit_5l)/config/ompl_planning.yaml"/>
+    <rosparam command="load" file="$(find hekateros_moveit)/config/$(arg hek_base)/kinematics.yaml"/>
+    <rosparam command="load" file="$(find hekateros_moveit)/config/$(arg hek_base)/ompl_planning.yaml"/>
   </node>
 
 </launch>

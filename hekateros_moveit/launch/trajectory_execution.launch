@@ -5,9 +5,13 @@
   <!-- Flag indicating whether MoveIt! is allowed to load/unload  or switch controllers -->
   <arg name="moveit_manage_controllers" default="true"/>
   <param name="moveit_manage_controllers" value="$(arg moveit_manage_controllers)"/>
+
+  <arg name="hek_model" default="5L" />
+  <arg name="hek_version" default="1.3" />
   
-  <!-- Load the robot specific controller manager; this sets the moveit_controller_manager ROS parameter -->
-  <arg name="moveit_controller_manager" default="hek_5L_1.0" />
-  <include file="$(find hek_moveit_5l)/launch/$(arg moveit_controller_manager)_moveit_controller_manager.launch" />
+  <include file="$(find hekateros_moveit)/launch/hek_moveit_controller_manager.launch">
+    <arg name="hek_model" value="$(arg hek_model)" />
+    <arg name="hek_version" value="$(arg hek_version)" />
+  </include>
   
 </launch>

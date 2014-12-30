@@ -6,11 +6,15 @@
 
   <arg name="config" default="false" />
   <arg unless="$(arg config)" name="command_args" value="" />
-  <arg     if="$(arg config)" name="command_args" value="-d $(find hek_moveit_5l)/launch/moveit.rviz" />
+  <arg     if="$(arg config)" name="command_args" value="-d $(find hekateros_moveit)/launch/moveit.rviz" />
+
+  <arg name="hek_model" default="5L" />
+  <arg name="hek_version" default="1.3" />
+  <arg name="hek_base" value="hek_$(arg hek_model)_$(arg hek_version)" />
   
   <node name="$(anon rviz)" launch-prefix="$(arg launch_prefix)" pkg="rviz" type="rviz" respawn="false"
 	args="$(arg command_args)" output="screen">
-    <rosparam command="load" file="$(find hek_moveit_5l)/config/kinematics.yaml"/>
+  <rosparam command="load" file="$(find hekateros_moveit)/config/$(arg hek_base)/kinematics.yaml"/>
   </node>
 
 </launch>
