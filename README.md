@@ -1,7 +1,7 @@
-Hekateros Idas - **ROS** Packages
+![Idas Branch](https://github.com/roadnarrows-robotics/hekateros/wiki/images/ArtemisionZeusIdas128.png)Hekateros Idas - **ROS** Packages
 =
 
-![Idas Branch](https://github.com/roadnarrows-robotics/hekateros/wiki/images/ArtemisionZeusIdas128.png)![Hekateros 5DOF Manipulator](http://www.roadnarrows.com/r-and-d/Hekateros/img/hek_git.png)
+![Hekateros 5DOF Manipulator](http://www.roadnarrows.com/r-and-d/Hekateros/img/hek_git.png)
 
 Here you will find a collection of [ROS](http://ros.org) packages for the
 Hekateros family of robotic manipulators, with examples including simulations
