@@ -1,5 +1,7 @@
-Hekateros - **ROS** Packages
+Hekateros Idas - **ROS** Packages
 =
+
+![Idas Branch](https://github.com/roadnarrows-robotics/hekateros/wiki/images/ArtemisionZeusIdas128.png)Branch: idas
 
 ![Hekateros 5DOF Manipulator](http://www.roadnarrows.com/r-and-d/Hekateros/img/hek_git.png)
 
