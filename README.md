@@ -14,5 +14,5 @@ To get up and running with a new Hekateros, check out the documentation in the H
 * [**Hekateros ROS Wiki - Home**](https://github.com/roadnarrows-robotics/hekateros/wiki)
 
 ## Store
-Visit the RoadNarrows store to purchase you very own!
+Visit the RoadNarrows store to purchase your very own!
 * [**RoadNarrows Store**](http://www.roadnarrows-store.com/hekateros-arm.html)
