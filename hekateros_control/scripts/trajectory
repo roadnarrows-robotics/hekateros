@@ -1,0 +1,463 @@
+#! /usr/bin/env python
+ 
+###############################################################################
+#
+# Package:  RoadNarrows Robotics Hekateros Robotic Manipulator Package
+#
+# Link:     https://github.com/roadnarrows-robotics/hekateros
+#
+# ROS Node: trajectory
+#
+# File: trajectory
+#
+## \file 
+##
+## $LastChangedDate$
+## $Rev$
+##
+## \brief Read and parse a list of trajectory files, requesting Hekateros to
+## follow each trajectory.
+##
+## The format of the files are yaml, typically output from rostopic. Only
+## one trajectoy can be specified per file.
+##
+## One method to build a trajectory file:
+##  \li Start Moveit!
+##  \li Set start and goal positions.
+##  \li In a separate window:
+##      $ rostopic echo /hekateros_control/follow_joint_traj_as/goal > file
+##  \li Plan and execute move.
+##
+## \author Robin Knight (robin.knight@roadnarrows.com)
+##  
+## \par Copyright:
+##   (C) 2015.  RoadNarrows LLC.\n
+##   (http://www.roadnarrows.com)\n
+##   All Rights Reserved
+##
+# @EulaBegin@
+# @EulaEnd@
+#
+###############################################################################
+
+import sys
+import os
+import time
+import fcntl
+import termios
+import getopt
+
+import yaml
+
+import roslib; roslib.load_manifest('hekateros_control')
+import rospy
+
+import actionlib
+from actionlib_msgs.msg import GoalStatus
+import control_msgs.msg
+import trajectory_msgs.msg
+
+
+# ------------------------------------------------------------------------------
+# Exception Class usage
+# ------------------------------------------------------------------------------
+
+##
+## \brief Unit test command-line exception class.
+##
+## Raise usage excpetion.
+##
+class usage(Exception):
+
+  ##
+  ## \brief Constructor.
+  ##
+  ## \param msg   Error message string.
+  ##
+  def __init__(self, msg):
+    ## error message attribute
+    self.msg = msg
+
+
+# ------------------------------------------------------------------------------
+# Class application
+# ------------------------------------------------------------------------------
+
+##
+## \brief Hekateros Trajectory.
+##
+class application():
+
+  #
+  ## \brief Constructor.
+  #
+  def __init__(self):
+    self._Argv0 = os.path.basename(__file__)
+    self.m_win = None # future gui version
+
+  #
+  ## \brief Print usage error.
+  ##
+  ## \param emsg  Error message string.
+  #
+  def printUsageErr(self, emsg):
+    if emsg:
+      print "%s: %s" % (self._Argv0, emsg)
+    else:
+      print "%s: error" % (self._Argv0)
+    print "Try '%s --help' for more information." % (self._Argv0)
+
+  ## \brief Print Command-Line Usage Message.
+  def printUsage(self):
+    print \
+"""
+usage: %s [OPTIONS] file [file...]
+       %s --help
+
+Read and parse a list of trajectory files, requesting Hekateros to follow each
+parsed trajectory in sequence.
+
+Options and arguments:
+-a, --auto      : Automatically sequence through the list of trajectories.
+                    Default: Manually step through sequence.
+-f, --format    : Input file format. One of: yaml
+                    Default: yaml
+-l, --loop      : Continuously loop through trajectories.
+                    Default: Execute sequence only once.
+           
+-h, --help      : Display this help and exit.
+
+Description:
+Each trajectory file specifies a trajectory of waypoints from the starting
+position to the goal end postion. Once a trajectory is parsed, %s acts
+as a simple action server client to connected to the Hekateros follow
+trajectory action server.
+
+Notes:
+1. The ending position of trajectory i must line up with the starting position
+   of trajectory i+1.
+2. Only one trajectory can be specified in each file. Look for '---' sequences.
+"""  % (self._Argv0, self._Argv0, self._Argv0)
+ 
+  #
+  ## \brief Get command-line options
+  ##  
+  ## \param argv          Argument list. If not None, then overrides
+  ##                      command-line arguments.
+  ## \param [out] kwargs  Keyword argument list.  
+  ##
+  ## \return Parsed keyword arguments.
+  #
+  def getOptions(self, argv=None, **kwargs):
+    if argv is None:
+      argv = sys.argv
+
+    self._Argv0 = os.path.basename(kwargs.get('argv0', __file__))
+
+    # defaults
+    kwargs['auto']    = False
+    kwargs['debug']   = False
+    kwargs['format']  = 'yaml'
+    kwargs['loop']    = False
+
+    # parse command-line options
+    try:
+      opts, args = getopt.getopt(argv[1:], "af:l?h",
+          ['auto', 'format=', 'loop', 'help', ''])
+    except getopt.error, msg:
+      raise usage(msg)
+    for opt, optarg in opts:
+      if opt in ('-h', '--help', '-?'):
+        self.printUsage()
+        sys.exit(0)
+      elif opt in ('-a', '--auto'):
+        kwargs['auto'] = True
+      elif opt in ('-f', '--format'):
+        if optarg in ('yaml'):
+          kwargs['format'] = optarg
+        else:
+          self.printUsageErr("File format %s not supported." % (optarg))
+          sys.exit(2)
+      elif opt in ('-l', '--loop'):
+        kwargs['loop'] = True
+
+    if len(args) < 1:
+      self.printUsageErr("No input trajectory files specified.");
+      sys.exit(2)
+    else:
+      kwargs['filenames'] = args
+
+    return kwargs
+
+  def loadTrajectory(self, filename):
+    try:
+      stream = open(filename, 'r')
+    except IOError, e:
+      print e
+      return False
+    try:
+      self.m_doc = yaml.load(stream)
+    except yaml.scanner.ScannerError, e:
+      print "YAML: ", e
+      return False
+    stream.close()
+    self.m_docTraj = self.m_doc['goal']['trajectory']
+    #print self.m_docTraj['joint_names']
+    #print len(self.m_docTraj['points'])
+    return True
+
+  def makeGoalMsg(self):
+    joint_traj = trajectory_msgs.msg.JointTrajectory()
+    joint_traj.joint_names = self.m_docTraj['joint_names']
+    for point in self.m_docTraj['points']:
+      jtp = trajectory_msgs.msg.JointTrajectoryPoint()
+      jtp.positions = point['positions']
+      jtp.velocities = point['velocities']
+      jtp.accelerations = point['accelerations']
+      joint_traj.points.append(jtp)
+    self.m_goal = control_msgs.msg.FollowJointTrajectoryGoal()
+    self.m_goal.trajectory = joint_traj
+    self.m_goal.trajectory.header.stamp = rospy.Time.now() + \
+                                          rospy.Duration(10.0)
+    print "  Joints:   ", self.m_goal.trajectory.joint_names
+    print "  Waypoints:", len(self.m_goal.trajectory.points)
+
+  def getch(self):
+    fd = sys.stdin.fileno()
+    oldattr = termios.tcgetattr(fd)
+    newattr = termios.tcgetattr(fd)
+    newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
+    termios.tcsetattr(fd, termios.TCSANOW, newattr)
+
+    oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+
+    try:
+      while True:
+        try:
+          c = sys.stdin.read(1)
+          #print 'here', repr(c)
+          break
+        except IOError:
+          pass
+    finally:
+      termios.tcsetattr(fd, termios.TCSAFLUSH, oldattr)
+      fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
+    return c
+
+  def execTrajectory(self):
+    # Sends the goal to the action server.
+    print "  Executing trajectory . . .",
+    self.m_client.send_goal(self.m_goal)
+
+    # Waits for the server to finish performing the action.
+    while True:
+      state = self.m_client.get_state()
+      if state == GoalStatus.PENDING or \
+         state == GoalStatus.ACTIVE:
+        print ".",
+      elif state == GoalStatus.SUCCEEDED:
+        print " done"
+        return True
+      else:
+        print "failed"
+        #print self.m_client.get_result()
+        return False
+      time.sleep(0.5)
+
+    # block wait alternative self.m_client.wait_for_result()
+
+    # Prints out the result of executing the action
+    print self.m_client.get_result()
+
+  #
+  ## \brief Run application.
+  ##    
+  ## \param argv    Optional argument list to override command-line arguments.
+  ## \param kwargs  Optional keyword argument list.
+  ##
+  ## \return Exit code.
+  #
+  def run(self, argv=None, **kwargs):
+  
+    # parse command-line options and arguments
+    try:
+      kwargs = self.getOptions(argv, **kwargs)
+    except usage, e:
+      print e.msg
+      return 2
+
+    try:
+      rospy.init_node('trajectory')
+
+      self.m_client = actionlib.SimpleActionClient( 
+                                  'hekateros_control/follow_joint_traj_as', 
+                                  control_msgs.msg.FollowJointTrajectoryAction)
+
+      print "Waiting for Hekateros action server ...",
+
+      self.m_client.wait_for_server()
+
+      print "connected."
+
+    except rospy.ROSInitException, e:
+      print "%s:" % (self._Argv0), e
+      return 4
+    except rospy.ROSInterruptException, e:
+      print "%s:" % (self._Argv0), e
+      return 4
+
+    cycle = 1
+
+    while kwargs['loop'] or cycle == 1:
+      if kwargs['loop']:
+        print "\n\n  * Cycle %d *" % (cycle)
+      n = 1
+      for filename in kwargs['filenames']:
+        print "Trajectoy %d: %s" % (n, os.path.basename(filename))
+        if not self.loadTrajectory(filename):
+          return 4
+        self.makeGoalMsg()
+        if not kwargs['auto']:
+          print "PRESS ANY KEY...",
+          self.getch()
+          print "\r                  \r",
+        if not self.execTrajectory():
+          return 4
+        n += 1
+      cycle += 1
+
+    return 0
+
+
+# ------------------------------------------------------------------------------
+# main
+# ------------------------------------------------------------------------------
+if __name__ == '__main__':
+  app = application();
+  sys.exit( app.run() );
+
+
+
+"""
+    ---------
+#
+## \brief Simple calibration client wrapper class.
+#
+class CalibClient:
+  def __init__(self):
+    self.m_ac         = None            # action client
+    self.m_state      = CalibStateIdle  # calibration action state
+    self.m_joiName    = ""              # joint of interest name
+    self.m_joiState   = ""              # joint of interest calibration state
+    self.m_idxProg    = 0               # progress index
+
+  #
+  ## \brief (Cancel) calibration callback.
+  #
+  def calibrate(self):
+    rospy.loginfo("Calibrating Hekateros")
+
+    # create calibration action client, if not already created
+    if self.m_ac is None:
+      self.m_ac = ACCalibrate()
+
+    self.m_state  = CalibStateRunning
+
+    # start calibration
+    if not self.m_ac.exec_calib(self.monitor, timeout=1, force_recalib=True):
+      rospy.logerr("Could not execute calibration. " \
+                     "Is the hekateros_control node running?")
+      self.cancel()
+      
+  #
+  ## \brief Cancel calibration, setting data and widget state accordingly.
+  #
+  def cancel(self):
+      self.m_ac.cancel()
+      self.m_state = CalibStateFailed
+      self.clear_progress_bar()
+      sys.stderr.write("%80s\r" % (""))
+      rospy.logerr("Calibration preempted.")
+
+  #
+  ## \brief Monitor the calibration feedback callback.
+  #
+  def monitor(self, feedback):
+    self.m_joiName    = ""
+    self.m_joiState   = ""
+    self.m_idxProg    = (self.m_idxProg+1) % len(ProgressChars)
+    numCalib          = 0
+    numJoints         = len(feedback.name)
+    for i in range(0, numJoints):
+      name    = feedback.name[i]
+      opstate = feedback.op[i]
+      if opstate.calib_state == HekOpState.CALIBRATING:
+        self.m_joiName  = name
+        self.m_joiState = "calibrating"
+      elif opstate.calib_state == HekOpState.CALIBRATED:
+        numCalib += 1
+    self.clear_progress_bar()
+    self.show_progress_bar(numCalib, numJoints)
+
+  #
+  ## \brief Check for calibration complete.
+  #
+  def is_done(self):
+    if self.m_state != CalibStateRunning:
+      return True
+    status = self.m_ac.get_action_state()
+    #rospy.loginfo(status)
+    # executing
+    if    status == GoalStatus.PENDING or status == GoalStatus.ACTIVE or \
+          status == GoalStatus.PREEMPTING or status == GoalStatus.RECALLING:
+      return False
+    # finished with abort or error
+    elif  status == GoalStatus.PREEMPTED or status == GoalStatus.REJECTED or \
+          status == GoalStatus.RECALLED or status == GoalStatus.ABORTED or \
+          status == GoalStatus.REJECTED:
+      self.m_state = CalibStateFailed
+      return True
+    # finished with success
+    elif  status == GoalStatus.SUCCEEDED:
+      self.m_state = CalibStateSuccess
+      return True
+    # unknown
+    else:
+      rospy.logerr("Unknown status %d" % (status))
+      self.m_state = CalibStateFailed
+      return True
+
+  #
+  ## \brief Show ascii progress bar.
+  #
+  def show_progress_bar(self, numCalib, numJoints):
+    sys.stderr.write("%2d/%-2d %s %s %s\r" % \
+        (numCalib+1, numJoints,
+          ProgressChars[self.m_idxProg],
+          self.m_joiName, self.m_joiState))
+
+  #
+  ## \brief Clear ascii progress bar.
+  #
+  def clear_progress_bar(self):
+    sys.stderr.write("%80s\r" % (""))
+
+
+if __name__ == '__main__':
+  rospy.init_node("calibrate")
+  calib_client = CalibClient()
+  calib_client.calibrate()
+  while not calib_client.is_done():
+    time.sleep(1)
+  calib_client.clear_progress_bar()
+  sys.stderr.write("\n")
+  if calib_client.m_state == CalibStateSuccess:
+    rospy.loginfo("Calibration sequence complete!")
+    ec = 0
+  else:
+    rospy.loginfo("Calibration sequence failed.")
+    ec = 4
+  time.sleep(1) # ros stuff could still be cleaning up
+  sys.exit(ec)
+"""
