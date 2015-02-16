@@ -272,7 +272,7 @@ void ASFollowTrajectory::groomWaypoint(ssize_t iWaypoint)
 {
   static double TuneNonZeroVel= degToRad(0.2);    // non-zero velocity threshold
   static double TuneMinVel    = degToRad(5.0);    // minimum absolute velocity
-  static double TuneOptMaxVel = degToRad(80.0);   // optimal max abs velocity
+  static double TuneOptMaxVel = degToRad(60.0);   // optimal max abs velocity
   static double TuneMaxVel    = degToRad(150.0);  // maximum absolute velocity
 
   size_t  len;        // vector length

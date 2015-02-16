@@ -28,8 +28,6 @@
   </include>
 
   <include file="$(find hekateros_moveit)/launch/default_warehouse_db.launch">
-    <arg name="hek_model" value="$(arg hek_model)" />
-    <arg name="hek_version" value="$(arg hek_version)" />
   </include>
 
 </launch>
