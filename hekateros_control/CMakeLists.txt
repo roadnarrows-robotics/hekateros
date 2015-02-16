@@ -116,6 +116,7 @@ install(
     scripts/calibrate
     scripts/hek_panel
     scripts/reload_config
+    scripts/trajectory
     #scripts/hek_pyteleop
     #scripts/hek_teleop_viewer
     #scripts/joint_trajectory_demo 

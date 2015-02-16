@@ -53,9 +53,17 @@ import roslib; roslib.load_manifest('hekateros_control')
 import rospy
 
 import actionlib
-from actionlib_msgs.msg import GoalStatus
+from   actionlib_msgs.msg import GoalStatus
 import control_msgs.msg
 import trajectory_msgs.msg
+
+# Application exit codes
+APP_EC_OK   = 0   # success 
+APP_EC_ARGS = 2   # invalid command-line options and/or arguments
+APP_EC_EXEC = 4   # execution failure
+
+# Progress characters
+ProgressChars = ['|', '/', '|', '\\']
 
 
 # ------------------------------------------------------------------------------
@@ -189,23 +197,82 @@ Notes:
 
     return kwargs
 
+  #
+  ## \brief Block waiting for any keyboard key press.
+  ##    
+  ## \return Return pressed keyboard code.
+  #
+  def kbhit(self):
+    fd = sys.stdin.fileno()
+    oldattr = termios.tcgetattr(fd)
+    newattr = termios.tcgetattr(fd)
+    newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
+    termios.tcsetattr(fd, termios.TCSANOW, newattr)
+    oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+    try:
+      while True:
+        try:
+          c = sys.stdin.read(1)
+          #print 'here', repr(c)
+          break
+        except IOError:
+          pass
+    finally:
+      termios.tcsetattr(fd, termios.TCSAFLUSH, oldattr)
+      fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
+    return c
+
+  #
+  ## \brief Show ascii progress bar.
+  ##    
+  ## \param index Progress index.
+  #
+  def show_progress_bar(self, index):
+    self.pr("%s\r" % (ProgressChars[index]))
+
+  #
+  ## \brief Print text to stdout and flush.
+  ##    
+  ## Output file stream stdout is usually line buffered. To force display
+  ## of text with no newlines, flush after writing.
+  ##
+  ## \param text  Text string to print.
+  #
+  def pr(self, text):
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
+  #
+  ## \brief Load trajectory from file.
+  ##
+  ## The file is opened, parsed, and loaded into a structured document.
+  ##    
+  ## \param filename  Name of file specifying trajectory.
+  ##
+  ## \return True on success, False on failure.
+  #
   def loadTrajectory(self, filename):
     try:
       stream = open(filename, 'r')
     except IOError, e:
-      print e
+      print "%s:" % (self._Argv0), e
       return False
     try:
       self.m_doc = yaml.load(stream)
     except yaml.scanner.ScannerError, e:
-      print "YAML: ", e
+      print "%s: YAML:" % (self._Argv0), e
       return False
-    stream.close()
+    finally:
+      stream.close()
     self.m_docTraj = self.m_doc['goal']['trajectory']
     #print self.m_docTraj['joint_names']
     #print len(self.m_docTraj['points'])
     return True
 
+  #
+  ## \brief Make a ROS goal trajectory message from the loaded document.
+  #
   def makeGoalMsg(self):
     joint_traj = trajectory_msgs.msg.JointTrajectory()
     joint_traj.joint_names = self.m_docTraj['joint_names']
@@ -222,53 +289,44 @@ Notes:
     print "  Joints:   ", self.m_goal.trajectory.joint_names
     print "  Waypoints:", len(self.m_goal.trajectory.points)
 
-  def getch(self):
-    fd = sys.stdin.fileno()
-    oldattr = termios.tcgetattr(fd)
-    newattr = termios.tcgetattr(fd)
-    newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
-    termios.tcsetattr(fd, termios.TCSANOW, newattr)
-
-    oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
-    fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
-
-    try:
-      while True:
-        try:
-          c = sys.stdin.read(1)
-          #print 'here', repr(c)
-          break
-        except IOError:
-          pass
-    finally:
-      termios.tcsetattr(fd, termios.TCSAFLUSH, oldattr)
-      fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
-    return c
-
+  #
+  ## \brief Execute Hekateros trajectory.
+  ##    
+  ## The execution is performed through the actionlib follow trajectory
+  ## interaction of the client(this) and Hekateros (hekateros_control) nodes.
+  ##
+  ## \return True on success, False on failure.
+  #
   def execTrajectory(self):
-    # Sends the goal to the action server.
-    print "  Executing trajectory . . .",
+    # Send the goal to the action server.
+    self.pr("  Executing trajectory ... ")
     self.m_client.send_goal(self.m_goal)
 
-    # Waits for the server to finish performing the action.
+    i = 0
+
+    #
+    # Track progress.
+    #
     while True:
       state = self.m_client.get_state()
       if state == GoalStatus.PENDING or \
          state == GoalStatus.ACTIVE:
-        print ".",
+        self.show_progress_bar(i)
+        i = (i+1) % len(ProgressChars)
       elif state == GoalStatus.SUCCEEDED:
-        print " done"
-        return True
+        if self.m_client.get_result() < 0:
+          print "failed."
+          return False
+        else:
+          print "done."
+          return True
       else:
-        print "failed"
-        #print self.m_client.get_result()
+        print "failed."
         return False
-      time.sleep(0.5)
+      time.sleep(0.25)
 
+    # Waits for the server to finish performing the action.
     # block wait alternative self.m_client.wait_for_result()
-
-    # Prints out the result of executing the action
-    print self.m_client.get_result()
 
   #
   ## \brief Run application.
@@ -284,50 +342,64 @@ Notes:
     try:
       kwargs = self.getOptions(argv, **kwargs)
     except usage, e:
-      print e.msg
-      return 2
+      self.printUsageErr(e.msg)
+      return APP_EC_ARGS
 
     try:
+      # initialize ROS node
       rospy.init_node('trajectory')
 
+      # create follow trajectory actionlib client
       self.m_client = actionlib.SimpleActionClient( 
                                   'hekateros_control/follow_joint_traj_as', 
                                   control_msgs.msg.FollowJointTrajectoryAction)
 
-      print "Waiting for Hekateros action server ...",
+      self.pr("Waiting for Hekateros action server ... ")
 
-      self.m_client.wait_for_server()
-
-      print "connected."
-
+      # connect to Hekateros follow trajectory actionlib server
+      sec = 10.0
+      if self.m_client.wait_for_server(timeout=rospy.Duration(sec)):
+        print "connected."
+      else:
+        print "failed to connect in %.1f seconds." % (sec)
+        return APP_EC_EXEC
     except rospy.ROSInitException, e:
       print "%s:" % (self._Argv0), e
-      return 4
+      return APP_EC_EXEC
     except rospy.ROSInterruptException, e:
       print "%s:" % (self._Argv0), e
-      return 4
+      return APP_EC_EXEC
 
     cycle = 1
 
+    #
+    # Cycle through loop of trajectory files.
+    #
     while kwargs['loop'] or cycle == 1:
       if kwargs['loop']:
         print "\n\n  * Cycle %d *" % (cycle)
+
       n = 1
+
+      #
+      # Loop through all trajectory files.
+      #
       for filename in kwargs['filenames']:
         print "Trajectoy %d: %s" % (n, os.path.basename(filename))
         if not self.loadTrajectory(filename):
-          return 4
+          return APP_EC_EXEC
         self.makeGoalMsg()
         if not kwargs['auto']:
-          print "PRESS ANY KEY...",
-          self.getch()
-          print "\r                  \r",
+          self.pr("PRESS ANY KEY...")
+          self.kbhit()
+          self.pr("\r                  \r") # erase prompt
         if not self.execTrajectory():
-          return 4
+          return APP_EC_EXEC
         n += 1
+
       cycle += 1
 
-    return 0
+    return APP_EC_OK
 
 
 # ------------------------------------------------------------------------------
@@ -336,128 +408,3 @@ Notes:
 if __name__ == '__main__':
   app = application();
   sys.exit( app.run() );
-
-
-
-"""
-    ---------
-#
-## \brief Simple calibration client wrapper class.
-#
-class CalibClient:
-  def __init__(self):
-    self.m_ac         = None            # action client
-    self.m_state      = CalibStateIdle  # calibration action state
-    self.m_joiName    = ""              # joint of interest name
-    self.m_joiState   = ""              # joint of interest calibration state
-    self.m_idxProg    = 0               # progress index
-
-  #
-  ## \brief (Cancel) calibration callback.
-  #
-  def calibrate(self):
-    rospy.loginfo("Calibrating Hekateros")
-
-    # create calibration action client, if not already created
-    if self.m_ac is None:
-      self.m_ac = ACCalibrate()
-
-    self.m_state  = CalibStateRunning
-
-    # start calibration
-    if not self.m_ac.exec_calib(self.monitor, timeout=1, force_recalib=True):
-      rospy.logerr("Could not execute calibration. " \
-                     "Is the hekateros_control node running?")
-      self.cancel()
-      
-  #
-  ## \brief Cancel calibration, setting data and widget state accordingly.
-  #
-  def cancel(self):
-      self.m_ac.cancel()
-      self.m_state = CalibStateFailed
-      self.clear_progress_bar()
-      sys.stderr.write("%80s\r" % (""))
-      rospy.logerr("Calibration preempted.")
-
-  #
-  ## \brief Monitor the calibration feedback callback.
-  #
-  def monitor(self, feedback):
-    self.m_joiName    = ""
-    self.m_joiState   = ""
-    self.m_idxProg    = (self.m_idxProg+1) % len(ProgressChars)
-    numCalib          = 0
-    numJoints         = len(feedback.name)
-    for i in range(0, numJoints):
-      name    = feedback.name[i]
-      opstate = feedback.op[i]
-      if opstate.calib_state == HekOpState.CALIBRATING:
-        self.m_joiName  = name
-        self.m_joiState = "calibrating"
-      elif opstate.calib_state == HekOpState.CALIBRATED:
-        numCalib += 1
-    self.clear_progress_bar()
-    self.show_progress_bar(numCalib, numJoints)
-
-  #
-  ## \brief Check for calibration complete.
-  #
-  def is_done(self):
-    if self.m_state != CalibStateRunning:
-      return True
-    status = self.m_ac.get_action_state()
-    #rospy.loginfo(status)
-    # executing
-    if    status == GoalStatus.PENDING or status == GoalStatus.ACTIVE or \
-          status == GoalStatus.PREEMPTING or status == GoalStatus.RECALLING:
-      return False
-    # finished with abort or error
-    elif  status == GoalStatus.PREEMPTED or status == GoalStatus.REJECTED or \
-          status == GoalStatus.RECALLED or status == GoalStatus.ABORTED or \
-          status == GoalStatus.REJECTED:
-      self.m_state = CalibStateFailed
-      return True
-    # finished with success
-    elif  status == GoalStatus.SUCCEEDED:
-      self.m_state = CalibStateSuccess
-      return True
-    # unknown
-    else:
-      rospy.logerr("Unknown status %d" % (status))
-      self.m_state = CalibStateFailed
-      return True
-
-  #
-  ## \brief Show ascii progress bar.
-  #
-  def show_progress_bar(self, numCalib, numJoints):
-    sys.stderr.write("%2d/%-2d %s %s %s\r" % \
-        (numCalib+1, numJoints,
-          ProgressChars[self.m_idxProg],
-          self.m_joiName, self.m_joiState))
-
-  #
-  ## \brief Clear ascii progress bar.
-  #
-  def clear_progress_bar(self):
-    sys.stderr.write("%80s\r" % (""))
-
-
-if __name__ == '__main__':
-  rospy.init_node("calibrate")
-  calib_client = CalibClient()
-  calib_client.calibrate()
-  while not calib_client.is_done():
-    time.sleep(1)
-  calib_client.clear_progress_bar()
-  sys.stderr.write("\n")
-  if calib_client.m_state == CalibStateSuccess:
-    rospy.loginfo("Calibration sequence complete!")
-    ec = 0
-  else:
-    rospy.loginfo("Calibration sequence failed.")
-    ec = 4
-  time.sleep(1) # ros stuff could still be cleaning up
-  sys.exit(ec)
-"""
