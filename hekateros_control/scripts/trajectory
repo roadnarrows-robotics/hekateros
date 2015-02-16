@@ -298,8 +298,9 @@ Notes:
   ## \return True on success, False on failure.
   #
   def execTrajectory(self):
+    msg = "  Executiong trajectory ..."
     # Send the goal to the action server.
-    self.pr("  Executing trajectory ... ")
+    self.pr(msg+"\r")
     self.m_client.send_goal(self.m_goal)
 
     i = 0
@@ -315,13 +316,13 @@ Notes:
         i = (i+1) % len(ProgressChars)
       elif state == GoalStatus.SUCCEEDED:
         if self.m_client.get_result() < 0:
-          print "failed."
+          print msg, "failed."
           return False
         else:
-          print "done."
+          print msg, "done."
           return True
       else:
-        print "failed."
+        print msg, "failed."
         return False
       time.sleep(0.25)
 
