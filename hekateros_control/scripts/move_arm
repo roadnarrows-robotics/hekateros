@@ -6,27 +6,21 @@
 #
 # Link:     https://github.com/roadnarrows-robotics/hekateros
 #
-# ROS Node: trajectory
+# ROS Node: move
 #
-# File: trajectory
+# File: move
 #
 ## \file 
 ##
 ## $LastChangedDate$
 ## $Rev$
 ##
-## \brief Read and parse a list of trajectory files, requesting Hekateros to
-## follow each trajectory.
+## \brief Record or play back a set of moves.
 ##
-## The format of the files are yaml, typically output from rostopic. Only
-## one trajectoy can be specified per file.
+## Note that this node uses the Hekateros service interface which is different
+## from the follow trajectory actionlib server interface. 
 ##
-## One method to build a trajectory file:
-##  \li Start Moveit!
-##  \li Set start and goal positions.
-##  \li In a separate window:
-##      $ rostopic echo /hekateros_control/follow_joint_traj_as/goal > file
-##  \li Plan and execute move.
+## The format of the input/output file is yaml.
 ##
 ## \author Robin Knight (robin.knight@roadnarrows.com)
 ##  
@@ -52,10 +46,15 @@ import yaml
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
 
-import actionlib
-from   actionlib_msgs.msg import GoalStatus
-import control_msgs.msg
-import trajectory_msgs.msg
+from industrial_msgs.msg import RobotMode
+from industrial_msgs.msg import TriState
+
+from hekateros_control.msg import HekRobotStatusExtended
+from hekateros_control.msg import HekJointStateExtended
+from hekateros_control.msg import ServoHealth
+from hekateros_control.msg import HekOpState
+from hekateros_control.srv import Freeze
+from hekateros_control.srv import Release
 
 # Application exit codes
 APP_EC_OK   = 0   # success 
@@ -119,32 +118,42 @@ class application():
   def printUsage(self):
     print \
 """
-usage: %s [OPTIONS] file [file...]
+usage: %s [OPTIONS] record FILE
+       %s [OPTIONS] play FILE
        %s --help
 
 Read and parse a list of trajectory files, requesting Hekateros to follow each
 parsed trajectory in sequence.
 
 Options and arguments:
--a, --auto      : Automatically sequence through the list of trajectories.
-                    Default: Manually step through sequence.
--f, --format    : Input file format. One of: yaml
-                    Default: yaml
--l, --loop      : Continuously loop through trajectories.
-                    Default: Execute sequence only once.
+-a, --auto          : Automatically play through the list of moves.
+                        Default: Manually step through moves.
+-l, --loop          : Continuously play through list of moves.
+                        Default: Play list only once.
+-t, --time=T        : If auto, then this is the pause time between moves.
+                        Default: 1.0 second.
+-v, --velocity=V    : Velocity in degrees/second of all joints during a move.
+                        Default: 50.0 degrees/second.
            
--h, --help      : Display this help and exit.
+-h, --help          : Display this help and exit.
 
 Description:
-Each trajectory file specifies a trajectory of waypoints from the starting
-position to the goal end postion. Once a trajectory is parsed, %s acts
-as a simple action server client to connected to the Hekateros follow
-trajectory action server.
+For recording, the current Hekateros position is read and any moved joints
+are saved as the next goal position with the given velocity V. 
+The pause time T is appended to FILE after each recorded move.
 
-Notes:
-1. The ending position of trajectory i must line up with the starting position
-   of trajectory i+1.
-2. Only one trajectory can be specified in each file. Look for '---' sequences.
+Record controls:
+  'r' | ' ' (space) - Record position.
+  'q'               - Quit recording. FILE will be closed and this application
+                      exits.
+
+For play, the list of moves in FILE is played back, Each move is executed by
+the Hekateros. After the move, play waits for the allotted pause time T (if
+auto) or for user keyboard input.
+
+Play controls:
+  'p' | ' ' (space) - Next move (ignored if auto).
+  'q'               - Quit playback.
 """  % (self._Argv0, self._Argv0, self._Argv0)
  
   #
@@ -163,15 +172,16 @@ Notes:
     self._Argv0 = os.path.basename(kwargs.get('argv0', __file__))
 
     # defaults
-    kwargs['auto']    = False
-    kwargs['debug']   = False
-    kwargs['format']  = 'yaml'
-    kwargs['loop']    = False
+    kwargs['debug']     = False
+    kwargs['auto']      = False
+    kwargs['loop']      = False
+    kwargs['time']      = 1.0
+    kwargs['velocity']  = 50.0
 
     # parse command-line options
     try:
-      opts, args = getopt.getopt(argv[1:], "af:l?h",
-          ['auto', 'format=', 'loop', 'help', ''])
+      opts, args = getopt.getopt(argv[1:], "alt:v:?h",
+          ['auto', 'loop', 'time=', 'velocity=', 'help', ''])
     except getopt.error, msg:
       raise usage(msg)
     for opt, optarg in opts:
@@ -180,20 +190,34 @@ Notes:
         sys.exit(APP_EC_OK)
       elif opt in ('-a', '--auto'):
         kwargs['auto'] = True
-      elif opt in ('-f', '--format'):
-        if optarg in ('yaml'):
-          kwargs['format'] = optarg
-        else:
-          self.printUsageErr("File format %s not supported." % (optarg))
-          sys.exit(APP_EC_ARGS)
       elif opt in ('-l', '--loop'):
         kwargs['loop'] = True
+      elif opt in ('-t', '--time'):
+        try:
+          kwargs['time'] = float(optarg)
+        except ValueError:
+          self.printUsageErr("--time=%s: Not a float." % (optarg))
+          sys.exit(APP_EC_ARGS)
+      elif opt in ('-v', '--velocity'):
+        try:
+          kwargs['velocity'] = float(optarg)
+        except ValueError:
+          self.printUsageErr("--velocity=%s: Not a float." % (optarg))
+          sys.exit(APP_EC_ARGS)
 
     if len(args) < 1:
-      self.printUsageErr("No input trajectory files specified.");
+      self.printUsageErr("No record/play operator specified.")
+      sys.exit(APP_EC_ARGS)
+    elif args[0] not in ('record', 'play'):
+      self.printUsageErr("%s: Invalid record/play operator.")
       sys.exit(APP_EC_ARGS)
     else:
-      kwargs['filenames'] = args
+      kwargs['op'] = args[0]
+    if len(args) < 2:
+      self.printUsageErr("No FILE specified.")
+      sys.exit(APP_EC_ARGS)
+    else:
+      kwargs['filename'] = args[1]
 
     return kwargs
 
@@ -252,7 +276,7 @@ Notes:
   ##
   ## \return True on success, False on failure.
   #
-  def loadTrajectory(self, filename):
+  def loadMoves(self, filename):
     try:
       stream = open(filename, 'r')
     except IOError, e:
@@ -265,7 +289,7 @@ Notes:
       return False
     finally:
       stream.close()
-    self.m_docTraj = self.m_doc['goal']['trajectory']
+    self.m_docMoves = self.m_doc['moves']
     #print self.m_docTraj['joint_names']
     #print len(self.m_docTraj['points'])
     return True
@@ -273,7 +297,7 @@ Notes:
   #
   ## \brief Make a ROS goal trajectory message from the loaded document.
   #
-  def makeGoalMsg(self):
+  def makeMoveMsg(self):
     joint_traj = trajectory_msgs.msg.JointTrajectory()
     joint_traj.joint_names = self.m_docTraj['joint_names']
     for point in self.m_docTraj['points']:
@@ -297,7 +321,7 @@ Notes:
   ##
   ## \return True on success, False on failure.
   #
-  def execTrajectory(self):
+  def execMove(self):
     msg = "  Executiong trajectory ..."
     # Send the goal to the action server.
     self.pr(msg+"\r")
@@ -329,6 +353,54 @@ Notes:
     # Waits for the server to finish performing the action.
     # block wait alternative self.m_client.wait_for_result()
 
+  def record():
+    try:
+      self.m_stream = open(self.kwargs['filename'], 'w')
+    except IOError, e:
+      print "%s:" % (self._Argv0), e
+      return False
+
+    self.m_doc = {}
+    loop on user input
+      add to yaml doc
+    save close file
+
+  def play():
+    if not self.loadMoves(self.kwargs['filename']):
+      return False
+
+    cycle = 1
+
+    #
+    # Cycle through loop of trajectory files.
+    #
+    while kwargs['loop'] or cycle == 1:
+      if kwargs['loop']:
+        print "\n\n  * Cycle %d *" % (cycle)
+
+      n = 1
+
+      #
+      # Loop through all trajectory files.
+      #
+      for filename in kwargs['filenames']:
+        print "Move %d" % (n)
+        if not self.loadTrajectory(filename):
+          return APP_EC_EXEC
+        self.makeGoalMsg()
+        if not kwargs['auto']:
+          self.pr("PRESS ANY KEY...")
+          self.kbhit()
+          self.pr("\r                  \r") # erase prompt
+        if not self.execTrajectory():
+          return APP_EC_EXEC
+        n += 1
+
+      cycle += 1
+
+    return APP_EC_OK
+
+
   #
   ## \brief Run application.
   ##    
@@ -348,59 +420,33 @@ Notes:
 
     try:
       # initialize ROS node
-      rospy.init_node('trajectory')
+      rospy.init_node('move')
 
-      # create follow trajectory actionlib client
-      self.m_client = actionlib.SimpleActionClient( 
-                                  'hekateros_control/follow_joint_traj_as', 
-                                  control_msgs.msg.FollowJointTrajectoryAction)
+      # subscribe to extended robot status data
+      rospy.Subscriber("hekateros_control/robot_status_ex", 
+                      HekRobotStatusExtended, 
+                      self.m_win.updateRobotStatus) 
 
-      self.pr("Waiting for Hekateros action server ... ")
+      # subscribe to extended joint state data
+      rospy.Subscriber("hekateros_control/joint_states_ex", 
+                        HekJointStateExtended, 
+                        self.updateJointStates) 
 
-      # connect to Hekateros follow trajectory actionlib server
-      sec = 10.0
-      if self.m_client.wait_for_server(timeout=rospy.Duration(sec)):
-        print "connected."
-      else:
-        print "failed to connect in %.1f seconds." % (sec)
-        return APP_EC_EXEC
-    except rospy.ROSInitException, e:
-      print "%s:" % (self._Argv0), e
-      return APP_EC_EXEC
-    except rospy.ROSInterruptException, e:
-      print "%s:" % (self._Argv0), e
-      return APP_EC_EXEC
+      # publish trajectory to hekateros controller
+      self.m_joint_cmd_pub = rospy.Publisher(
+          "hekateros_control/joint_command",
+          trajectory_msgs.msg.JointTrajectory)
 
-    cycle = 1
+      print "Hekateros interface initialized."
 
-    #
-    # Cycle through loop of trajectory files.
-    #
-    while kwargs['loop'] or cycle == 1:
-      if kwargs['loop']:
-        print "\n\n  * Cycle %d *" % (cycle)
+    if kwargs['op'] == 'record':
+      return self.record()
+    elif kwargs['op'] == 'play':
+      return self.play()
+    else:
+      print "BUG: %s: unknown operator.")
+      return APP_EC_ARGS
 
-      n = 1
-
-      #
-      # Loop through all trajectory files.
-      #
-      for filename in kwargs['filenames']:
-        print "Trajectoy %d: %s" % (n, os.path.basename(filename))
-        if not self.loadTrajectory(filename):
-          return APP_EC_EXEC
-        self.makeGoalMsg()
-        if not kwargs['auto']:
-          self.pr("PRESS ANY KEY...")
-          self.kbhit()
-          self.pr("\r                  \r") # erase prompt
-        if not self.execTrajectory():
-          return APP_EC_EXEC
-        n += 1
-
-      cycle += 1
-
-    return APP_EC_OK
 
 
 # ------------------------------------------------------------------------------
