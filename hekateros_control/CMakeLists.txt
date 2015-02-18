@@ -115,6 +115,7 @@ install(
   PROGRAMS 
     scripts/calibrate
     scripts/hek_panel
+    scripts/move_arm
     scripts/reload_config
     scripts/trajectory
     #scripts/hek_pyteleop
