@@ -146,7 +146,10 @@ Options and arguments:
 -v, --velocity=V    : Velocity in degrees/second of all joints during a move.
                       On record, all joint velocities are set to this value.
                         Default: 50.0 degrees/second.
-           
+-x, --xplay=SCALE   : Playback speed scale. velocity = velocity * SCALE.
+                      N/A for recording.
+                        Default: 1.0 x.
+
 -h, --help          : Display this help and exit.
 
 Description:
@@ -207,14 +210,15 @@ Play controls:
     kwargs['debug']     = False
     kwargs['auto']      = False
     kwargs['loop']      = False
+    kwargs['name']      = ""
     kwargs['time']      = 1.0
     kwargs['velocity']  = 50.0
-    kwargs['name']      = ""
+    kwargs['xplay']     = 1.0
 
     # parse command-line options
     try:
-      opts, args = getopt.getopt(argv[1:], "aln:t:v:?h",
-          ['auto', 'loop', 'name=', 'time=', 'velocity=', 'help', ''])
+      opts, args = getopt.getopt(argv[1:], "aln:t:v:x:?h",
+          ['auto', 'loop', 'name=', 'time=', 'velocity=', 'xplay=', 'help', ''])
     except getopt.error, msg:
       raise usage(msg)
     for opt, optarg in opts:
@@ -231,13 +235,19 @@ Play controls:
         try:
           kwargs['time'] = float(optarg)
         except ValueError:
-          self.printUsageErr("--time=%s: Not a float." % (optarg))
+          self.printUsageErr("--time=%s: NaN." % (repr(optarg)))
           sys.exit(APP_EC_ARGS)
       elif opt in ('-v', '--velocity'):
         try:
           kwargs['velocity'] = float(optarg)
         except ValueError:
-          self.printUsageErr("--velocity=%s: Not a float." % (optarg))
+          self.printUsageErr("--velocity=%s: NaN." % (repr(optarg)))
+          sys.exit(APP_EC_ARGS)
+      elif opt in ('-x', '--xplay'):
+        try:
+          kwargs['xplay'] = float(optarg)
+        except ValueError:
+          self.printUsageErr("--xplay=%s: NaN." % (repr(optarg)))
           sys.exit(APP_EC_ARGS)
 
     # check command-line arguments
@@ -380,6 +390,7 @@ Play controls:
   #
   def recordPosition(self):
     move = {}
+    move['tag'] = "Move %d: " % (len(self.m_doc['moves'])+1)
     move['joint_names'] = self.m_jointNames
     move['positions']   = []
     for pos in self.m_jointPositions:
@@ -479,7 +490,7 @@ Play controls:
       jtp.positions.append(degToRad(pos))
     jtp.velocities = []
     for vel in move['velocities']:
-      jtp.velocities.append(degToRad(vel))
+      jtp.velocities.append(degToRad(vel)*self.kwargs['xplay'])
     jtp.accelerations = [0.0] * len(move['joint_names'])
     jointTrajectory.points.append(jtp)
     return jointTrajectory
@@ -518,7 +529,7 @@ Play controls:
       if noMoveCnt >= 3:
         print msg, "done."
         return True
-      time.sleep(0.25)
+      time.sleep(0.1)
 
   #
   ## \brief Play back recorded Hekateros movement from file.
@@ -558,13 +569,12 @@ Play controls:
       #
       for move in self.m_doc['moves']:
         doMove = False
-        print "Move %d" % (n)
+        tag = move.get('tag', "Move %d:" % (n))
+        print tag
         trajectory = self.makeMoveMsg(move)
         t = move.get('pause', self.kwargs['time'])
         if self.kwargs['auto']:
-          self.pr("  in %.2f seconds." % (t))
-          c = self.kbhit(t)
-          print
+          c = self.prompt("  in %.2f seconds." % (t), True, t)
         else:
           c = self.prompt("  Press Play... ", True)
 
