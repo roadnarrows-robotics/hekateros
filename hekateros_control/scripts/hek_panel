@@ -21,7 +21,7 @@
 ## \author Robin Knight (robin.knight@roadnarrows.com)
 ##  
 ## \par Copyright:
-##   (C) 2013-2014.  RoadNarrows LLC.\n
+##   (C) 2013-2015.  RoadNarrows LLC.\n
 ##   (http://www.roadnarrows.com)\n
 ##   All Rights Reserved
 ##
@@ -72,6 +72,7 @@ from hekateros_control.Utils import *
 from hekateros_control.AboutDlg import AboutDlg
 from hekateros_control.WarnDlg import WarnDlg
 from hekateros_control.MoveDlg import MoveDlg
+from hekateros_control.PasswordDlg import *
 from hekateros_control.PanelConfig import *
 from hekateros_control.ACCalibrate import *
 

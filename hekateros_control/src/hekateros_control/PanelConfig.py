@@ -13,7 +13,7 @@
 ## $LastChangedDate$
 ## $Rev$
 ##
-## \brief Pan-Tilt panel configuration dialog and XML classes.
+## \brief Hekateros panel configuration dialog and XML classes.
 ##
 ## \author Daniel Packard (daniel@roadnarrows.com)
 ## \author Robin Knight (robin.knight@roadnarrows.com)

@@ -6,20 +6,19 @@
 #
 # ROS Node:  hek_*
 #
-# File:      WarnDlg.py
+# File:      PasswordDlg.py
 #
 ## \file 
 ##
 ## $LastChangedDate$
 ## $Rev$
 ##
-## \brief Hekateros warning dialog.
+## \brief Hekateros password dialog.
 ##
-## \author Daniel Packard (daniel@roadnarrows.com)
 ## \author Robin Knight (robin.knight@roadnarrows.com)
 ##  
 ## \par Copyright:
-##   (C) 2013-2015.  RoadNarrows LLC.\n
+##   (C) 2015.  RoadNarrows LLC.\n
 ##   (http://www.roadnarrows.com)\n
 ##   All Rights Reserved
 ##
@@ -40,10 +39,10 @@ import tkFont
 from hekateros_control.Utils import *
 
 # ------------------------------------------------------------------------------
-# Class WarnDlg
+# Class PasswordDlg
 # ------------------------------------------------------------------------------
 
-class WarnDlg(Toplevel):
+class PasswordDlg(Toplevel):
   #
   ## \brief Constructor.
   ##
@@ -61,7 +60,7 @@ class WarnDlg(Toplevel):
     self.createWidgets()
 
     # allows the enter button to fire either button's action
-    self.m_bttnCancel.bind('<KeyPress-Return>', func=self.close)
+    self.m_bttnCancel.bind('<KeyPress-Return>', func=self.cr)
 
     # center the dialog over parent panel
     if master is not None:
@@ -107,19 +106,24 @@ class WarnDlg(Toplevel):
       self.m_title = kw['title']
       del kw['title']
     else:
-      self.m_title = "Warning"
+      self.m_title = "Password"
     if kw.has_key('image'):
       self.m_icons['image'] = imageLoader.load(kw['image'])
       del kw['image']
     else:
       self.m_icons['image'] = None
     if self.m_icons['image'] is None:
-      self.m_icons['image'] = imageLoader.load('icons/icon_warning.png')
-    if kw.has_key('msg'):
-      self.m_msg = kw['msg']
-      del kw['msg']
+      self.m_icons['image'] = imageLoader.load('icons/icon_password.png')
+    if kw.has_key('hekateros'):
+      self.m_host = kw['hekateros']
+      del kw['hekateros']
     else:
-      self.m_msg = "Warn what???"
+      self.m_host = "hekateros"
+    if kw.has_key('user'):
+      self.m_user = kw['user']
+      del kw['user']
+    else:
+      self.m_user = "robot"
     self.m_result = False
     return kw
 
@@ -130,35 +134,77 @@ class WarnDlg(Toplevel):
     frame = Frame(self)
     frame.grid(row=0, column=0)
 
-    # warning image 
+    # password image 
     w = Label(frame)
     if self.m_icons['image'] is not None:
       w = Label(frame)
       w['image']  = self.m_icons['image']
     w['anchor'] = CENTER
-    w.grid(row=0, column=0, rowspan=2, sticky=W+N+S)
+    w.grid(row=0, column=0, sticky=W+E)
 
     # top heading
     w = Label(frame)
     helv = tkFont.Font(family="Helvetica",size=24,weight="bold")
     w['font']   = helv
-    w['text']   = 'Warning'
+    w['text']   = 'Password'
     w['anchor'] = CENTER
     w.grid(row=0, column=1, sticky=E+W)
 
     row = 1
 
-    # warning message
-    w = Label(frame)
-    w['text']   = self.m_msg
+    wframe = Frame(frame)
+    wframe.grid(row=row, column=0, pady=5, columnspan=2)
+
+    row = 0
+
+    # hekateros host
+    w = Label(wframe)
+    w['text']   = "Hekateros:"
     w['anchor'] = W
     w['justify'] = LEFT
-    w.grid(row=row, column=1, padx=5, sticky=E+W)
+    w.grid(row=row, column=0, padx=5, sticky=W)
+
+    w = Label(wframe)
+    w['text']   = self.m_host;
+    w['anchor'] = W
+    w['justify'] = LEFT
+    w.grid(row=row, column=1, padx=5, sticky=W)
+
+    row += 1
+
+    # user 
+    w = Label(wframe)
+    w['text']   = "User:"
+    w['anchor'] = W
+    w['justify'] = LEFT
+    w.grid(row=row, column=0, padx=5, sticky=W)
+
+    w = Label(wframe)
+    w['text']   = self.m_user;
+    w['anchor'] = W
+    w['justify'] = LEFT
+    w.grid(row=row, column=1, padx=5, sticky=W)
+
+    row += 1
+
+    # password 
+    w = Label(wframe)
+    w['text']   = "Password:"
+    w['anchor'] = W
+    w['justify'] = LEFT
+    w.grid(row=row, column=0, padx=5, sticky=W)
+
+    w = Entry(wframe, show='*')
+    w['justify'] = LEFT
+    w['width'] = 32
+    w.grid(row=row, column=1, padx=5, sticky=W)
+    self.m_wEntryPasswd = w
+    self.m_wEntryPasswd.bind("<KeyRelease-Return>", self.cr)
 
     row += 1
 
     wframe = Frame(frame)
-    wframe.grid(row=row, column=1)
+    wframe.grid(row=row, column=0, columnspan=2)
 
     # cancel button
     w = Button(wframe, width=10, text='Cancel', command=self.close)
@@ -167,16 +213,26 @@ class WarnDlg(Toplevel):
     self.m_bttnCancel = w
 
     # ok button
-    w = Button(wframe, width=10, text='Continue', command=self.ok)
+    w = Button(wframe, width=10, text='Enter', command=self.ok)
     w.grid(row=0, column=1, padx=2, pady=5)
     w['anchor']  = CENTER
-    self.m_bttnContinue = w
+    self.m_bttnEnter = w
 
   #
-  ## \brief Destroy window callback.
+  ## \brief Carriage return callback.
+  #
+  def cr(self, event):
+    self.ok()
+
+  #
+  ## \brief Ok window callback.
   #
   def ok(self):
-    self.m_result = True
+    self.m_password = self.m_wEntryPasswd.get()
+    if len(self.m_password) > 0:
+      self.m_result = True
+    else:
+      self.m_password = None
     self.close()
 
   #
@@ -184,3 +240,41 @@ class WarnDlg(Toplevel):
   #
   def close(self):
     self.destroy()
+
+
+# ------------------------------------------------------------------------------
+# Unit test
+# ------------------------------------------------------------------------------
+
+if __name__ == "__main__":
+  class UT(Frame):
+    def __init__(self, master=None):
+      Frame.__init__(self, master=root)
+      self.master.title("PasswordDlg Unit Test")
+      self.wBttnPasswd = Button(self)
+      self.wBttnPasswd["text"] = "Password Dialog"
+      self.wBttnPasswd["command"] = self.getPassword
+      self.wBttnPasswd.grid(row=0, column=0)
+
+      self.wBttnQuit = Button(self)
+      self.wBttnQuit["text"] = "Quit"
+      self.wBttnQuit["command"] = self.destroy
+      self.wBttnQuit.grid(row=0, column=1)
+
+      self.grid(row=0, column=0, padx=5, pady=5)
+
+    def getPassword(self):
+      dlg = PasswordDlg(master=self, title="Hekateros Password")
+      if dlg.m_result:
+        print 'Password entered:', repr(dlg.m_password)
+      else:
+        print 'No password'
+
+    def destroy(self):
+      self.quit()
+
+  # run
+  root = Tk()
+  root.protocol('WM_DELETE_WINDOW', root.destroy)
+  ut = UT(master=root)
+  ut.mainloop()
