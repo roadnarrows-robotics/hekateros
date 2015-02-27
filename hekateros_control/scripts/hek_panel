@@ -72,7 +72,7 @@ from hekateros_control.Utils import *
 from hekateros_control.AboutDlg import AboutDlg
 from hekateros_control.WarnDlg import WarnDlg
 from hekateros_control.MoveDlg import MoveDlg
-from hekateros_control.PasswordDlg import *
+from hekateros_control.PasswordDlg import PasswordDlg
 from hekateros_control.PanelConfig import *
 from hekateros_control.ACCalibrate import *
 
@@ -131,6 +131,8 @@ class window(Frame):
   ## \param kw      Keyword options.
   #
   def __init__(self, master=None, cnf={}, **kw):
+    self.m_wMaster = master
+
     # intialize window data
     kw = self.initData(kw)
 
@@ -227,12 +229,73 @@ class window(Frame):
   ## \brief Create gui widgets with supporting data and show.
   #
   def createWidgets(self):
+    self.createMenu()
     self.createHeading()
     self.createLeftButtons()
     self.createCenterPanel()
     self.createRightButtons()
     self.createStatusBar()
     self.updateButtonState(self.m_keysFewMoves, 'disabled')
+
+  #
+  ## \brief Create menu
+  #
+  def createMenu(self):
+    # top menu bar
+    self.m_wMenuBar = Menu(self)
+
+    # file menu
+    self.m_wMenuFile = Menu(self.m_wMenuBar, tearoff=0)
+    self.m_wMenuFile.add_command(label="Recording", command=self.notimpl)
+    self.m_wMenuFile.add_separator()
+    self.m_wMenuFile.add_command(label="Quit", command=self.destroy)
+    self.m_wMenuBar.add_cascade(label="File", menu=self.m_wMenuFile)
+
+    # settings menu
+    self.m_wMenuSettings = Menu(self.m_wMenuBar, tearoff=0)
+    self.m_wMenuSettings.add_command(label="Panel", command=self.settings)
+    self.m_wMenuSettings.add_command(label="Xbox", command=self.notimpl)
+    self.m_wMenuSettings.add_command(label="EE Camera", command=self.notimpl)
+    self.m_wMenuBar.add_cascade(label="Settings", menu=self.m_wMenuSettings)
+
+    # calibrate menu
+    self.m_wMenuBar.add_command(label="Calibrate", command=self.calibrate)
+
+    # move menu
+    self.m_wMenuMove = Menu(self.m_wMenuBar, tearoff=0)
+    self.m_wMenuMove.add_command(label="Park", command=self.gotoParkedPos)
+    self.m_wMenuMove.add_command(label="Balance", command=self.gotoBalancedPos)
+    self.m_wMenuMove.add_command(label="Zero Point", command=self.gotoZeroPt)
+    self.m_wMenuMove.add_command(label="Open Gripper", command=self.openGripper)
+    self.m_wMenuMove.add_command(label="Close Gripper",
+        command=self.closeGripper)
+    self.m_wMenuMove.add_separator()
+    self.m_wMenuMove.add_command(label="Freeze", command=self.freezeArm)
+    self.m_wMenuMove.add_command(label="Release", command=self.releaseArm)
+                          #image=self.m_icons['release'])
+    self.m_wMenuMove.add_separator()
+    self.m_wMenuMove.add_command(label="EStop", command=self.estop)
+    self.m_wMenuBar.add_cascade(label="Move", menu=self.m_wMenuMove)
+
+    # camera menu
+    self.m_wMenuCam = Menu(self.m_wMenuBar, tearoff=0)
+    self.m_wMenuCam.add_command(label="Start", command=self.notimpl)
+    self.m_wMenuCam.add_command(label="Stop", command=self.notimpl)
+    self.m_wMenuBar.add_cascade(label="Camera", menu=self.m_wMenuCam)
+
+    # applications menu
+    self.m_wMenuApps = Menu(self.m_wMenuBar, tearoff=0)
+    self.m_wMenuApps.add_command(label="Record", command=self.notimpl)
+    self.m_wMenuApps.add_command(label="Graph Joints", command=self.notimpl)
+    self.m_wMenuBar.add_cascade(label="Apps", menu=self.m_wMenuApps)
+
+    # help menu
+    self.m_wMenuHelp = Menu(self.m_wMenuBar, tearoff=0)
+    self.m_wMenuHelp.add_command(label="ROS", command=self.notimpl)
+    self.m_wMenuHelp.add_command(label="About", command=self.about)
+    self.m_wMenuBar.add_cascade(label="Help", menu=self.m_wMenuHelp)
+
+    self.m_wMaster.config(menu=self.m_wMenuBar)
 
   #
   ## \brief Create top gui heading.
@@ -998,6 +1061,14 @@ class window(Frame):
   #
   def destroy(self):
     self.quit()
+
+  #
+  ## \brief Not implemented callback.
+  #
+  def notimpl(self):
+    emsg = "Window function not implemented yet."
+    self.showError(emsg)
+    print emsg
 
   #
   ## \brief (Cancel) calibration callback.
