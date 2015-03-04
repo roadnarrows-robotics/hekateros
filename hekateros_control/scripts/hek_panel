@@ -41,6 +41,8 @@ from Tkconstants import *
 from tkFileDialog import *
 import tkFont
 
+import webbrowser
+
 import roslib; roslib.load_manifest('hekateros_control')
 import rospy
 
@@ -73,7 +75,10 @@ from hekateros_control.AboutDlg import AboutDlg
 from hekateros_control.WarnDlg import WarnDlg
 from hekateros_control.MoveDlg import MoveDlg
 from hekateros_control.PasswordDlg import PasswordDlg
+from hekateros_control.ROSInfoDlg import ROSInfoDlg
 from hekateros_control.PanelConfig import *
+from hekateros_control.XboxConfig import *
+from hekateros_control.EECamConfig import *
 from hekateros_control.ACCalibrate import *
 
 
@@ -82,7 +87,10 @@ from hekateros_control.ACCalibrate import *
 # ------------------------------------------------------------------------------
 
 ## \brief Application version. Update as needed. 
-appVersion = '1.2.0'
+appVersion = '1.4.0'
+
+## \brief Hekateros wiki URL
+hekWikiUrl = "https://github.com/roadnarrows-robotics/hekateros/wiki"
 
 ## \brief Image search paths.
 imagePath = [
@@ -166,7 +174,8 @@ class window(Frame):
   def initData(self, kw):
     self.m_bHasJointPanel = False # joint state panel [not] created 
                                   # application configuration
-    self.m_config         = ConfigDlg.ConfigDft
+    self.m_cfgPanel       = PanelConfigDlg.ConfigDft.copy() # panel config
+    self.m_cfgEECam       = EECamConfigDlg.ConfigDft.copy() # ee camera config
     self.m_icons          = {}    # must keep loaded icons referenced
     self.m_wBttn          = {}    # button widgets
     self.m_keysFewMoves   = []    # gui button keys depending on calibration
@@ -216,12 +225,21 @@ class window(Frame):
           {'hdr0': '',          'hdr1': 'Alarms',     'width': 15,  'align': W}
     }
 
+    # override panel configuration
     if kw.has_key('config'):
-      self.m_config = kw['config']
+      self.m_cfgPanel = kw['config'].copy()
       del kw['config']
+    # or read configuration
+    else:
+      self.readPanelConfig()
+
+    # publish move callback
     if kw.has_key('pub_joint_move_cb'):
       self.cbMoveRobot = kw['pub_joint_move_cb']
       del kw['pub_joint_move_cb']
+
+    # read end effector camera configuration
+    self.readEECamConfig()
 
     return kw
 
@@ -246,16 +264,19 @@ class window(Frame):
 
     # file menu
     self.m_wMenuFile = Menu(self.m_wMenuBar, tearoff=0)
-    self.m_wMenuFile.add_command(label="Recording", command=self.notimpl)
+    self.m_wMenuFile.add_command(label="Recording...", command=self.notimpl)
     self.m_wMenuFile.add_separator()
     self.m_wMenuFile.add_command(label="Quit", command=self.destroy)
     self.m_wMenuBar.add_cascade(label="File", menu=self.m_wMenuFile)
 
     # settings menu
     self.m_wMenuSettings = Menu(self.m_wMenuBar, tearoff=0)
-    self.m_wMenuSettings.add_command(label="Panel", command=self.settings)
-    self.m_wMenuSettings.add_command(label="Xbox", command=self.notimpl)
-    self.m_wMenuSettings.add_command(label="EE Camera", command=self.notimpl)
+    self.m_wMenuSettings.add_command(label="Control Panel...",
+        command=self.settingsPanel)
+    self.m_wMenuSettings.add_command(label="End Effector Camera...",
+        command=self.settingsEECam)
+    self.m_wMenuSettings.add_command(label="Xbox Teleoperation...",
+        command=self.settingsXbox)
     self.m_wMenuBar.add_cascade(label="Settings", menu=self.m_wMenuSettings)
 
     # calibrate menu
@@ -270,6 +291,9 @@ class window(Frame):
     self.m_wMenuMove.add_command(label="Close Gripper",
         command=self.closeGripper)
     self.m_wMenuMove.add_separator()
+    self.m_wMenuMove.add_command(label="Specify Move...",
+        command=self.specifyMove)
+    self.m_wMenuMove.add_separator()
     self.m_wMenuMove.add_command(label="Freeze", command=self.freezeArm)
     self.m_wMenuMove.add_command(label="Release", command=self.releaseArm)
                           #image=self.m_icons['release'])
@@ -279,20 +303,23 @@ class window(Frame):
 
     # camera menu
     self.m_wMenuCam = Menu(self.m_wMenuBar, tearoff=0)
-    self.m_wMenuCam.add_command(label="Start", command=self.notimpl)
+    self.m_wMenuCam.add_command(label="Start...", command=self.notimpl)
     self.m_wMenuCam.add_command(label="Stop", command=self.notimpl)
     self.m_wMenuBar.add_cascade(label="Camera", menu=self.m_wMenuCam)
 
     # applications menu
     self.m_wMenuApps = Menu(self.m_wMenuBar, tearoff=0)
-    self.m_wMenuApps.add_command(label="Record", command=self.notimpl)
+    self.m_wMenuApps.add_command(label="Record...", command=self.notimpl)
     self.m_wMenuApps.add_command(label="Graph Joints", command=self.notimpl)
     self.m_wMenuBar.add_cascade(label="Apps", menu=self.m_wMenuApps)
 
     # help menu
     self.m_wMenuHelp = Menu(self.m_wMenuBar, tearoff=0)
-    self.m_wMenuHelp.add_command(label="ROS", command=self.notimpl)
-    self.m_wMenuHelp.add_command(label="About", command=self.about)
+    self.m_wMenuHelp.add_command(label="Online Hekateros Wiki",
+        command=lambda aurl=hekWikiUrl:webbrowser.open_new(hekWikiUrl))
+    self.m_wMenuHelp.add_separator()
+    self.m_wMenuHelp.add_command(label="ROS Info...", command=self.ROSInfo)
+    self.m_wMenuHelp.add_command(label="About...", command=self.about)
     self.m_wMenuBar.add_cascade(label="Help", menu=self.m_wMenuHelp)
 
     self.m_wMaster.config(menu=self.m_wMenuBar)
@@ -984,7 +1011,7 @@ class window(Frame):
     # settings
     row += 1
     w = self.createButton(wframe, "Settings",
-                                  "icons/icon_settings.png", self.settings)
+                                  "icons/icon_settings.png", self.settingsPanel)
     w.grid(row=row, column=0, sticky=N+E+W)
 
     # info
@@ -1080,7 +1107,7 @@ class window(Frame):
 
     # not calibrating - so start calibration
     if not self.m_calibState['calibrating']:
-      if self.m_config['warn_on_calib']:
+      if self.m_cfgPanel['warn_on_calib']:
         dlg = WarnDlg(master=self,
                       image="HekaterosZeroPt128.png",
                       msg="""\
@@ -1098,8 +1125,8 @@ Make sure the workspace is clear of obstructions.""")
 
       # start calibration
       if not self.m_calibState['ac'].exec_calib(self.calibrate_monitor,
-                                  timeout=1,
-                                  force_recalib=self.m_config['force_recalib']):
+                                timeout=1,
+                                force_recalib=self.m_cfgPanel['force_recalib']):
         self.showError("Could not execute calibration. " \
                        "Is the hekateros_control node running?")
         self.calibrate_cancel()
@@ -1372,7 +1399,7 @@ Make sure the workspace is clear of obstructions.""")
   ## \brief Release arm callback.
   #
   def releaseArm(self):
-    if self.m_config['warn_on_release']:
+    if self.m_cfgPanel['warn_on_release']:
       dlg = WarnDlg(master=self,
                     image="HekFalling.png",
                     msg="""\
@@ -1412,13 +1439,48 @@ The arm may fall if not in a stable position.""")
     self.showInfo("Alarms cleared.")
   
   #
-  ## \brief Open settings dialog callback.
+  ## \brief Open panel settings dialog callback.
   #
-  def settings(self):
-    dlg = ConfigDlg(master=self, config=self.m_config)
-    self.m_config = dlg.m_config
-    if dlg.m_saved:
-      self.showInfo("Configuration saved to %s" % (dlg.m_filename))
+  def settingsPanel(self):
+    dlg = PanelConfigDlg(master=self, config=self.m_cfgPanel)
+    if dlg.m_errors:
+      self.showError(dlg.m_errmsg+'.')
+    elif dlg.m_saved:
+      self.m_cfgPanel = dlg.m_config.copy()
+      self.showInfo("Configuration saved to %s." % (dlg.m_filename))
+    else:
+      self.showInfo("Canceled.")
+  
+  #
+  ## \brief Open end effector camera settings dialog callback.
+  #
+  def settingsEECam(self):
+    dlg = EECamConfigDlg(master=self, config=self.m_cfgEECam)
+    if dlg.m_errors:
+      self.showError(dlg.m_errmsg+'.')
+    elif dlg.m_saved:
+      self.m_cfgEECam = dlg.m_config.copy()
+      self.showInfo("Configuration saved to %s." % (dlg.m_filename))
+    else:
+      self.showInfo("Canceled.")
+  #
+  ## \brief Open Xbox teleoperation settings dialog callback.
+  #
+  def settingsXbox(self):
+    config = self.readXboxConfig().copy()
+    dlg = XboxConfigDlg(master=self, config=config)
+    if dlg.m_errors:
+      self.showError(dlg.m_errmsg+'.')
+    elif dlg.m_saved:
+      self.showInfo("Configuration saved to %s." % (dlg.m_filename))
+    else:
+      self.showInfo("Canceled.")
+  
+  #
+  ## \brief Show ROS infot dialog callback.
+  #
+  def ROSInfo(self):
+    dlg = ROSInfoDlg(master=self)
   
   #
   ## \brief Show about dialog callback.
@@ -1927,6 +1989,33 @@ The arm may fall if not in a stable position.""")
     return (text, fgColors['error'])
 
   #
+  ## \brief Read panel configuration.
+  ##
+  ## Any data not read or set to defaults.
+  #
+  def readPanelConfig(self):
+    xml = PanelConfigXml()
+    self.m_cfgPanel = xml.parse()
+
+  #
+  ## \brief Read end effector camera configuration.
+  ##
+  ## Any data not read or set to defaults.
+  #
+  def readEECamConfig(self):
+    xml = EECamConfigXml()
+    self.m_cfgEECam = xml.parse()
+
+  #
+  ## \brief Read Xbox teleop configuration.
+  ##
+  ## Any data not read or set to defaults.
+  #
+  def readXboxConfig(self):
+    xml = XboxConfigXml()
+    return xml.parse()
+
+  #
   ## \brief Final window initializations.
   ##
   ## Both the window data and widgets, along with ROS node application, have
@@ -2079,16 +2168,11 @@ Options and arguments:
       print e.msg
       return 2
 
-    # parse application configuration xml file
-    xml = ConfigXml()
-    config = xml.parse()
-    del xml
-
     # create root 
     root = Tk()
 
     # create application window
-    self.m_win = window(master=root, config=config)
+    self.m_win = window(master=root)
 
     # destroy window on 'x'
     root.protocol('WM_DELETE_WINDOW', root.destroy)

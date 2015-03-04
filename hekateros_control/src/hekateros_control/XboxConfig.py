@@ -4,21 +4,21 @@
 #
 # Link:      https://github.com/roadnarrows-robotics/hekateros
 #
-# ROS Node:  hek_*
+# ROS Node:  hek_teleop
 #
-# File:      PanelConfig.py
+# File:      XboxConfig.py
 #
 ## \file 
 ##
 ## $LastChangedDate$
 ## $Rev$
 ##
-## \brief Hekateros panel configuration dialog and XML classes.
+## \brief Hekateros Xbox360 teleoperation configuration dialog and XML classes.
 ##
 ## \author Robin Knight (robin.knight@roadnarrows.com)
 ##  
 ## \par Copyright:
-##   (C) 2013-2015.  RoadNarrows LLC.\n
+##   (C) 2015.  RoadNarrows LLC.\n
 ##   (http://www.roadnarrows.com)\n
 ##   All Rights Reserved
 ##
@@ -29,6 +29,7 @@
 
 import sys
 import os
+import socket
 import time
 
 from Tkinter import *
@@ -41,21 +42,21 @@ import xml.parsers.expat as expat
 from hekateros_control.Utils import *
 
 # ------------------------------------------------------------------------------
-# Class PanelConfigDlg
+# Class XboxConfigDlg
 # ------------------------------------------------------------------------------
 
 #
-## \brief Hekateros Panel configuration dialog.
+## \brief Hekateros Xbox360 teleoperation configuration dialog.
 #
-class PanelConfigDlg(Toplevel):
+class XboxConfigDlg(Toplevel):
   ## \brief User's home directory.
   Home = os.path.expanduser("~")
 
   ## \brief User-specific configuration directory (in home directory).
   UserDirName = ".roadnarrows"
 
-  ## \brief hek_panel application configuration file name.
-  ConfigFileName = "hek_panel.xml"
+  ## \brief hek_teleop application configuration file name.
+  ConfigFileName = "hek_xbox.xml"
 
   ## \brief Fully qualified path name.
   PathNameDft = Home + os.path.sep + \
@@ -65,9 +66,8 @@ class PanelConfigDlg(Toplevel):
   ## \brief Configuration default.
   ConfigDft = \
   {
-    'warn_on_calib':    True, # do [not] warn user at calibration start
-    'warn_on_release':  True, # do [not] warn user on release
-    'force_recalib':    True, # do [not] force recalibration on all joints
+    'left_joy_deadzone':  8191,   # left joy stick deadzone
+    'right_joy_deadzone': 8191,   # right joy stick deadzone
   }
 
   #
@@ -83,7 +83,7 @@ class PanelConfigDlg(Toplevel):
 
     Toplevel.__init__(self, master=master, cnf=cnf, **kw)
 
-    self.title("hek_panel configuration")
+    self.title("Xbox360 Teleoperation Configuration")
 
     # create and show widgets
     self.createWidgets()
@@ -91,7 +91,7 @@ class PanelConfigDlg(Toplevel):
     # allows the enter button to fire either button's action
     self.m_bttnCancel.bind('<KeyPress-Return>', func=self.close)
 
-    # center the dialog over parent panel
+    # center the dialog over parent window
     if master is not None:
       self.update_idletasks()
       x0 = master.winfo_rootx()
@@ -137,7 +137,7 @@ class PanelConfigDlg(Toplevel):
       self.m_config = kw['config'].copy()
       del kw['config']
     else:
-      self.m_config = PanelConfig.Dlg.ConfigDft.copy()
+      self.m_config = XboxConfigDlg.ConfigDft.copy()
     return kw
 
   #
@@ -147,55 +147,53 @@ class PanelConfigDlg(Toplevel):
     frame = Frame(self)
     frame.grid(row=0, column=0)
 
+    row = 0
+
     # top heading
     w = Label(frame)
-    helv = tkFont.Font(family="Helvetica",size=24,weight="bold")
+    helv = tkFont.Font(family="Helvetica",size=14,weight="bold")
     w['font']   = helv
-    w['text']   = 'Configuration'
+    w['text']   = 'Xbox360 Teleoperation Configuration'
     w['anchor'] = CENTER
-    w.grid(row=0, column=0, sticky=E+W)
-
-    # warn on calibrate check button
-    row = 1
-    self.m_varWarnCalib = IntVar()
-    self.m_varWarnCalib.set(self.m_config['warn_on_calib'])
-    w = Checkbutton(frame,
-        text="Show warning dialog before calibrating arm.",
-        variable=self.m_varWarnCalib)
-    w.grid(row=row, column=0, padx=5, sticky=W)
-
-    # force recalibration on all joints check button
-    row += 1
-    self.m_varForceRecalib = IntVar()
-    self.m_varForceRecalib.set(self.m_config['force_recalib'])
-    w = Checkbutton(frame,
-        text="Force (re)calibration for all joints on calibrate action.",
-        variable=self.m_varForceRecalib)
-    w.grid(row=row, column=0, padx=20, sticky=W)
+    w.grid(row=row, column=0, columnspan=2, sticky=E+W)
 
     row += 1
+
+    # left joy deadzone field
+    self.m_varLeftJoyDz = IntVar()
+    self.m_varLeftJoyDz.set(self.m_config['left_joy_deadzone'])
+    w = Scale(frame, from_=0, to=32000, resolution=20)
+    w['label']        = 'Left Joy Deadzone'
+    w['length']       = 320
+    w['orient']       = HORIZONTAL
+    w['tickinterval'] = 8000
+    w['variable']     = self.m_varLeftJoyDz
+    w.grid(row=row, column=0)
+
+    # right joy deadzone field
+    self.m_varRightJoyDz = IntVar()
+    self.m_varRightJoyDz.set(self.m_config['right_joy_deadzone'])
+    w = Scale(frame, from_=0, to=32000, resolution=20)
+    w['label']        = 'Right Joy Deadzone'
+    w['length']       = 320
+    w['orient']       = HORIZONTAL
+    w['tickinterval'] = 8000
+    w['variable']     = self.m_varRightJoyDz
+    w.grid(row=row, column=1)
+
+    row += 1
+
+    # spacer
     spacer = Label(frame, text="  ");
-    spacer.grid(row=row, column=0, padx=5, sticky=W)
-
-    # warn on release check button
-    row += 1
-    self.m_varWarnRelease = IntVar()
-    self.m_varWarnRelease.set(self.m_config['warn_on_release'])
-    w = Checkbutton(frame,
-        text="Show warning dialog before releasing arm.",
-        variable=self.m_varWarnRelease)
-    w.grid(row=row, column=0, padx=5, sticky=W)
-
-    row += 1
-    spacer = Label(frame, text="  ");
-    spacer.grid(row=row, column=0, padx=5, sticky=W)
+    spacer.grid(row=row, column=0, columnspan=2, padx=5, sticky=W)
 
     #
     # buttons
     #
     row += 1
+
     wframe = Frame(frame)
-    wframe.grid(row=row, column=0)
+    wframe.grid(row=row, column=0, columnspan=2)
 
     # defaults button
     w = Button(wframe, width=10, text='Defaults', command=self.setToDefaults)
@@ -224,18 +222,8 @@ class PanelConfigDlg(Toplevel):
     self.m_errmsg = ""
     self.m_errors = True
 
-    if self.m_varWarnCalib.get():
-      self.m_config['warn_on_calib'] = True
-    else:
-      self.m_config['warn_on_calib'] = False
-    if self.m_varForceRecalib.get():
-      self.m_config['force_recalib'] = True
-    else:
-      self.m_config['force_recalib'] = False
-    if self.m_varWarnRelease.get():
-      self.m_config['warn_on_release'] = True
-    else:
-      self.m_config['warn_on_release'] = False
+    self.m_config['left_joy_deadzone']  = self.m_varLeftJoyDz.get()
+    self.m_config['right_joy_deadzone'] = self.m_varRightJoyDz.get()
 
     self.m_errors = False
     return True
@@ -246,15 +234,16 @@ class PanelConfigDlg(Toplevel):
   ## \return True on success or False on error.
   #
   def save(self):
-    dirname = PanelConfigDlg.Home + os.path.sep + PanelConfigDlg.UserDirName
+    dirname = XboxConfigDlg.Home + os.path.sep + XboxConfigDlg.UserDirName
     if not os.path.isdir(dirname):
       try:
         os.mkdir(dirname, 0755)
       except OSError, err:
+        self.m_errors = True
         self.m_errmsg = "%s: %s" % (dirname, err)
         return False
-    self.m_filename = dirname + os.path.sep + PanelConfigDlg.ConfigFileName
-    xml = PanelConfigXml()
+    self.m_filename = dirname + os.path.sep + XboxConfigDlg.ConfigFileName
+    xml = XboxConfigXml()
     xml.save(self.m_filename, self.m_config)
     return True
 
@@ -262,9 +251,8 @@ class PanelConfigDlg(Toplevel):
   ## \brief Set to defaults callback.
   #
   def setToDefaults(self):
-    self.m_varWarnCalib.set(PanelConfigDlg.ConfigDft['warn_on_calib'])
-    self.m_varForceRecalib.set(PanelConfigDlg.ConfigDft['force_recalib'])
-    self.m_varWarnRelease.set(PanelConfigDlg.ConfigDft['warn_on_release'])
+    self.m_varLeftJoyDz.set(XboxConfigDlg.ConfigDft['left_joy_deadzone'])
+    self.m_varRightJoyDz.set(XboxConfigDlg.ConfigDft['right_joy_deadzone'])
 
   #
   ## \brief Save configuration callback.
@@ -282,13 +270,13 @@ class PanelConfigDlg(Toplevel):
 
 
 # ------------------------------------------------------------------------------
-# Class PanelConfigXml
+# Class XboxConfigXml
 # ------------------------------------------------------------------------------
 
 ##
-## \brief Application hek_panel configuration xml class.
+## \brief Xbox360 teleoperation configuration xml class.
 ##
-class PanelConfigXml():
+class XboxConfigXml():
   def __init__(self):
     self.m_curData      = ""
     self.m_config       = None
@@ -300,8 +288,8 @@ class PanelConfigXml():
   #
   def parse(self, pathname=None):
     if pathname is None:
-      pathname = PanelConfigDlg.PathNameDft;
-    self.m_config = PanelConfigDlg.ConfigDft.copy()
+      pathname = XboxConfigDlg.PathNameDft;
+    self.m_config = XboxConfigDlg.ConfigDft.copy()
     try:
       fp = open(pathname, 'r')
     except IOError, err:
@@ -338,14 +326,14 @@ class PanelConfigXml():
 <hekateros xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:noNamespaceSchemaLocation="http://roadnarrows.com/xml/Hekateros/1.0/hekateros.xsd">
 
-  <!-- Hekateros panel configuration. -->
-  <hek_panel>
+  <!-- Hekateros Xbox360 teleoperation configuration -->
+  <hek_xbox>
 """)
 
     self.writeTree(fp, 4, config);
 
     fp.write("""\
-  </hek_panel>
+  </hek_xbox>
 
 </hekateros>
 """)
@@ -386,12 +374,12 @@ class PanelConfigXml():
   #
   def onElemEnd(self, elem):
     #print "end-of-element", "<\%s>" % (elem)
-    # <hekateros> <hek_panel> x
+    # <hekateros> <hek_xbox> x
     if len(self.m_stack) == 3:
       elem = self.m_stack[2]
       if self.m_config.has_key(elem):
-        if elem in ['warn_on_calib', 'force_recalib', 'warn_on_release']:
-          self.m_config[elem] = self.cvtToBool(self.m_curData.strip())
+        if elem in ['left_joy_deadzone', 'right_joy_deadzone']:
+          self.m_config[elem] = self.cvtToInt(self.m_curData.strip())
     try:
       self.m_stack.pop()
     except:
@@ -418,6 +406,17 @@ class PanelConfigXml():
           return False
       except ValueError:
         return False
+
+  #
+  ## \brief Convert element data to integer.
+  ##
+  ## \return Integer.
+  #
+  def cvtToInt(self, data):
+    try:
+      return int(data)
+    except (TypeError, ValueError):
+      return 0
 
   #
   ## \brief Convert element data to fpn.

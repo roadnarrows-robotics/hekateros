@@ -142,7 +142,7 @@ class AboutDlg(Toplevel):
     frame = Frame(self)
     frame.grid(row=0, column=0)
 
-    self.m_icons['pan_tilt_logo'] = imageLoader.load("HekaterosLogo.png")
+    self.m_icons['hek_logo'] = imageLoader.load("HekaterosLogo.png")
 
     # top heading
     w = Label(frame)
@@ -288,8 +288,8 @@ class AboutDlg(Toplevel):
 
     # product logo
     w = Label(frame)
-    if self.m_icons['pan_tilt_logo'] is not None:
-      w['image']  = self.m_icons['pan_tilt_logo']
+    if self.m_icons['hek_logo'] is not None:
+      w['image']  = self.m_icons['hek_logo']
     w['anchor'] = CENTER
     w.grid(row=0, column=0, rowspan=row, sticky=W+N+S)
 

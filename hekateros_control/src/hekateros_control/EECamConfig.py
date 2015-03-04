@@ -6,19 +6,19 @@
 #
 # ROS Node:  hek_*
 #
-# File:      PanelConfig.py
+# File:      EECamConfig.py
 #
 ## \file 
 ##
 ## $LastChangedDate$
 ## $Rev$
 ##
-## \brief Hekateros panel configuration dialog and XML classes.
+## \brief Hekateros End Effector camera configuration dialog and XML classes.
 ##
 ## \author Robin Knight (robin.knight@roadnarrows.com)
 ##  
 ## \par Copyright:
-##   (C) 2013-2015.  RoadNarrows LLC.\n
+##   (C) 2015.  RoadNarrows LLC.\n
 ##   (http://www.roadnarrows.com)\n
 ##   All Rights Reserved
 ##
@@ -29,6 +29,7 @@
 
 import sys
 import os
+import socket
 import time
 
 from Tkinter import *
@@ -41,21 +42,21 @@ import xml.parsers.expat as expat
 from hekateros_control.Utils import *
 
 # ------------------------------------------------------------------------------
-# Class PanelConfigDlg
+# Class EECamConfigDlg
 # ------------------------------------------------------------------------------
 
 #
-## \brief Hekateros Panel configuration dialog.
+## \brief Hekateros EECam teleoperation configuration dialog.
 #
-class PanelConfigDlg(Toplevel):
+class EECamConfigDlg(Toplevel):
   ## \brief User's home directory.
   Home = os.path.expanduser("~")
 
   ## \brief User-specific configuration directory (in home directory).
   UserDirName = ".roadnarrows"
 
-  ## \brief hek_panel application configuration file name.
-  ConfigFileName = "hek_panel.xml"
+  ## \brief hek_eecam application configuration file name.
+  ConfigFileName = "hek_eecam.xml"
 
   ## \brief Fully qualified path name.
   PathNameDft = Home + os.path.sep + \
@@ -65,9 +66,10 @@ class PanelConfigDlg(Toplevel):
   ## \brief Configuration default.
   ConfigDft = \
   {
-    'warn_on_calib':    True, # do [not] warn user at calibration start
-    'warn_on_release':  True, # do [not] warn user on release
-    'force_recalib':    True, # do [not] force recalibration on all joints
+    'host':       socket.gethostname(), # receiving host 
+    'port':       4951,                 # UDP port number
+    'resolution': 'vga',                # resolution
+    'fps':        15,                   # frames per second
   }
 
   #
@@ -83,7 +85,7 @@ class PanelConfigDlg(Toplevel):
 
     Toplevel.__init__(self, master=master, cnf=cnf, **kw)
 
-    self.title("hek_panel configuration")
+    self.title("End Effector Camera Configuration")
 
     # create and show widgets
     self.createWidgets()
@@ -91,7 +93,7 @@ class PanelConfigDlg(Toplevel):
     # allows the enter button to fire either button's action
     self.m_bttnCancel.bind('<KeyPress-Return>', func=self.close)
 
-    # center the dialog over parent panel
+    # center the dialog over parent window
     if master is not None:
       self.update_idletasks()
       x0 = master.winfo_rootx()
@@ -137,7 +139,7 @@ class PanelConfigDlg(Toplevel):
       self.m_config = kw['config'].copy()
       del kw['config']
     else:
-      self.m_config = PanelConfig.Dlg.ConfigDft.copy()
+      self.m_config = EECamConfigDlg.ConfigDft.copy()
     return kw
 
   #
@@ -147,55 +149,135 @@ class PanelConfigDlg(Toplevel):
     frame = Frame(self)
     frame.grid(row=0, column=0)
 
+    row = 0
+
     # top heading
     w = Label(frame)
-    helv = tkFont.Font(family="Helvetica",size=24,weight="bold")
+    helv = tkFont.Font(family="Helvetica",size=14,weight="bold")
     w['font']   = helv
-    w['text']   = 'Configuration'
+    w['text']   = 'End Effector Camera Configuration'
     w['anchor'] = CENTER
-    w.grid(row=0, column=0, sticky=E+W)
-
-    # warn on calibrate check button
-    row = 1
-    self.m_varWarnCalib = IntVar()
-    self.m_varWarnCalib.set(self.m_config['warn_on_calib'])
-    w = Checkbutton(frame,
-        text="Show warning dialog before calibrating arm.",
-        variable=self.m_varWarnCalib)
-    w.grid(row=row, column=0, padx=5, sticky=W)
-
-    # force recalibration on all joints check button
-    row += 1
-    self.m_varForceRecalib = IntVar()
-    self.m_varForceRecalib.set(self.m_config['force_recalib'])
-    w = Checkbutton(frame,
-        text="Force (re)calibration for all joints on calibrate action.",
-        variable=self.m_varForceRecalib)
-    w.grid(row=row, column=0, padx=20, sticky=W)
+    w.grid(row=row, column=0, columnspan=2, sticky=E+W)
 
     row += 1
+
+    # receiving host field
+    w = Label(frame)
+    w['text']   = 'Host:'
+    w['anchor'] = 'e'
+    w.grid(row=row, column=0, sticky=E)
+
+    self.m_varHost = StringVar()
+    self.m_varHost.set(self.m_config['host'])
+    w = Entry(frame)
+    w['justify']      = LEFT
+    w['width']        = 32
+    w['textvariable'] = self.m_varHost
+    w.grid(row=row, column=1, padx=5, sticky=W)
+
+    row += 1
+
+    # UDP port field
+    w = Label(frame)
+    w['text']   = 'UDP Port:'
+    w['anchor'] = 'e'
+    w.grid(row=row, column=0, sticky=E)
+
+    self.m_varPort = IntVar()
+    self.m_varPort.set(self.m_config['port'])
+    w = Entry(frame)
+    w['justify']      = LEFT
+    w['width']        = 8
+    w['textvariable'] = self.m_varPort
+    w.grid(row=row, column=1, padx=5, sticky=W)
+
+    row += 1
+
+    wframe = Frame(frame)
+    wframe.grid(row=row, column=0, columnspan=2)
+
+    # resolution field
+    lframe = LabelFrame(wframe, text="Resolution")
+    lframe.grid(row=row, column=0, padx=5, pady=5, sticky=N)
+
+    radiores = [
+        ("QVGA (320x240)",    "qvga"),
+        ("VGA (640x480)",     "vga"),
+        ("720p (1280x720)",   "720p"),
+        ("Other (WxH)",       "other")
+    ]
+
+    self.m_varRes = StringVar()
+    curres  = self.m_config['resolution'].lower()
+    bInit   = False
+    frow    = 0
+    for text, res in radiores:
+      w = Radiobutton(lframe, text=text, variable=self.m_varRes, value=res)
+      w.grid(row=frow, column=0, sticky=W)
+      if res == curres:
+        self.m_varRes.set(res) # initialize
+        bInit = True
+      frow += 1
+
+    self.m_varResOther = StringVar()
+    w = Entry(lframe)
+    w['justify']      = LEFT
+    w['width']        = 10
+    w['textvariable'] = self.m_varResOther
+    w.grid(row=frow-1, column=1, padx=5, sticky=W)
+
+    # initialize other
+    if not bInit:
+      self.m_varRes.set("other")
+      self.m_varResOther.set(curres)
+
+    # fps field
+    lframe = LabelFrame(wframe, text="Frames/Second")
+    lframe.grid(row=row, column=1, padx=5, pady=5, sticky=N)
+
+    radiofps = [
+        ("15",    "15"),
+        ("30",    "30"),
+        ("Other", "other")
+    ]
+
+    self.m_varFps = StringVar()
+    curfps  = repr(self.m_config['fps']).lower()
+    bInit   = False
+    frow    = 0
+    for text, fps in radiofps:
+      w = Radiobutton(lframe, text=text, variable=self.m_varFps, value=fps)
+      w.grid(row=frow, column=0, sticky=W)
+      if fps == curfps:
+        self.m_varFps.set(fps) # initialize
+        bInit = True
+      frow += 1
+
+    self.m_varFpsOther = StringVar()
+    w = Entry(lframe)
+    w['justify']      = LEFT
+    w['width']        = 4
+    w['textvariable'] = self.m_varFpsOther
+    w.grid(row=frow-1, column=1, padx=5, sticky=W)
+
+    # initialize other
+    if not bInit:
+      self.m_varFps.set("other")
+      self.m_varFpsOther.set(curfps)
+
+    row += 1
+
+    # spacer
     spacer = Label(frame, text="  ");
-    spacer.grid(row=row, column=0, padx=5, sticky=W)
-
-    # warn on release check button
-    row += 1
-    self.m_varWarnRelease = IntVar()
-    self.m_varWarnRelease.set(self.m_config['warn_on_release'])
-    w = Checkbutton(frame,
-        text="Show warning dialog before releasing arm.",
-        variable=self.m_varWarnRelease)
-    w.grid(row=row, column=0, padx=5, sticky=W)
-
-    row += 1
-    spacer = Label(frame, text="  ");
-    spacer.grid(row=row, column=0, padx=5, sticky=W)
+    spacer.grid(row=row, column=0, columnspan=2, padx=5, sticky=W)
 
     #
     # buttons
     #
     row += 1
+
     wframe = Frame(frame)
-    wframe.grid(row=row, column=0)
+    wframe.grid(row=row, column=0, columnspan=2)
 
     # defaults button
     w = Button(wframe, width=10, text='Defaults', command=self.setToDefaults)
@@ -224,18 +306,53 @@ class PanelConfigDlg(Toplevel):
     self.m_errmsg = ""
     self.m_errors = True
 
-    if self.m_varWarnCalib.get():
-      self.m_config['warn_on_calib'] = True
+    val = self.m_varHost.get().strip()
+    if not val:
+      self.m_errmsg = "Host: No name or address specified"
+      return False
+    self.m_config['host'] = val
+
+    val = self.m_varPort.get()
+    if val <= 0 or val > 65535:
+      self.m_errmsg = "UDP Port: %s: Out of range" % (val)
+      return False
+    self.m_config['port'] = val
+
+    val = self.m_varRes.get()
+    if val == "other":
+      val = self.m_varResOther.get().strip()
+      if not val:
+        self.m_errmsg = "Resolution: No video resolution specified"
+        return False
+      wxh = val.split('x')
+      if len(wxh) != 2:
+        self.m_errmsg = "Resolution: %s: Bad format" % (val)
+        return False
+      try:
+        w = int(wxh[0])
+        h = int(wxh[1])
+      except ValueError:
+        self.m_errmsg = "Resolution: %s: Bad format" % (val)
+        return False
+    self.m_config['resolution'] = val
+
+    val = self.m_varFps.get()
+    if val == "other":
+      val = self.m_varFpsOther.get().strip()
+      if not val:
+        self.m_errmsg = "FPS: No video resolution specified"
+        return False
+      try:
+        fps = int(val)
+      except ValueError:
+        self.m_errmsg = "FPS: %s: Bad format" % (val)
+        return False
     else:
-      self.m_config['warn_on_calib'] = False
-    if self.m_varForceRecalib.get():
-      self.m_config['force_recalib'] = True
-    else:
-      self.m_config['force_recalib'] = False
-    if self.m_varWarnRelease.get():
-      self.m_config['warn_on_release'] = True
-    else:
-      self.m_config['warn_on_release'] = False
+      fps = int(val)
+    if fps <= 0:
+      self.m_errmsg = "FPS: %s: Out of range" % (val)
+      return False
+    self.m_config['fps'] = fps
 
     self.m_errors = False
     return True
@@ -246,15 +363,16 @@ class PanelConfigDlg(Toplevel):
   ## \return True on success or False on error.
   #
   def save(self):
-    dirname = PanelConfigDlg.Home + os.path.sep + PanelConfigDlg.UserDirName
+    dirname = EECamConfigDlg.Home + os.path.sep + EECamConfigDlg.UserDirName
     if not os.path.isdir(dirname):
       try:
         os.mkdir(dirname, 0755)
       except OSError, err:
+        self.m_errors = True
         self.m_errmsg = "%s: %s" % (dirname, err)
         return False
-    self.m_filename = dirname + os.path.sep + PanelConfigDlg.ConfigFileName
-    xml = PanelConfigXml()
+    self.m_filename = dirname + os.path.sep + EECamConfigDlg.ConfigFileName
+    xml = EECamConfigXml()
     xml.save(self.m_filename, self.m_config)
     return True
 
@@ -262,9 +380,12 @@ class PanelConfigDlg(Toplevel):
   ## \brief Set to defaults callback.
   #
   def setToDefaults(self):
-    self.m_varWarnCalib.set(PanelConfigDlg.ConfigDft['warn_on_calib'])
-    self.m_varForceRecalib.set(PanelConfigDlg.ConfigDft['force_recalib'])
-    self.m_varWarnRelease.set(PanelConfigDlg.ConfigDft['warn_on_release'])
+    self.m_varHost.set(EECamConfigDlg.ConfigDft['host'])
+    self.m_varPort.set(EECamConfigDlg.ConfigDft['port'])
+    self.m_varRes.set(EECamConfigDlg.ConfigDft['resolution'])
+    self.m_varResOther.set("")
+    self.m_varFps.set(EECamConfigDlg.ConfigDft['fps'])
+    self.m_varFpsOther.set("")
 
   #
   ## \brief Save configuration callback.
@@ -282,13 +403,13 @@ class PanelConfigDlg(Toplevel):
 
 
 # ------------------------------------------------------------------------------
-# Class PanelConfigXml
+# Class EECamConfigXml
 # ------------------------------------------------------------------------------
 
 ##
-## \brief Application hek_panel configuration xml class.
+## \brief Hekateros end effector camera configuration xml class.
 ##
-class PanelConfigXml():
+class EECamConfigXml():
   def __init__(self):
     self.m_curData      = ""
     self.m_config       = None
@@ -300,8 +421,8 @@ class PanelConfigXml():
   #
   def parse(self, pathname=None):
     if pathname is None:
-      pathname = PanelConfigDlg.PathNameDft;
-    self.m_config = PanelConfigDlg.ConfigDft.copy()
+      pathname = EECamConfigDlg.PathNameDft;
+    self.m_config = EECamConfigDlg.ConfigDft.copy()
     try:
       fp = open(pathname, 'r')
     except IOError, err:
@@ -338,14 +459,14 @@ class PanelConfigXml():
 <hekateros xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:noNamespaceSchemaLocation="http://roadnarrows.com/xml/Hekateros/1.0/hekateros.xsd">
 
-  <!-- Hekateros panel configuration. -->
-  <hek_panel>
+  <!-- Hekateros end effector camera configuration -->
+  <hek_eecam>
 """)
 
     self.writeTree(fp, 4, config);
 
     fp.write("""\
-  </hek_panel>
+  </hek_eecam>
 
 </hekateros>
 """)
@@ -386,12 +507,14 @@ class PanelConfigXml():
   #
   def onElemEnd(self, elem):
     #print "end-of-element", "<\%s>" % (elem)
-    # <hekateros> <hek_panel> x
+    # <hekateros> <hek_eecam> x
     if len(self.m_stack) == 3:
       elem = self.m_stack[2]
       if self.m_config.has_key(elem):
-        if elem in ['warn_on_calib', 'force_recalib', 'warn_on_release']:
-          self.m_config[elem] = self.cvtToBool(self.m_curData.strip())
+        if elem in ['host', 'resolution']:
+          self.m_config[elem] = self.m_curData.strip()
+        elif elem in ['port', 'fps']:
+          self.m_config[elem] = self.cvtToInt(self.m_curData.strip())
     try:
       self.m_stack.pop()
     except:
@@ -418,6 +541,17 @@ class PanelConfigXml():
           return False
       except ValueError:
         return False
+
+  #
+  ## \brief Convert element data to integer.
+  ##
+  ## \return Integer.
+  #
+  def cvtToInt(self, data):
+    try:
+      return int(data)
+    except (TypeError, ValueError):
+      return 0
 
   #
   ## \brief Convert element data to fpn.
