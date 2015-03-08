@@ -19,7 +19,7 @@
  * \author Robin Knight (robin.knight@roadnarrows.com)
  *
  * \par Copyright:
- * (C) 2013-2014  RoadNarrows
+ * (C) 2013-2015  RoadNarrows
  * (http://www.roadnarrows.com)
  * \n All Rights Reserved
  */
@@ -178,7 +178,7 @@ static OptsInfo_T AppOptsInfo[] =
     OptsCvtArgStr,        // fn_cvt
     OptsFmtStr,           // fn_fmt
     "<file>",             // arg_name
-    "Hekateros serial USB Dynamixel bus device name."
+    "Hekateros top-level XML configuration file name."
                           // opt desc
   },
 
