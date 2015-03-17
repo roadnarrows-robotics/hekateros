@@ -30,6 +30,9 @@
 import sys
 import os
 import time
+import threading
+import subprocess
+import shlex
 
 from Tkinter import *
 from Tkconstants import *
@@ -46,7 +49,7 @@ class Xterm(Frame):
   #
   ## \brief Constructor.
   ##
-  ## Xterm Keyword Options
+  ## \par Xterm Keyword Options
   ## Xterm specific keyword options. All other xterm options can be supported
   ## through application resources.
   ## \htmlonly
@@ -61,6 +64,24 @@ class Xterm(Frame):
   ##    <td>Default: 80x20</td>
   ##  <td>xterm_sb=TF</td><td>Enable/disable scrollbar</td>
   ##    <td>Default: True</td>
+  ## </tr>
+  ## </table>
+  ## \endhtmlonly
+  ##
+  ## \par Run-Time Keyword Options
+  ## Run-time execution control options.
+  ## \htmlonly
+  ## <table>
+  ## <tr>
+  ##  <td>auto_run=TF</td>
+  ##    <td>Do [not] auto-run script or program. Use the execute method to
+  ##    manually run.  </td>
+  ##    <td>Default: False</td>
+  ## </tr>
+  ## <tr>
+  ##  <td>on_exit=FUNC</td>
+  ##    <td>If set, make callback to parent function FUNC on xterm exit.</td>
+  ##    <td>Default: None</td>
   ## </tr>
   ## </table>
   ## \endhtmlonly
@@ -88,17 +109,6 @@ class Xterm(Frame):
   ## </table>
   ## \endhtmlonly
   ##
-  ## \par Run-time Options
-  ## Run-time execution control options.
-  ## \htmlonly
-  ## <table>
-  ## <tr>
-  ##  <td>auto_run=TF</td><td>Do [not] auto-run xterm in widget.</td>
-  ##    <td>Default: True</td>
-  ## </tr>
-  ## </table>
-  ## \endhtmlonly
-  ##
   ## \param cnf     Configuration dictionary.
   ## \param kw      Keyword options.
   #
@@ -108,32 +118,46 @@ class Xterm(Frame):
     # initialize keyword data
     kw = self.initData(kw)
 
+    # frame init
     Frame.__init__(self, master=master, cnf=cnf, **kw)
 
+    # frame parameters
     self.m_wXFrame = Frame(self)
-    self.m_wXFrame['width'] = kw['width'] - kw['borderwidth']
+    self.m_wXFrame['width']  = kw['width']  - kw['borderwidth']
     self.m_wXFrame['height'] = kw['height'] - kw['borderwidth']
     self.m_wXFrame.grid(row=0, column=0, padx=5, pady=5, sticky=N+S+E+W)
 
-    self.m_wId = self.m_wXFrame.winfo_id()
+    # state data
+    self.m_wId  = self.m_wXFrame.winfo_id()
+    self.m_th   = None
+    self.m_pipe = None
+    self.m_xterm_opts_str = ""
 
+    # build xterm command string
+    self.buildXtermCmd()
+
+    # do [not] auto-run xterm command
     if self.m_opts['auto_run']:
       self.execute()
 
   #
-  ## \brief Initialize class state data.
+  ## \brief Initialize class keyword options data.
   ##
-  ## \param kw      Keyword options.
+  ## \param kw  Keyword options.
   ##
   ## \return Modified keywords sans this specific class keywords.
   ##
   def initData(self, kw):
+    frameopts = { }
+
+    #
     # xterm default options
-    xopts = { }
-    xopts['geom']  = "80x20"
-    xopts['font']  = "9x15"
-    xopts['sb']    = True
-    xopts['cmd']    = None
+    #
+    self.m_xopts = { }
+    self.m_xopts['geom']  = "80x20"
+    self.m_xopts['font']  = "9x15"
+    self.m_xopts['sb']    = True
+    self.m_xopts['cmd']   = None
 
     preface = 'xterm_'
 
@@ -141,12 +165,73 @@ class Xterm(Frame):
       i = k.find(preface)
       if i == 0:
         opt = k[len(preface):]
-        xopts[opt] = v
-        del kw[k]
+        self.m_xopts[opt] = v
+      else:
+        frameopts[k] = v
 
-    self.m_xterm_opts_str = ""
+    #
+    # run-time options
+    #
+    self.m_opts = { }
 
-    for k,v in xopts.iteritems():
+    k = 'auto_run'
+    if kw.has_key(k):
+      self.m_opts[k] = kw[k]
+      del frameopts[k]
+    else:
+      self.m_opts[k] = False
+    k = 'on_exit'
+    if kw.has_key(k):
+      self.m_opts[k] = kw[k]
+      del frameopts[k]
+    else:
+      self.m_opts[k] = None
+
+    #
+    # frame options
+    #
+    wxh = self.m_xopts['geom'].split('x')
+    try:
+      geom_width  = int(wxh[0])
+      geom_height = int(wxh[1])
+    except ValueError:
+      geom_width  = 80
+      geom_height = 20
+
+    wxh = self.m_xopts['font'].split('x')
+    try:
+      font_width = int(wxh[0])
+      font_height = int(wxh[1])
+    except ValueError:
+      font_width  = 9
+      font_height = 15
+
+    # border width
+    bw  = frameopts.setdefault('borderwidth', 3) # border width
+
+    # scroll bar width
+    if self.m_xopts['sb']:
+      sbw = 14
+    else:
+      sbw = 0
+
+    # frame margin
+    margin = 2
+
+    v = frameopts.setdefault('padx', 0)
+    v = frameopts.setdefault('pady', 0)
+    v = frameopts.setdefault('relief', 'ridge')
+    v = frameopts.setdefault('height', margin + font_height*geom_height + 2*bw)
+    v = frameopts.setdefault('width', 
+                                  margin + sbw + font_width*geom_width + 2*bw)
+
+    return frameopts
+
+  #
+  ## \brief Build xterm command string
+  #
+  def buildXtermCmd(self):
+    for k,v in self.m_xopts.iteritems():
         if k == "geom":
           self.m_xterm_opts_str += " -geometry %s" % (v)
         elif k == "sb":
@@ -158,77 +243,61 @@ class Xterm(Frame):
           script = v
         else:
           print "Unknown xterm keyword", preface+k, "ignoring."
-    if xopts['cmd']:
-      self.m_xterm_opts_str += " -e \"%s\"" % (xopts['e'])
+    if self.m_xopts['cmd']:
+      self.m_xterm_opts_str += " -e \"%s\"" % (self.m_xopts['cmd'])
+    self.m_xtermcmd = 'xterm -into %d %s' % (self.m_wId, self.m_xterm_opts_str)
 
-    wxh = xopts['geom'].split('x')
-    try:
-      geom_width  = int(wxh[0])
-      geom_height = int(wxh[1])
-    except ValueError:
-      geom_width  = 80
-      geom_height = 20
-
-    wxh = xopts['font'].split('x')
-    try:
-      font_width = int(wxh[0])
-      font_height = int(wxh[1])
-    except ValueError:
-      font_width  = 9
-      font_height = 15
-
-    # border width
-    bw  = kw.setdefault('borderwidth', 3) # border width
-
-    # scroll bar width
-    if xopts['sb']:
-      sbw = 14
-    else:
-      sbw = 0
-
-    # frame margin
-    margin = 2
-
-    # frame options
-    v = kw.setdefault('padx', 0)
-    v = kw.setdefault('pady', 0)
-    v = kw.setdefault('relief', 'ridge')
-    v = kw.setdefault('height', margin + font_height*geom_height + 2 * bw)
-    v = kw.setdefault('width',  margin + sbw + font_width*geom_width + 2 * bw)
-
-    # run-time options
-    self.m_opts = { }
-
-    k = 'auto_run'
-    if kw.has_key(k):
-      self.m_opts[k] = kw[k]
-      del kw[k]
-    else:
-      self.m_opts[k] = False
-
-    return kw
-
+  #
+  ## \brief Execute xterm command.
+  #
   def execute(self):
-    ec = os.system('xterm -into %d %s &' % (self.m_wId, self.m_xterm_opts_str))
-    if ec != 0:
-      self.m_result = 'Failed to execute'
-      self.cleanup()
-      return
+    self.m_th = threading.Thread(target=self.waitForXterm)
+    self.m_th.start()
 
-  def cleanup(self):
-    pass
+  #
+  ## \brief Wait for xterm command to exit.
+  #
+  def waitForXterm(self):
+    args = shlex.split(self.m_xtermcmd);
+    self.m_pipe = subprocess.Popen(args)
+    ec = self.m_pipe.wait()
+    #print 'pipe exit', ec
+    if ec != 0:
+      self.m_result = 'Error: Failed to execute'
+    if self.m_opts['on_exit']:
+      self.m_opts['on_exit']()
+
+  #
+  ## \brief Destroy this Xterm widget.
+  #
+  def destroy(self):
+    #print 'Xterm destroy'
+    self.m_opts['on_exit'] = None   # disable any parent callback
+    # poll returns none if process is still running
+    if self.m_pipe is not None and self.m_pipe.poll() is None:
+      #print 'xterm kill'
+      self.m_pipe.kill()
+    Frame.destroy(self)
+
 
 # ------------------------------------------------------------------------------
 # Unit test
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
+
+  #TestCmd = "echo 'my test'; sleep 5"
+  #TestCmd = "gst-launch autovideosrc ! autovideosink"
+  TestCmd = "/prj/ros/groovy/src/hekateros/hekateros_control/scripts/hek_eecam"
+
+
   class UT(Frame):
     def __init__(self, master=None):
       Frame.__init__(self, master=root)
       self.master.title("Xterm Widget Unit Test")
 
-      self.wXterm = Xterm(master=self, auto_run=True)
+      self.wXterm = Xterm(master=self, auto_run=True, on_exit=self.destroy,
+                            xterm_cmd=TestCmd)
       self.wXterm.grid(row=0, column=0, padx=5, pady=5)
 
       self.wBttnQuit = Button(self)
@@ -239,10 +308,16 @@ if __name__ == "__main__":
       self.grid(row=0, column=0, padx=5, pady=5)
 
     def destroy(self):
+      #print 'UT destroy'
+      Frame.destroy(self)   # tkinter calls child destroy methods.
       self.quit()
+
+    def getResult(self):
+      return self.wXterm.m_result
 
   # run
   root = Tk()
   root.protocol('WM_DELETE_WINDOW', root.destroy)
   ut = UT(master=root)
   ut.mainloop()
+  print ut.getResult()
