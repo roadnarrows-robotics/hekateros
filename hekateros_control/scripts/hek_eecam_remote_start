@@ -6,23 +6,23 @@ export PATH=/prj/bin:/usr/local/bin:${PATH}; \
 hek_eecam_udp --host=${HOSTNAME} --port=4000 --res=vga --fps=15; \
 }"
 
-#ssh -f robot@hekblue "${rcmd}"
+ssh -f robot@hekblue "${rcmd}"
 
-rcmd="{ \
-trap "" SIGHUP; \
-export PATH=/prj/bin:/usr/local/bin:${PATH}; \
-gst-launch autovideosrc ! smokeenc ! udpsink host=pedxing port=4000; \
-}"
+#rcmd="{ \
+#trap "" SIGHUP; \
+#export PATH=/prj/bin:/usr/local/bin:${PATH}; \
+#gst-launch autovideosrc ! smokeenc ! udpsink host=pedxing port=4000; \
+#}"
 
-ssh -f rknight@pedxing "${rcmd}"
+#ssh -f rknight@pedxing "${rcmd}"
 
 echo "rcmd launched"
 sleep 3
 
 echo "Launching camera"
-#(trap "" SIGHUP; gst-launch udpsrc port=4000 ! smokedec ! autovideosink &)
+(trap "" SIGHUP; gst-launch udpsrc port=4000 ! smokedec ! autovideosink &)
 #(trap "" SIGHUP; gst-launch autovideosrc ! autovideosink &)
-(trap "" SIGHUP; gst-launch udpsrc port=4000 ! smokedec ! autovideosink && killall gst-launch-0.10 &)
+#(trap "" SIGHUP; gst-launch udpsrc port=4000 ! smokedec ! autovideosink && killall gst-launch-0.10 &)
 
 
 #xterm &
