@@ -78,8 +78,9 @@ from hekateros_control.PasswordDlg import PasswordDlg
 from hekateros_control.ROSInfoDlg import ROSInfoDlg
 from hekateros_control.PanelConfig import *
 from hekateros_control.XboxConfig import *
-from hekateros_control.EECamConfig import *
+from hekateros_control.EECam import *
 from hekateros_control.ACCalibrate import *
+from hekateros_control.Xterm import Xterm
 
 
 # ------------------------------------------------------------------------------
@@ -303,8 +304,8 @@ class window(Frame):
 
     # camera menu
     self.m_wMenuCam = Menu(self.m_wMenuBar, tearoff=0)
-    self.m_wMenuCam.add_command(label="Start...", command=self.notimpl)
-    self.m_wMenuCam.add_command(label="Stop", command=self.notimpl)
+    self.m_wMenuCam.add_command(label="Start...", command=self.startEECam)
+    self.m_wMenuCam.add_command(label="Stop", command=self.stopEECam)
     self.m_wMenuBar.add_cascade(label="Camera", menu=self.m_wMenuCam)
 
     # applications menu
@@ -1475,6 +1476,19 @@ The arm may fall if not in a stable position.""")
       self.showInfo("Configuration saved to %s." % (dlg.m_filename))
     else:
       self.showInfo("Canceled.")
+  
+  #
+  ## \brief Start end effector camera.
+  #
+  def startEECam(self):
+    # RDK EECam start dialog
+    cmd = "(trap '' SIGHUP; hek_eecam_start --res=720p --fps=30 >o 2>&1 &)"
+  
+  #
+  ## \brief Stop end effector camera.
+  #
+  def stopEECam(self):
+    pass
   
   #
   ## \brief Show ROS infot dialog callback.

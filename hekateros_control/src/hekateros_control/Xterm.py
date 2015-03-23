@@ -246,6 +246,7 @@ class Xterm(Frame):
     if self.m_xopts['cmd']:
       self.m_xterm_opts_str += " -e \"%s\"" % (self.m_xopts['cmd'])
     self.m_xtermcmd = 'xterm -into %d %s' % (self.m_wId, self.m_xterm_opts_str)
+    #print self.m_xtermcmd
 
   #
   ## \brief Execute xterm command.
@@ -288,8 +289,7 @@ if __name__ == "__main__":
 
   #TestCmd = "echo 'my test'; sleep 5"
   #TestCmd = "gst-launch autovideosrc ! autovideosink"
-  TestCmd = "/prj/ros/groovy/src/hekateros/hekateros_control/scripts/hek_eecam"
-
+  TestCmd = "(trap '' SIGHUP; hek_eecam_start --res=720p --fps=30 >o 2>&1 &)"
 
   class UT(Frame):
     def __init__(self, master=None):
