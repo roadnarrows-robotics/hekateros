@@ -6,14 +6,15 @@
 #
 # ROS Node:  hek_*
 #
-# File:      EECamConfig.py
+# File:      EECam.py
 #
 ## \file 
 ##
 ## $LastChangedDate$
 ## $Rev$
 ##
-## \brief Hekateros End Effector camera configuration dialog and XML classes.
+## \brief Hekateros End Effector camera configuration, run, and stop dialogs
+## and XML classes.
 ##
 ## \author Robin Knight (robin.knight@roadnarrows.com)
 ##  
@@ -40,6 +41,7 @@ import tkFont
 import xml.parsers.expat as expat
 
 from hekateros_control.Utils import *
+from hekateros_control.Xterm import Xterm
 
 # ------------------------------------------------------------------------------
 # Class EECamConfigDlg
@@ -236,6 +238,7 @@ class EECamConfigDlg(Toplevel):
     lframe.grid(row=row, column=1, padx=5, pady=5, sticky=N)
 
     radiofps = [
+        ("8",     "8"),
         ("15",    "15"),
         ("30",    "30"),
         ("Other", "other")
@@ -563,3 +566,161 @@ class EECamConfigXml():
       return float(data)
     except (TypeError, ValueError):
       return 0.0
+
+
+# ------------------------------------------------------------------------------
+# Class EECamStartDlg
+# ------------------------------------------------------------------------------
+
+class EECamStartDlg(Toplevel):
+  #
+  ## \brief Constructor.
+  ##
+  ## \param cnf     Configuration dictionary.
+  ## \param kw      Keyword options.
+  #
+  def __init__(self, master=None, cnf={}, **kw):
+    # initialize dialog data
+    kw = self.initData(kw)
+
+    Toplevel.__init__(self, master=master, cnf=cnf, **kw)
+    self.title(self.m_title)
+
+    # create and show widgets
+    self.createWidgets()
+
+    # allows the enter button to fire either button's action
+    self.m_bttnCancel.bind('<KeyPress-Return>', func=self.close)
+
+    # allows us to customize what happens when the close button is pressed
+    self.protocol("WM_DELETE_WINDOW", self.close)
+
+    #
+    # Modal diagle settings.
+    #
+    # set the focus on dialog window (needed on Windows)
+    self.focus_set()
+
+    # make sure events only go to our dialog
+    self.grab_set()
+
+    # make sure dialog stays on top of its parent window (if needed)
+    self.transient(master)
+
+    # display the window and wait for it to close
+    self.wait_window(self)
+
+  #
+  ## \brief Initialize class state data.
+  ##
+  ## \param kw      Keyword options.
+  ##
+  ## \return Modified keywords sans this specific class.
+  ##
+  def initData(self, kw):
+    self.m_icons          = {}    # must keep loaded icons referenced
+    imageLoader = ImageLoader(py_pkg='hekateros_control.images')
+    if kw.has_key('title'):
+      self.m_title = kw['title']
+      del kw['title']
+    else:
+      self.m_title = "Start End Effector Camera"
+    if kw.has_key('image'):
+      self.m_icons['image'] = imageLoader.load(kw['image'])
+      del kw['image']
+    else:
+      self.m_icons['image'] = None
+    #if self.m_icons['image'] is None:
+    #  self.m_icons['image'] = imageLoader.load('icons/icon_warning.png')
+    if kw.has_key('src'):
+      self.m_srcHek = kw['src']
+      del kw['src']
+    else:
+      self.m_srcHek = 'hekateros'
+    if kw.has_key('config'):
+      self.m_config = kw['config'].copy()
+      del kw['config']
+    else:
+      self.m_config = EECamConfigDlg.ConfigDft.copy()
+    if kw.has_key('cmd'):
+      self.m_cmd = kw['cmd']
+      del kw['cmd']
+    else:
+      self.m_cmd = "\
+trap '' SIGHUP; \
+hek_eecam_start --src={0} --port={1} --res={2} --fps={3}".format(
+        self.m_srcHek, self.m_config['port'], self.m_config['resolution'],
+        self.m_config['fps'])
+    self.m_result = False
+    return kw
+
+  #
+  ## \brief Create gui widgets with supporting data and show.
+  #
+  def createWidgets(self):
+    frame = Frame(self)
+    frame.grid(row=0, column=0)
+
+    row = 0
+
+    # camera image 
+    w = Label(frame)
+    if self.m_icons['image'] is not None:
+      w = Label(frame)
+      w['image']  = self.m_icons['image']
+    w['anchor'] = CENTER
+    w.grid(row=row, column=0, sticky=W+N+S)
+
+    # top heading
+    w = Label(frame)
+    helv = tkFont.Font(family="Helvetica",size=24,weight="bold")
+    w['font']   = helv
+    w['text']   = 'End Effector Camera Start'
+    w['anchor'] = CENTER
+    w.grid(row=row, column=1, sticky=E+W)
+
+    row += 1
+
+    w = Label(frame)
+    w['text'] = "Remote UDP Source: {0}:{1}   Camera: {2} resolution at {3} frames/second".format(
+        self.m_srcHek, self.m_config['port'], self.m_config['resolution'],
+        self.m_config['fps'])
+    w['justify'] = LEFT
+    w.grid(row=row, column=0, columnspan=2, padx=10, pady=5, sticky=W)
+
+    row += 1
+
+    # xterm frame
+    self.m_wXterm = Xterm(master=frame, on_exit=self.destroy,
+                            xterm_cmd=self.m_cmd)
+    self.m_wXterm.grid(row=row, column=0, columnspan=2, padx=5, pady=5)
+
+    row += 1
+
+    wframe = Frame(frame)
+    wframe.grid(row=row, column=0, columnspan=2)
+
+    # cancel button
+    w = Button(wframe, width=10, text='Cancel', command=self.close)
+    w.grid(row=0, column=0, padx=2, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnCancel = w
+
+    # start button
+    w = Button(wframe, width=10, text='Start', command=self.ok)
+    w.grid(row=0, column=1, padx=2, pady=5)
+    w['anchor']  = CENTER
+    self.m_bttnContinue = w
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def ok(self):
+    self.m_wXterm.execute()
+    self.m_result = True
+
+  #
+  ## \brief Destroy window callback.
+  #
+  def close(self):
+    self.destroy()

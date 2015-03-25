@@ -80,7 +80,6 @@ from hekateros_control.PanelConfig import *
 from hekateros_control.XboxConfig import *
 from hekateros_control.EECam import *
 from hekateros_control.ACCalibrate import *
-from hekateros_control.Xterm import Xterm
 
 
 # ------------------------------------------------------------------------------
@@ -173,6 +172,7 @@ class window(Frame):
   ## \return Modified keywords sans this specific class.
   #
   def initData(self, kw):
+    self.m_hekName        = "hekateros"
     self.m_bHasJointPanel = False # joint state panel [not] created 
                                   # application configuration
     self.m_cfgPanel       = PanelConfigDlg.ConfigDft.copy() # panel config
@@ -304,8 +304,10 @@ class window(Frame):
 
     # camera menu
     self.m_wMenuCam = Menu(self.m_wMenuBar, tearoff=0)
-    self.m_wMenuCam.add_command(label="Start...", command=self.startEECam)
-    self.m_wMenuCam.add_command(label="Stop", command=self.stopEECam)
+    self.m_wMenuCam.add_command(label="Start EE Camera...",
+        command=self.startEECam)
+    self.m_wMenuCam.add_command(label="Stop EE Camera...",
+        command=self.stopEECam)
     self.m_wMenuBar.add_cascade(label="Camera", menu=self.m_wMenuCam)
 
     # applications menu
@@ -1481,14 +1483,13 @@ The arm may fall if not in a stable position.""")
   ## \brief Start end effector camera.
   #
   def startEECam(self):
-    # RDK EECam start dialog
-    cmd = "(trap '' SIGHUP; hek_eecam_start --res=720p --fps=30 >o 2>&1 &)"
+    dlg = EECamStartDlg(master=self, src=self.m_hekName, config=self.m_cfgEECam)
   
   #
   ## \brief Stop end effector camera.
   #
   def stopEECam(self):
-    pass
+    pass # RDK
   
   #
   ## \brief Show ROS infot dialog callback.
@@ -2036,10 +2037,11 @@ The arm may fall if not in a stable position.""")
   ## been fully initialized.
   #
   def finalInits(self):
-    hekName   = self.getHekaterosName()
+    self.m_hekName   = self.getHekaterosName()
     rosMaster = whichROSMaster()
-    self.master.title("Hekateros Control Panel - %s" % (hekName))
-    self.m_wTopHeading['text'] = "Hekateros Control Panel - %s" % (hekName)
+    self.master.title("Hekateros Control Panel - %s" % (self.m_hekName))
+    self.m_wTopHeading['text'] = "Hekateros Control Panel - %s" % \
+        (self.m_hekName)
 
 
 # ------------------------------------------------------------------------------
