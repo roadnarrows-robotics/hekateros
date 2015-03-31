@@ -1489,7 +1489,7 @@ The arm may fall if not in a stable position.""")
   ## \brief Stop end effector camera.
   #
   def stopEECam(self):
-    pass # RDK
+    dlg = EECamStopDlg(master=self, src=self.m_hekName)
   
   #
   ## \brief Show ROS infot dialog callback.
