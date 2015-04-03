@@ -327,15 +327,9 @@ class EECamConfigDlg(Toplevel):
       if not val:
         self.m_errmsg = "Resolution: No video resolution specified"
         return False
-      wxh = val.split('x')
-      if len(wxh) != 2:
-        self.m_errmsg = "Resolution: %s: Bad format" % (val)
-        return False
-      try:
-        w = int(wxh[0])
-        h = int(wxh[1])
-      except ValueError:
-        self.m_errmsg = "Resolution: %s: Bad format" % (val)
+      width, height, result = EECamConfigDlg.wxh(val)
+      if result != 'ok':
+        self.m_errmsg = result
         return False
     self.m_config['resolution'] = val
 
@@ -389,6 +383,40 @@ class EECamConfigDlg(Toplevel):
     self.m_varResOther.set("")
     self.m_varFps.set(EECamConfigDlg.ConfigDft['fps'])
     self.m_varFpsOther.set("")
+
+  #
+  ## \brief Get the width and height in pixels of the specified resolution.
+  ##
+  ## \parm res    Resolution: qvga vga 720p 1080p WxH
+  ##
+  ## \return Returns (w, h, result) tuple, where w and h are integers and 
+  ## result is either the string 'ok' or an error message.
+  #
+  @staticmethod
+  def wxh(res):
+    if res == "qvga":
+      return (320, 240, 'ok')
+    elif res == "vga":
+      return (640, 480, 'ok')
+    elif res == "720p":
+      return (1280, 720, 'ok')
+    elif res == "1080p":
+      return (1920, 1080, 'ok')
+    else:
+      wxh_ = res.split('x')
+      if len(wxh_) != 2:
+        result = "Resolution: %s: Not in WxH format" % (res)
+        return (0, 0, result)
+      elif wxh_[1] == '':
+        result = "Resolution: %s: No Height specified" % (res)
+        return (0, 0, result)
+      try:
+        w = int(wxh_[0])
+        h = int(wxh_[1])
+        return (w, h, 'ok')
+      except ValueError:
+        result = "Resolution: %s: Width and/or Height not integers" % (res)
+        return (0, 0, result)
 
   #
   ## \brief Save configuration callback.
@@ -630,8 +658,8 @@ class EECamStartDlg(Toplevel):
       del kw['image']
     else:
       self.m_icons['image'] = None
-    #if self.m_icons['image'] is None:
-    #  self.m_icons['image'] = imageLoader.load('icons/icon_warning.png')
+    if self.m_icons['image'] is None:
+      self.m_icons['image'] = imageLoader.load('icons/icon_camera.png')
     if kw.has_key('src'):
       self.m_srcHek = kw['src']
       del kw['src']
@@ -669,24 +697,28 @@ hek_eecam_start --src={0} --port={1} --res={2} --fps={3}".format(
       w = Label(frame)
       w['image']  = self.m_icons['image']
     w['anchor'] = CENTER
-    w.grid(row=row, column=0, sticky=W+N+S)
+    w.grid(row=row, column=0, padx=15, sticky=W+N+S)
 
     # top heading
     w = Label(frame)
     helv = tkFont.Font(family="Helvetica",size=24,weight="bold")
     w['font']   = helv
     w['text']   = 'Start End Effector Camera'
-    w['anchor'] = CENTER
-    w.grid(row=row, column=1, sticky=E+W)
+    w['anchor'] = W
+    w.grid(row=row, column=1, sticky=W)
 
     row += 1
 
+    width, height, result = EECamConfigDlg.wxh(self.m_config['resolution'])
     w = Label(frame)
-    w['text'] = "Remote UDP Source: {0}:{1}   Camera: {2} resolution at {3} frames/second".format(
-        self.m_srcHek, self.m_config['port'], self.m_config['resolution'],
-        self.m_config['fps'])
+    helv12 = tkFont.Font(family="Helvetica",size=12,weight="bold")
+    w['font'] = helv12
+    w['text'] = "Remote UDP Source: {0}:{1}   Camera: {2}x{3} resolution at " \
+                "{4} frames/second".format(
+        self.m_srcHek, self.m_config['port'],
+        width, height, self.m_config['fps'])
     w['justify'] = LEFT
-    w.grid(row=row, column=0, columnspan=2, padx=10, pady=5, sticky=W)
+    w.grid(row=row, column=0, columnspan=2, padx=15, pady=5, sticky=W)
 
     row += 1
 
@@ -784,8 +816,8 @@ class EECamStopDlg(Toplevel):
       del kw['image']
     else:
       self.m_icons['image'] = None
-    #if self.m_icons['image'] is None:
-    #  self.m_icons['image'] = imageLoader.load('icons/icon_warning.png')
+    if self.m_icons['image'] is None:
+      self.m_icons['image'] = imageLoader.load('icons/icon_camera.png')
     if kw.has_key('src'):
       self.m_srcHek = kw['src']
       del kw['src']
@@ -816,22 +848,24 @@ hek_eecam_stop --src={0}".format(self.m_srcHek)
       w = Label(frame)
       w['image']  = self.m_icons['image']
     w['anchor'] = CENTER
-    w.grid(row=row, column=0, sticky=W+N+S)
+    w.grid(row=row, column=0, padx=15, sticky=W+N+S)
 
     # top heading
     w = Label(frame)
     helv = tkFont.Font(family="Helvetica",size=24,weight="bold")
     w['font']   = helv
     w['text']   = 'Stop End Effector Camera'
-    w['anchor'] = CENTER
-    w.grid(row=row, column=1, sticky=E+W)
+    w['anchor'] = W
+    w.grid(row=row, column=1, sticky=W)
 
     row += 1
 
     w = Label(frame)
+    helv12 = tkFont.Font(family="Helvetica",size=12,weight="bold")
     w['text'] = "Hekateros: {0}".format(self.m_srcHek)
+    w['font'] = helv12
     w['justify'] = LEFT
-    w.grid(row=row, column=0, columnspan=2, padx=10, pady=5, sticky=W)
+    w.grid(row=row, column=0, columnspan=2, padx=15, pady=5, sticky=W)
 
     row += 1
 
