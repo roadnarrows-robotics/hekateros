@@ -659,7 +659,7 @@ class EECamStartDlg(Toplevel):
     else:
       self.m_icons['image'] = None
     if self.m_icons['image'] is None:
-      self.m_icons['image'] = imageLoader.load('icons/icon_camera.png')
+      self.m_icons['image'] = imageLoader.load('icons/icon_video.png')
     if kw.has_key('src'):
       self.m_srcHek = kw['src']
       del kw['src']
@@ -817,7 +817,7 @@ class EECamStopDlg(Toplevel):
     else:
       self.m_icons['image'] = None
     if self.m_icons['image'] is None:
-      self.m_icons['image'] = imageLoader.load('icons/icon_camera.png')
+      self.m_icons['image'] = imageLoader.load('icons/icon_video.png')
     if kw.has_key('src'):
       self.m_srcHek = kw['src']
       del kw['src']
