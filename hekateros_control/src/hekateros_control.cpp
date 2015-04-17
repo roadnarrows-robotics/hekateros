@@ -19,7 +19,7 @@
  * \author Robin Knight (robin.knight@roadnarrows.com)
  *
  * \par Copyright:
- * (C) 2013-2014  RoadNarrows
+ * (C) 2013-2015  RoadNarrows
  * (http://www.roadnarrows.com)
  * \n All Rights Reserved
  */
@@ -160,24 +160,15 @@ int HekaterosControl::configure(const string &strCfgFile)
   HekXmlCfg xml;  // hekateros xml instance
   int       rc;   // return code
 
-  if( (rc = xml.loadFile(strCfgFile)) < 0 )
+  if( (rc = xml.load(*m_robot.getHekDesc(), HekSysCfgPath, strCfgFile)) < 0 )
   {
     ROS_ERROR("Loading XML file '%s' failed.", strCfgFile.c_str());
   }
 
-  else if( (rc = xml.setHekDescFromDOM(*m_robot.getHekDesc())) < 0 )
-  {
-    ROS_ERROR("Setting robot description failed.");
-  }
-
-  else if( (rc = m_robot.getHekDesc()->markAsDescribed()) < 0 )
-  {
-    ROS_ERROR("Failed to finalize descriptions.");
-  }
-
   else
   {
-    ROS_INFO("Hekateros description loaded:\n\t %s",
+    ROS_INFO("Hekateros description loaded:\n\t %s\n\t %s",
+       xml.getFileName().c_str(),
        m_robot.getHekDesc()->getFullProdBrief().c_str());
     rc = HEK_OK;
   }
