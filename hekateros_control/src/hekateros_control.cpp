@@ -165,6 +165,11 @@ int HekaterosControl::configure(const string &strCfgFile)
     ROS_ERROR("Loading XML file '%s' failed.", strCfgFile.c_str());
   }
 
+  else if( (rc = m_robot.getHekDesc()->markAsDescribed()) < 0 )
+  {
+    ROS_ERROR("Failed to finalize descriptions.");
+  }
+
   else
   {
     ROS_INFO("Hekateros description loaded:\n\t %s\n\t %s",
