@@ -260,7 +260,10 @@ class Xterm(Frame):
   #
   def waitForXterm(self):
     args = shlex.split(self.m_xtermcmd);
-    self.m_pipe = subprocess.Popen(args)
+    try:
+      self.m_pipe = subprocess.Popen(args)
+    except AttributeError:
+      pass
     ec = self.m_pipe.wait()
     #print 'pipe exit', ec
     if ec != 0:

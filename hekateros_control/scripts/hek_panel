@@ -1128,7 +1128,7 @@ Make sure the workspace is clear of obstructions.""")
 
       # start calibration
       if not self.m_calibState['ac'].exec_calib(self.calibrate_monitor,
-                                timeout=1,
+                                timeout=10.0,
                                 force_recalib=self.m_cfgPanel['force_recalib']):
         self.showError("Could not execute calibration. " \
                        "Is the hekateros_control node running?")
@@ -1209,7 +1209,7 @@ Make sure the workspace is clear of obstructions.""")
   #
   def gotoParkedPos(self):
     try:
-      rospy.wait_for_service("hekateros_control/goto_parked", timeout=1)
+      rospy.wait_for_service("hekateros_control/goto_parked", timeout=5)
     except rospy.ROSException, e:
       self.showError('Goto parked position: ' + e.message + '.')
       return
@@ -1227,7 +1227,7 @@ Make sure the workspace is clear of obstructions.""")
   #
   def gotoBalancedPos(self):
     try:
-      rospy.wait_for_service("hekateros_control/goto_balanced", timeout=1)
+      rospy.wait_for_service("hekateros_control/goto_balanced", timeout=5)
     except rospy.ROSException, e:
       self.showError('Goto balanced position: ' + e.message + '.')
       return
@@ -1246,7 +1246,7 @@ Make sure the workspace is clear of obstructions.""")
   #
   def gotoZeroPt(self):
     try:
-      rospy.wait_for_service("hekateros_control/goto_zero", timeout=1)
+      rospy.wait_for_service("hekateros_control/goto_zero", timeout=5)
     except rospy.ROSException, e:
       self.showError('Goto zero point: ' + e.message + '.')
       return
@@ -1264,7 +1264,7 @@ Make sure the workspace is clear of obstructions.""")
   #
   def openGripper(self):
     try:
-      rospy.wait_for_service("hekateros_control/open_gripper", timeout=1)
+      rospy.wait_for_service("hekateros_control/open_gripper", timeout=5)
     except rospy.ROSException, e:
       self.showError('Open gripper: ' + e.message + '.')
       return
@@ -1283,7 +1283,7 @@ Make sure the workspace is clear of obstructions.""")
   #
   def closeGripper(self):
     try:
-      rospy.wait_for_service("hekateros_control/close_gripper", timeout=1)
+      rospy.wait_for_service("hekateros_control/close_gripper", timeout=5)
     except rospy.ROSException, e:
       self.showError('Close gripper: ' + e.message + '.')
       return
@@ -1331,7 +1331,7 @@ Make sure the workspace is clear of obstructions.""")
     if self.m_robotStatus['estop_led']['raw'] == TriState.FALSE:
       self.showResetEStop()
       try:
-        rospy.wait_for_service("hekateros_control/estop", timeout=1)
+        rospy.wait_for_service("hekateros_control/estop", timeout=5)
       except rospy.ROSException, e:
         self.showError('Emergency stop: ' + e.message + '.')
         self.showEStop()
@@ -1348,7 +1348,7 @@ Make sure the workspace is clear of obstructions.""")
     else:
       self.showEStop()
       try:
-        rospy.wait_for_service("hekateros_control/reset_estop", timeout=1)
+        rospy.wait_for_service("hekateros_control/reset_estop", timeout=5)
       except rospy.ROSException, e:
         self.showError('Reset emergency stop: ' + e.message + '.')
         self.showResetEStop()
@@ -1386,7 +1386,7 @@ Make sure the workspace is clear of obstructions.""")
   #
   def freezeArm(self):
     try:
-      rospy.wait_for_service("hekateros_control/freeze", timeout=1)
+      rospy.wait_for_service("hekateros_control/freeze", timeout=5)
     except rospy.ROSException, e:
       self.showError('Freeze arm: ' + e.message + '.')
       return
@@ -1411,7 +1411,7 @@ The arm may fall if not in a stable position.""")
       if not dlg.m_result:
         return
     try:
-      rospy.wait_for_service("hekateros_control/release", timeout=1)
+      rospy.wait_for_service("hekateros_control/release", timeout=5)
     except rospy.ROSException, e:
       self.showError('Release arm: ' + e.message + '.')
       return
@@ -1428,7 +1428,7 @@ The arm may fall if not in a stable position.""")
   #
   def clearAlarms(self):
     try:
-      rospy.wait_for_service("hekateros_control/clear_alarms", timeout=1)
+      rospy.wait_for_service("hekateros_control/clear_alarms", timeout=5)
     except rospy.ROSException, e:
       self.showError('Clear alarms: ' + e.message + '.')
       return
@@ -1512,7 +1512,7 @@ The arm may fall if not in a stable position.""")
   def getProductInfo(self):
     prodInfo = None
     try:
-      rospy.wait_for_service("hekateros_control/get_product_info", timeout=1)
+      rospy.wait_for_service("hekateros_control/get_product_info", timeout=5)
     except rospy.ROSException, e:
       self.showError('Get product info: ' + e.message + '.')
     else:
@@ -1534,7 +1534,7 @@ The arm may fall if not in a stable position.""")
   def getHekaterosName(self):
     name = "hekateros"
     try:
-      rospy.wait_for_service("hekateros_control/get_product_info", timeout=1)
+      rospy.wait_for_service("hekateros_control/get_product_info", timeout=5)
     except rospy.ROSException, e:
       rospy.logerr("Get product info: %s." % (e.message))
     else:
