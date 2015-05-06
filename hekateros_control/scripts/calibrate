@@ -75,7 +75,7 @@ class CalibClient:
     self.m_state  = CalibStateRunning
 
     # start calibration
-    if not self.m_ac.exec_calib(self.monitor, timeout=1, force_recalib=True):
+    if not self.m_ac.exec_calib(self.monitor, timeout=10.0, force_recalib=True):
       rospy.logerr("Could not execute calibration. " \
                      "Is the hekateros_control node running?")
       self.cancel()
