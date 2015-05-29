@@ -544,7 +544,7 @@ bool HekaterosControl::isDescLoaded(IsDescLoaded::Request  &req,
 
   ROS_DEBUG("%s", svc);
 
-  rsp.is_desc_loaded = m_robot.isCalibrated();
+  rsp.is_desc_loaded = m_robot.isDescribed();
 
   if( !rsp.is_desc_loaded )
   {
