@@ -16,8 +16,8 @@ find_package(catkin
 
 find_package(Boost REQUIRED COMPONENTS system)
 
-set(rnr_DIR /usr/local/lib/cmake/rnr)
-find_package(rnr
+set(rnr-hekateros_DIR /usr/local/lib/cmake/rnr)
+find_package(rnr-hekateros
   REQUIRED
 )
 
@@ -93,18 +93,18 @@ add_executable(hek_teleop
 
 include_directories(
   include 
-  ${rnr_INCLUDE_DIRS}
+  ${rnr-hekateros_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
 
 target_link_libraries(hekateros_control 
-  ${rnr_LIBRARIES}
+  ${rnr-hekateros_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
 target_link_libraries(hek_teleop 
-  ${rnr_LIBRARIES}
+  ${rnr-hekateros_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
