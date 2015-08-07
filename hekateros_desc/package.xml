@@ -1,17 +1,16 @@
 <?xml version="1.0"?>
 <package>
   <name>hekateros_desc</name>
-  <version>0.0.1</version>
-  <description>Provides urdf descriptions of Hekateros.</description>
+  <version>1.3.0</version>
+  <description>Provides urdf descriptions of RoadNarrows Hekateros.</description>
 
-  <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
-  <license>BSD</license>
+  <maintainer email="robin.knight@roadnarrows.com">Robin Knight</maintainer>
+  <license>MIT</license>
 
-  <url type="website">http://roadnarrows.com/r-and-d/Hekateros</url>
   <url type="website">http://github.com/roadnarrows-robotics/hekateros</url>
+  <url type="website">http://roadnarrows.com</url>
 
-  <author email="robin.knight@roadnarrows.com">robin knight</author>
-  <author email="daniel@roadnarrows.com">daniel packard</author>
+  <author email="robin.knight@roadnarrows.com">Robin Knight</author>
 
   <buildtool_depend>catkin</buildtool_depend>
 </package>
