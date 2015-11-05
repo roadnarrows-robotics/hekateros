@@ -2163,7 +2163,8 @@ Options and arguments:
     # publish trajectory to hekateros controller
     self.m_win.m_joint_cmd_pub = rospy.Publisher(
         "hekateros_control/joint_command",
-        trajectory_msgs.msg.JointTrajectory)
+        trajectory_msgs.msg.JointTrajectory,
+        queue_size=2)
 
     self.m_win.showInfo("Hekateros interface initialized.")
 

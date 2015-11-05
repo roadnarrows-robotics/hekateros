@@ -1,4 +1,4 @@
-## All images in pan_tilt_control package.
+## All images in kuon_control package.
 __all__ = [
    "icon_alarm.png",
    "icon_calib_cancel.png",
