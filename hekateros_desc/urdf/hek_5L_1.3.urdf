@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
-<robot name="hek_5L_1.0">
+<robot name="hek_5L_1.3">
 
   <link name="base_fixed">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hekateros_desc/stl/hek_5L_1.0/base_fixed.stl" 
+        <mesh filename="package://hekateros_desc/stl/hek_5L_1.3/base_fixed.stl" 
               scale="0.001 0.001 0.001"
         />
       </geometry>
@@ -19,7 +19,7 @@
     <visual>
       <origin xyz="0.03 -0.075 0.01" rpy="0 3.14 -1.575"/>
       <geometry>
-        <mesh filename="package://hekateros_desc/stl/hek_5L_1.0/base.stl" 
+        <mesh filename="package://hekateros_desc/stl/hek_5L_1.3/base.stl" 
               scale="0.001 0.001 0.001"
         />
       </geometry>
@@ -33,7 +33,7 @@
     <visual>
       <origin xyz="0.0 0.02 0.18" rpy="1.5705 1.5705 -1.5705"/>
       <geometry>
-        <mesh filename="package://hekateros_desc/stl/hek_5L_1.0/upper_arm.stl" 
+        <mesh filename="package://hekateros_desc/stl/hek_5L_1.3/upper_arm.stl" 
               scale="0.001 0.001 0.001"
         />
       </geometry>
@@ -47,7 +47,7 @@
     <visual>
       <origin xyz="0. 0.0 0.03" rpy="03.1415 0 1.5705"/>
       <geometry>
-        <mesh filename="package://hekateros_desc/stl/hek_5L_1.0/forearm.stl" 
+        <mesh filename="package://hekateros_desc/stl/hek_5L_1.3/forearm.stl" 
               scale="0.001 0.001 0.001"
         />
       </geometry>
@@ -61,7 +61,7 @@
     <visual>
       <origin xyz="0.0 0 -0.017" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hekateros_desc/stl/hek_5L_1.0/wrist.stl" 
+        <mesh filename="package://hekateros_desc/stl/hek_5L_1.3/wrist.stl" 
               scale="0.001 0.001 0.001"
         />
       </geometry>
@@ -75,7 +75,7 @@
     <visual>
       <origin xyz="0 0.06 0" rpy="3.14159 0 0"/>
       <geometry>
-        <mesh filename="package://hekateros_desc/stl/hek_5L_1.0/tool_zero.stl" 
+        <mesh filename="package://hekateros_desc/stl/hek_5L_1.3/tool_zero.stl" 
               scale="0.001 0.001 0.001"
         />
       </geometry>
@@ -193,7 +193,6 @@
     <origin xyz="0.0 0.0 0.03" rpy="0 -1.575 0"/>
     <parent link="gear_assembly"/>
     <child link="finger_L"/>
-
     <limit effort="30" velocity="1.0" lower="-1.57" upper="1.57" />
     <mimic joint="grip"/>
   </joint>
