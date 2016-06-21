@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>hekateros</name>
-  <version>0.0.1</version>
+  <version>2.1.0</version>
 
   <description>
     The Hekateros Robotic Manipulator ROS metapackage - provides complete 
