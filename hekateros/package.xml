@@ -4,17 +4,17 @@
   <version>2.1.0</version>
 
   <description>
-    The Hekateros Robotic Manipulator ROS metapackage - provides complete 
-    hekateros software bundle.
+    The RoadNarrows Hekateros Robotic Manipulator ROS metapackage.
+    This metapackage provides core Hekateros ROS software packages.
   </description>
 
-  <author email="robin.knight@roadnarrows.com">robin knight</author>
-  <author email="daniel@roadnarrows.com">daniel packard</author>
-  <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
+  <author email="robin.knight@roadnarrows.com">Robin Knight</author>
+  <author email="daniel@roadnarrows.com">Daniel Packard</author>
+  <maintainer email="robin.knight@roadnarrows.com">Robin Knight</maintainer>
   <license>MIT</license>
 
-  <url type="website">http://roadnarrows.com/Hekateros</url>
-  <url type="website">http://roadnarrows.com/r-and-d/Hekateros</url>
+  <url type="website">http://roadnarrows.com</url>
+  <url type="website">http://github.com/roadnarrows-robotics/hekateros</url>
 
   <buildtool_depend>catkin</buildtool_depend>
 

@@ -2,15 +2,15 @@
 <package>
   <name>hekateros_launch</name>
   <version>0.0.1</version>
-  <description>Provides hekateros ROS launch files.</description>
+  <description>Provides Hekateros ROS launch files.</description>
 
-  <maintainer email="daniel@roadnarrows.com">daniel packard</maintainer>
-  <author email="robin.knight@roadnarrows.com">robin knight</author>
+  <author email="robin.knight@roadnarrows.com">Robin Knight</author>
   <author email="daniel@roadnarrows.com">daniel packard</author>
+  <maintainer email="robin.knight@roadnarrows.com">Robin Knight</maintainer>
 
-  <license>BSD</license>
+  <license>MIT</license>
 
-  <url type="website">http://roadnarrows.com/r-and-d/Hekateros</url>
+  <url type="website">http://roadnarrows.com</url>
   <url type="website">http://github.com/roadnarrows-robotics/hekateros</url>
 
   <buildtool_depend>catkin</buildtool_depend>
