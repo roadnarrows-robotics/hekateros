@@ -228,6 +228,37 @@ HekTeleop::HekTeleop(ros::NodeHandle &nh, double hz) :
   m_bHasFullComm      = false;
   m_bIsCalibrating    = false;
 
+  // C++11 or greater
+#if __cplusplus >= 201103
+  map<int, int> m_buttonState = {
+      {ButtonIdGotoBalPos,    0},
+      {ButtonIdEStop,         0},
+      {ButtonIdGotoParkedPos, 0},
+      {ButtonIdGotoZeroPt,    0},
+
+      {ButtonIdPause,         0},
+      {ButtonIdToggleMode,    0},
+      {ButtonIdStart,         0},
+
+      {ButtonIdPrevJoint,     0},
+      {ButtonIdNextJoint,     0},
+
+      {ButtonIdFineTune1,     0},
+      {ButtonIdFineTune1,     0},
+
+      {ButtonIdMoveJoints,    0},
+      {ButtonIdRotBase,       0},
+      {ButtonIdPitchWrist,    0},
+
+      {ButtonIdRotWristCw,    0},
+      {ButtonIdRotWristCcw,   0},
+
+      {ButtonIdOpenGripper,   0},
+      {ButtonIdCloseGripper,  0}
+  };
+
+  // C++98
+#else
   m_buttonState = map_list_of
       (ButtonIdGotoBalPos,    0)
       (ButtonIdEStop,         0)
@@ -253,6 +284,7 @@ HekTeleop::HekTeleop(ros::NodeHandle &nh, double hz) :
 
       (ButtonIdOpenGripper,   0)
       (ButtonIdCloseGripper,  0);
+#endif
 
   m_rumbleLeft    = 0;
   m_rumbleRight   = 0;

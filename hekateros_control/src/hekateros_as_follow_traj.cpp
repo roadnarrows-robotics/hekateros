@@ -19,7 +19,7 @@
  * \author Daniel Packard (daniel@roadnarrows.com)
  *
  * \par Copyright:
- * (C) 2013-2014  RoadNarrows
+ * (C) 2013-2018  RoadNarrows
  * (http://www.roadnarrows.com)
  * \n All Rights Reserved
  */
@@ -123,6 +123,8 @@ static const char *NormName(HekNorm eNorm)
       return "?";
   }
 }
+
+const double ASFollowTrajectory::MaxSecs = 10.0;
 
 void ASFollowTrajectory::execute_cb(const FollowJointTrajectoryGoalConstPtr&
                                                                           goal)
