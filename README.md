@@ -13,6 +13,6 @@ default Graboid Gripper.
 To get up and running with a new Hekateros, check out the documentation in the Hekateros ROS Wiki:
 * [**Hekateros ROS Wiki - Home**](https://github.com/roadnarrows-robotics/hekateros/wiki)
 
-## Store
-Visit the RoadNarrows store to purchase your very own!
-* [**RoadNarrows Store**](https://roadnarrows.com/products/robotic-arm-hekateros-5-dof)
+## Product
+Hekateros has been discontinued so unfortunately they are no longer available for sale.
+
